@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adobe Stock Metadata Generator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a25;--border:#2a2a3a;--text:#e8e8f0;--text2:#8888a0;--accent:#6c5ce7;--accent2:#a29bfe;--green:#00b894;--red:#e17055;--yellow:#fdcb6e;--radius:12px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text)}
+::selection{background:var(--accent);color:#fff}
+.app{max-width:960px;margin:0 auto;padding:20px}
+h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;padding:16px 0 2px}
+.sub{text-align:center;color:var(--text2);font-size:11px;margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:8px}
+label{display:block;font-size:11px;color:var(--text2);margin-bottom:3px;font-weight:500}
+input,select,textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:60px;font-size:12px;line-height:1.5}
+.hint{font-size:11px;color:var(--text2);margin-top:3px;opacity:.7}
+.badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:var(--accent);color:#fff;margin-left:4px}
+.badge.green{background:var(--green)}
+.badge.orange{background:#e17055}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.btn{padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:12px;font-family:inherit;transition:all .2s}
+.btn:hover{border-color:var(--accent);color:var(--accent2)}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.p:hover{background:var(--accent2)}
+.btn.g{border-color:var(--green);color:var(--green)}
+.btn.g:hover{background:var(--green);color:#fff}
+.btn.r{border-color:var(--red);color:var(--red)}
+.btn.r:hover{background:var(--red);color:#fff}
+.btn.s{border-color:var(--yellow);color:var(--yellow)}
+.btn.s:hover{background:var(--yellow);color:#000}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.output{background:var(--surface2);border-radius:8px;padding:12px;font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-all;max-height:360px;overflow:auto;border:1px solid var(--border);margin-top:6px;line-height:1.6}
+.dzone{border:2px dashed var(--border);border-radius:var(--radius);padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s}
+.dzone:hover,.dzone.dragover{border-color:var(--accent);background:rgba(108,92,231,.04)}
+.dzone .icon{font-size:32px;opacity:.2;margin-bottom:6px}
+.dzone .t{color:var(--text2);font-size:12px}
+.dzone .t strong{color:var(--text)}
+.kw{display:flex;flex-wrap:wrap;gap:3px;padding:3px 0;min-height:26px}
+.kw .tag{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;font-size:11px;background:var(--surface2);border:1px solid var(--border);margin:1px}
+.kw .tag .rm{opacity:.5;cursor:pointer;font-size:13px;margin-left:2px}
+.kw .tag .rm:hover{opacity:1;color:var(--red)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
+.tabs{display:flex;gap:2px;margin-bottom:10px;background:var(--surface2);border-radius:8px;padding:3px;flex-wrap:wrap}
+.tab{padding:5px 14px;border-radius:6px;border:none;background:none;color:var(--text2);cursor:pointer;font-size:12px;transition:all .2s;font-family:inherit}
+.tab.active{background:var(--accent);color:#fff}
+.tab:hover:not(.active){color:var(--text)}
+.panel{display:none}
+.panel.active{display:block}
+.pr{display:flex;gap:12px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;align-items:flex-start}
+.pr .th{width:60px;height:60px;border-radius:6px;object-fit:cover;background:var(--border);flex-shrink:0}
+.pr .info{flex:1;font-size:11px;line-height:1.5;min-width:0}
+.pr .info .nm{font-weight:600;font-size:12px;display:block}
+.pr .info .ex{color:var(--text2);display:block;margin-top:2px}
+.pr .info .ex span{margin-right:8px}
+.rec-table{overflow-x:auto;margin-top:6px}
+.rec-table table{width:100%;border-collapse:collapse;font-size:11px}
+.rec-table th{padding:6px 8px;background:var(--surface2);color:var(--text2);font-weight:500;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.rec-table td{padding:4px 8px;border-bottom:1px solid var(--border);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec-table tr:hover td{background:var(--surface2)}
+.stat{font-size:11px;color:var(--text2);display:flex;gap:10px;flex-wrap:wrap}
+.stat span{display:flex;align-items:center;gap:3px}
+.stat .n{font-weight:600;color:var(--text)}
+.good{color:var(--green)}
+.bad{color:var(--red)}
+.pr.selected{border-color:var(--accent);background:rgba(108,92,231,.08)}
+.pr .rm-btn{opacity:.4;cursor:pointer;font-size:16px;flex-shrink:0;padding:2px;line-height:1;transition:opacity .2s}
+.pr .rm-btn:hover{opacity:1;color:var(--red)}
+.pr .dl-mini{opacity:.7;cursor:pointer;font-size:11px;background:var(--accent);color:#fff;border:none;border-radius:4px;padding:2px 7px;flex-shrink:0;align-self:center;transition:opacity .2s}
+.pr .dl-mini:hover{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Adobe Stock Metadata Generator</h1>
+<p class="sub">Перетащите файлы — приложение вытащит EXIF, цвета, параметры и сгенерирует метаданные</p>
+
+<div class="tabs">
+  <button class="tab active" data-tab="main">Файлы</button>
+  <button class="tab" data-tab="export">Экспорт</button>
+  <button class="tab" data-tab="guide">Гайд Adobe</button>
+</div>
+
+<div class="panel active" id="tab-main">
+  <div class="dzone" id="dzone">
+    <div class="icon">&#128196;</div>
+    <div class="t" id="dz-text">Перетащите изображения или видео сюда<br>или нажмите для выбора</div>
+    <input type="file" id="files" multiple style="display:none" accept="image/*,video/*">
+  </div>
+
+  <div id="files-list"></div>
+  <div id="editor" style="display:none">
+    <div class="card">
+      <div class="grid2">
+        <div>
+          <label>Заголовок (Title) <span class="badge">уникальный</span></label>
+          <input id="title" maxlength="180" placeholder="Генерируется из файла">
+        </div>
+        <div>
+          <label>Тип контента</label>
+          <select id="ctype"><option value="photo">Фотография</option><option value="illustration">Иллюстрация</option><option value="vector">Вектор</option><option value="video">Видео</option></select>
+        </div>
+      </div>
+      <div class="stat" style="margin-top:4px"><span>Символов: <span class="n" id="tlen">0</span></span><span class="good">140–180</span><span id="tlen-warn" class="good">OK</span></div>
+    </div>
+
+    <div class="card">
+      <div class="grid3">
+        <div><label>Категория Adobe</label><select id="category"><option value="">— выберите —</option></select></div>
+        <div><label>Adult</label><select id="adult"><option value="standard">Standard</option><option value="restricted">Restricted</option></select></div>
+        <div><label>Концепция</label><select id="concept"><option value="">— без концепции —</option></select></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;font-size:11px">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="no-people"> no people</label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="is-ai"> AI-Generated</label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="is-editorial"> Editorial</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>ИИ-описание <span class="badge">Qwen Vision</span></h2>
+      <div class="grid2">
+        <div>
+          <label>API-ключ OpenRouter</label>
+          <div style="display:flex;gap:4px">
+            <input type="password" id="or-key" placeholder="sk-or-v1-..." autocomplete="off">
+            <button class="btn" id="key-eye" type="button" style="flex-shrink:0" title="Показать/скрыть ключ">Показать</button>
+          </div>
+          <div class="hint">Ключ запоминается в этом браузере. Если открыть файл по другому пути, в другом браузере или в режиме инкогнито — его нужно ввести заново.</div>
+        </div>
+        <div>
+          <label>Модель</label>
+          <input id="or-model" list="or-models" placeholder="qwen/qwen3-vl-30b-a3b-instruct">
+          <datalist id="or-models">
+            <option value="openrouter/free" label="БЕСПЛАТНО · авто-выбор vision-модели">
+            <option value="google/gemma-4-26b-a4b-it:free" label="БЕСПЛАТНО · Gemma 4 (vision)">
+            <option value="google/gemma-4-31b-it:free" label="БЕСПЛАТНО · Gemma 4 (vision)">
+            <option value="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" label="БЕСПЛАТНО · Nemotron (vision)">
+            <option value="nvidia/nemotron-nano-12b-v2-vl:free" label="БЕСПЛАТНО · Nemotron VL">
+            <option value="qwen/qwen3-vl-30b-a3b-instruct">
+            <option value="qwen/qwen3-vl-8b-instruct">
+            <option value="qwen/qwen2.5-vl-72b-instruct">
+            <option value="qwen/qwen3-vl-235b-a22b-instruct">
+            <option value="google/gemini-2.5-flash">
+            <option value="openai/gpt-4o-mini">
+          </datalist>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn p" id="ai-btn">Сгенерировать через ИИ</button>
+        <button class="btn g" id="batch-btn">Пакетная генерация</button>
+        <span class="hint" id="ai-status" style="align-self:center"></span>
+      </div>
+      <div id="ai-errors" style="font-size:11px;color:var(--red);margin-top:4px;white-space:pre-wrap;line-height:1.5"></div>
+      <div class="hint">ИИ смотрит на изображение (или кадр из видео) и пишет уникальный Title (140–180 знаков) + 40–49 низкочастотных ключей по правилам Adobe Stock. Пакетная генерация обрабатывает все добавленные файлы по очереди и сохраняет записи.</div>
+    </div>
+
+    <div class="card">
+      <h2>Ключевые слова <span class="badge">низкочастотные</span></h2>
+      <div class="kw" id="kw-container"></div>
+      <div class="stat" style="margin-top:4px"><span>Ключей: <span class="n" id="kwc">0</span>/49</span></div>
+      <div class="hint">Первые 1-3 — фразы из 2 слов. Всего 40–49.</div>
+    </div>
+
+    <div class="card" id="ru-card" style="display:none">
+      <h2>Русская версия <span class="badge">RU</span></h2>
+      <div><label>Заголовок (RU)</label><input id="title-ru" readonly></div>
+      <div style="margin-top:6px"><label>Ключевые слова (RU) <span class="badge">40–49</span></label><div class="kw" id="kw-ru"></div></div>
+    </div>
+
+    <div class="btns">
+      <button class="btn p" id="gen-btn">Сгенерировать и сохранить</button>
+      <button class="btn s" id="regen-btn">Перегенерировать ключи</button>
+      <button class="btn" id="copy-btn">Копировать</button>
+      <button class="btn" id="dl-btn">Скачать метаданные</button>
+      <button class="btn" id="dl-csv-btn">CSV EN</button>
+    </div>
+
+    <div class="output" id="output">Сгенерируйте метаданные для текущего файла</div>
+  </div>
+</div>
+
+<div class="panel" id="tab-export">
+  <div class="card">
+    <h2>Записи</h2>
+    <div class="stat" style="margin-bottom:6px"><span>Записей: <span class="n" id="rc">0</span></span></div>
+    <div class="btns">
+      <button class="btn g" id="exp-csv">CSV</button>
+      <button class="btn g" id="exp-json">JSON</button>
+      <button class="btn r" id="exp-clr">Очистить</button>
+    </div>
+  </div>
+  <div class="card" id="rtw" style="display:none"><div class="rec-table" id="rt"></div></div>
+</div>
+
+<div class="panel" id="tab-guide">
+  <div class="card">
+    <h2>Требования Adobe Stock</h2>
+    <div style="font-size:12px;line-height:1.7">
+    <p><strong>Title:</strong> ровно 2 предложения, 140–180 символов. 1-е — сцена (кто/что + где + как выглядит), 2-е — смысл + коммерческое применение (идея, эмоция, сценарий использования). Уникальный, без брендов и слов stock/photo.</p>
+    <p style="margin-top:6px"><strong>Keywords:</strong> 40–49. Ключи 1-3 — фразы из 2 слов (реальные поисковые запросы). Ключи 4-49 — по 1 слову. Без повторов корней и дублей. Покрывают объекты, людей, действия, окружение, эмоции, состояния, концепции.</p>
+    <p style="margin-top:6px"><strong>no people:</strong> если людей нет — обязательно включить ключ "no people". Если человек есть — не включать.</p>
+    <p style="margin-top:6px"><strong>Применение:</strong> каждая работа — своё уникальное применение на Adobe Stock. 2-е предложение заголовка называет конкретный формат/задачу (иллюстрация к статье, обложка подкаста, фон для приложения, макет для печати на merchandise, миниатюра YouTube, паттерн для ткани, обложка книги и т.д.). В ключах — 2–4 низкочастотных ключа-применения, уникальных для этой работы. Не повторяй одно и то же подряд. Думай о задачах дизайнеров, маркетологов, издателей, контент-мейкеров. Свет: soft light → calm/healing, dark → stress/isolation. Окружение: ночь → давление, лес → восстановление.</p>
+    <p style="margin-top:6px"><strong>Концепции:</strong> burnout, digital fatigue, decision fatigue, cognitive overload, emotional suppression, life crisis, existential crisis, isolation, recovery, healing, work pressure, productivity decline, survival mode, mental block, problem dead end.</p>
+    <p style="margin-top:6px"><strong>Анти-similar:</strong> каждое изображение = новый смысл. Менять формулировки, первые 2 ключа, концептуальный угол. Не повторять кластеры подряд.</p>
+    <p style="margin-top:6px"><strong>Запрещено:</strong> повторы, слабые слова (nice, good, beautiful), бессмысленные ключи, один шаблон.</p>
+    <p style="margin-top:6px"><strong>Язык:</strong> всегда EN + RU (Title и ключи на обоих). Видео: добавлять движение, процесс, изменение состояния.</p>
+    <p style="margin-top:6px"><strong>ИИ-генерация:</strong> кнопка «Сгенерировать через ИИ» отправляет изображение (или кадр из видео) в мультимодальную модель через OpenRouter. Модель видит реальное содержимое и пишет Title + ключи по этой методологии. Ключ хранится только в localStorage вашего браузера.</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ===== CATEGORIES & CONCEPTS =====
+const CATS = [[1,"Animals"],[2,"Buildings and Architecture"],[3,"Business"],[4,"Drinks"],[5,"The Environment"],[6,"States of Mind"],[7,"Food"],[8,"Graphic Resources"],[9,"Hobbies and Leisure"],[10,"Industry"],[11,"Landscapes"],[12,"Lifestyle"],[13,"Miscellaneous"],[14,"Nature"],[15,"People"],[16,"Culture and Religion"],[17,"Objects"],[18,"Parks/Outdoor"],[19,"Technology"],[20,"Transport"],[21,"Travel"],[22,"Vintage"]];
+const CONC = [{id:"",en:"— без концепции —",kw:[]},{id:"burnout",en:"Burnout",kw:["burnout","exhaustion","fatigue","overwork","depression","anxiety","tiredness","overload","strain","drained","hopeless","chronic","breakdown","crisis","apathy","despair","anguish","struggle","suffering","weary","overwhelmed","insomnia","tension","meltdown","collapse","numb","detached","stress","pressure","distress"]},{id:"digital-fatigue",en:"Digital Fatigue",kw:["fatigue","screen","exhaustion","computer","laptop","blue light","overload","information","distraction","focus","attention","drain","online","remote","virtual","monitor","glow","haze","headache","burnout","isolation","disconnect","mindfulness","detox","unplug","insomnia","overwhelm","notification","scroll","device"]},{id:"overload",en:"Information Overload",kw:["overload","information","data","cognitive","brain","exhaustion","chaos","noise","clutter","flood","stream","sensory","confusion","overwhelm","complexity","volume","density","bombardment","cascade","deluge","excess","saturation","multiplication","pile","mass"]},{id:"recovery",en:"Recovery",kw:["recovery","healing","restoration","wellness","peace","calm","stillness","quiet","mindfulness","meditation","therapy","support","selfcare","growth","renewal","transformation","progress","hope","strength","resilience","courage","patience","balance","harmony","retreat","sanctuary","nurture","recharge","revive"]},{id:"isolation",en:"Isolation",kw:["isolation","loneliness","alone","solitude","empty","silent","abandoned","forgotten","detached","disconnected","remote","excluded","invisible","ignored","hollow","void","longing","sadness","melancholy","grief","loss","absence","cold","dark","shadow","stillness","reflection","introspection"]},{id:"anxiety",en:"Anxiety",kw:["anxiety","tension","fear","worry","dread","panic","nervous","restless","unease","discomfort","agitation","turmoil","tight","racing","heart","pulse","tremble","freeze","paralyze","overthinking","rumination","dread","apprehension","threat","danger","distress"]},{id:"focus",en:"Focus",kw:["focus","concentration","efficiency","performance","output","discipline","routine","habit","flow","momentum","progress","growth","development","improvement","optimization","workflow","system","method","technique","streamline","simplify","accelerate","enhance","maximize","potential"]},{id:"resilience",en:"Resilience",kw:["resilience","strength","courage","determination","persistence","endurance","fortitude","grit","willpower","discipline","confidence","bravery","steadfast","unyielding","tough","powerful","fighter","survivor","victory","triumph","overcome","conquer","prevail","rise","stand","adapt","thrive"]},{id:"mindfulness",en:"Mindfulness",kw:["mindfulness","meditation","awareness","presence","calm","peace","stillness","silence","focus","breath","relaxation","serenity","tranquility","centered","grounded","awake","gentle","soft","accepting","compassion","kindness","patience","gratitude","joy","ease","inner"]},{id:"escape",en:"Escape",kw:["escape","retreat","freedom","release","travel","nature","wilderness","forest","mountain","ocean","horizon","path","journey","adventure","exploration","liberation","unwind","disconnect","reset","recharge","simplicity","quiet","solitude","peace","serenity","calm"]}];
+
+// ===== STATE =====
+let currentFile = null;        // raw file reference
+let currentEntry = null;       // selected file entry
+let currentExif = {};         // parsed EXIF
+let currentColors = [];       // dominant colors
+let currentMeta = null;       // current generated metadata
+let keywordList = [];         // editable keyword array
+let records = [];             // saved records
+let fileEntries = [];         // all added files [{id, file, exif, colors}]
+
+// ===== EXIF READER (lightweight, JPEG only) =====
+function readEXIF(file) {
+  return new Promise(resolve => {
+    if (!file.type.startsWith("image/")) return resolve({});
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const dv = new DataView(e.target.result);
+        if (dv.getUint16(0) !== 0xFFD8) return resolve({}); // not JPEG
+        const exif = {};
+        let offset = 2;
+        while (offset < dv.byteLength - 1) {
+          if (dv.getUint16(offset) === 0xFFE1) {
+            const segLen = dv.getUint16(offset + 2);
+            const exifOffset = offset + 4;
+            if (dv.getUint32(exifOffset) !== 0x45786966) return resolve({}); // "Exif"
+            const isLittle = dv.getUint8(exifOffset + 8) === 0x49;
+            const read16 = off => isLittle ? dv.getUint16(off, true) : dv.getUint16(off);
+            const read32 = off => isLittle ? dv.getUint32(off, true) : dv.getUint32(off);
+            const tiffOff = exifOffset + 8;
+            const ifd0Off = tiffOff + read32(tiffOff + 4);
+            const tags = {};
+            const entries = read16(ifd0Off);
+            for (let i = 0; i < entries; i++) {
+              const eOff = ifd0Off + 2 + i * 12;
+              const tag = read16(eOff);
+              const type = read16(eOff + 2);
+              const count = read32(eOff + 4);
+              const valOff = eOff + 8;
+              let val;
+              if (type === 2) { // ASCII
+                const len = count;
+                let s = "";
+                for (let j = 0; j < len - 1; j++) s += String.fromCharCode(dv.getUint8(valOff + j));
+                val = s.trim();
+              } else if (type === 3) val = read16(valOff);
+              else if (type === 4) val = read32(valOff);
+              else if (type === 5) { // RATIONAL
+                const num = read32(valOff); const den = read32(valOff + 4);
+                val = den ? (num / den).toFixed(2) : "0";
+              } else if (type === 10) { // SRATIONAL
+                const num = read32(valOff); const den = read32(valOff + 4);
+                val = den ? (num / den).toFixed(2) : "0";
+              } else val = null;
+              tags[tag] = val;
+            }
+            // EXIF SubIFD
+            const exifPtr = tags[0x8769];
+            if (exifPtr) {
+              const subOff = tiffOff + exifPtr;
+              const subEntries = read16(subOff);
+              for (let i = 0; i < subEntries; i++) {
+                const eOff = subOff + 2 + i * 12;
+                const tag = read16(eOff);
+                const type = read16(eOff + 2);
+                const count = read32(eOff + 4);
+                const valOff = eOff + 8;
+                let val;
+                if (type === 2) {
+                  let s = "";
+                  for (let j = 0; j < count - 1; j++) s += String.fromCharCode(dv.getUint8(valOff + j));
+                  val = s.trim();
+                } else if (type === 3) val = read16(valOff);
+                else if (type === 4) val = read32(valOff);
+                else if (type === 5 || type === 10) {
+                  const num = read32(valOff); const den = read32(valOff + 4);
+                  val = den ? (num / den) : 0;
+                } else val = null;
+                if (val !== null) tags[tag] = val;
+              }
+            }
+            // GPS
+            const gpsPtr = tags[0x8825];
+            if (gpsPtr) {
+              const gpsOff = tiffOff + gpsPtr;
+              const gpsEntries = read16(gpsOff);
+              for (let i = 0; i < gpsEntries; i++) {
+                const eOff = gpsOff + 2 + i * 12;
+                const tag = read16(eOff);
+                const type = read16(eOff + 2);
+                const count = read32(eOff + 4);
+                const valOff = eOff + 8;
+                let val;
+                if (type === 2) {
+                  let s = "";
+                  for (let j = 0; j < count - 1; j++) s += String.fromCharCode(dv.getUint8(valOff + j));
+                  val = s.trim();
+                } else if (type === 5) {
+                  const num = read32(valOff); const den = read32(valOff + 4);
+                  val = den ? (num / den) : 0;
+                } else val = null;
+                if (val !== null) tags[tag] = val;
+              }
+            }
+
+            exif.make = tags[0x010F] || "";
+            exif.model = tags[0x0110] || "";
+            exif.date = tags[0x9003] || tags[0x9004] || tags[0x0132] || "";
+            exif.iso = tags[0x8827] || "";
+            exif.fnumber = tags[0x829D] || "";
+            exif.exposure = tags[0x829A] || "";
+            exif.focal = tags[0x920A] || "";
+            exif.width = tags[0xA002] || tags[0x0100] || "";
+            exif.height = tags[0xA003] || tags[0x0101] || "";
+            exif.orientation = tags[0x0112] || 1;
+            // GPS
+            if (tags[0x0002] !== undefined && tags[0x0004] !== undefined) {
+              const latRef = tags[0x0001] || "N";
+              const lonRef = tags[0x0003] || "E";
+              const latD = parseFloat(tags[0x0002]) || 0;
+              const lonD = parseFloat(tags[0x0004]) || 0;
+              exif.lat = latRef + " " + latD.toFixed(4);
+              exif.lon = lonRef + " " + lonD.toFixed(4);
+            }
+            return resolve(exif);
+          }
+          offset += 2 + dv.getUint16(offset + 2);
+        }
+        resolve({});
+      } catch (err) { resolve({}); }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// ===== DOMINANT COLORS via Canvas =====
+function getColors(file) {
+  return new Promise(resolve => {
+    if (!file.type.startsWith("image/")) return resolve([]);
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = 100; c.height = 100;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(img, 0, 0, 100, 100);
+      const data = ctx.getImageData(0, 0, 100, 100).data;
+      const buckets = {};
+      for (let i = 0; i < data.length; i += 16) {
+        const r = Math.round(data[i] / 40) * 40;
+        const g = Math.round(data[i+1] / 40) * 40;
+        const b = Math.round(data[i+2] / 40) * 40;
+        const key = `${r},${g},${b}`;
+        buckets[key] = (buckets[key] || 0) + 1;
+      }
+      const sorted = Object.entries(buckets).sort((a,b) => b[1] - a[1]).slice(0, 5);
+      const colorNames = [];
+      const map = {
+        "0,0,0":"black","40,40,40":"dark gray","80,80,80":"gray","120,120,120":"gray","160,160,160":"light gray",
+        "200,200,200":"silver","240,240,240":"white","255,255,255":"white",
+        "200,0,0":"red","240,0,0":"red","200,40,0":"red","240,80,40":"orange","240,160,40":"orange",
+        "240,200,0":"yellow","240,240,0":"yellow","200,200,0":"yellow",
+        "0,120,0":"green","0,160,0":"green","0,200,0":"green","40,200,80":"green","80,200,120":"green",
+        "0,120,120":"teal","0,160,160":"teal","0,200,200":"cyan","0,240,240":"cyan",
+        "0,0,200":"blue","0,0,240":"blue","0,80,200":"blue","40,80,200":"blue",
+        "120,0,120":"purple","160,0,160":"purple","200,0,200":"purple","200,40,160":"pink","240,80,160":"pink",
+        "120,80,40":"brown","160,120,80":"brown","200,160,120":"beige",
+      };
+      for (const [bucket] of sorted) {
+        const name = map[bucket] || "color";
+        if (!colorNames.includes(name)) colorNames.push(name);
+      }
+      URL.revokeObjectURL(url);
+      resolve(colorNames.slice(0, 3));
+    };
+    img.onerror = () => resolve([]);
+    img.src = url;
+  });
+}
+
+// ===== VIDEO DURATION =====
+function getVideoMeta(file) {
+  return new Promise(resolve => {
+    if (!file.type.startsWith("video/")) return resolve({});
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.onloadedmetadata = () => {
+      const meta = { duration: Math.round(v.duration), vw: v.videoWidth, vh: v.videoHeight };
+      URL.revokeObjectURL(url);
+      resolve(meta);
+    };
+    v.onerror = () => resolve({});
+    v.src = url;
+  });
+}
+
+// ===== FILENAME PARSER =====
+function parseFilename(name) {
+  const stem = name.replace(/\.[^.]+$/, "");
+  const parts = stem.split(/[_\-.\s]+/).filter(p => p.length > 1 && !/^\d+$/.test(p));
+  const cameraCodes = new Set(["dsc","img","dscn","imgp","pict","photo","image","screenshot","export","render","frame","clip","video","mov","mp4","avi","untitled","new","copy","final","edit","exported","rendered","output","version","v1","v2","v3"]);
+  const meaningful = parts.filter(p => !cameraCodes.has(p.toLowerCase()));
+  // also extract numbers (dates, versions)
+  const numbers = stem.match(/\d{4}/g) || [];
+  return { words: meaningful, numbers };
+}
+
+// ===== KEYWORD ENGINE =====
+const STOP_KW = new Set(["stock","video","footage","photo","image","picture","file","download","royalty","free","commercial","background","wallpaper","template","design","element","icon","symbol","sign","button","banner","advertisement","marketing","social","media","graphic","illustration","vector","art","clip","hd","4k","resolution","quality","high","res","pixel","beautiful","nice","good","great","amazing","wonderful","fantastic","perfect","lovely","gorgeous","stunning","incredible","awesome","cool","pretty","cute","mental health","work stress","life crisis","digital fatigue","decision fatigue","cognitive overload","emotional suppression","stress relief","self care","well being","wellbeing","work life","work-life balance","burnout syndrome","existential crisis","productivity decline","survival mode","problem dead end","mental block","work pressure","фото","картинка","изображение","сток","видео","фон","шаблон","дизайн","элемент","иконка","символ","знак","кнопка","баннер","реклама","маркетинг","графика","иллюстрация","вектор","рисунок","красивый","хороший","отличный","прекрасный","замечательный","потрясающий","великолепный"]);
+const PPL = new Set(["people","person","human","man","woman","child","boy","girl","crowd","portrait","face","model","group","student","worker","employee","customer","patient","friend","couple","family","parent","mother","father","son","daughter","baby","adult","teenager","senior","individual","люди","человек","мужчина","женщина","ребенок","толпа","портрет","лицо","модель","группа","студент","рабочий","сотрудник","пациент","друг","пара","семья","родитель","мать","отец","дочь","сын","младенец","взрослый","подросток","пожилой"]);
+const GENERIC_KW = new Set(["man","men","woman","women","person","people","hand","hands","finger","water","white","black","grey","gray","brown","blue","red","green","yellow","alone","life","time","work","one","two","three","view","use","make","show","day","night","thing","room","door","window","table","chair","face","hair","eye","eyes","body","home","office","city","street","house","tree","sky","sun","light","dark","big","small","new","old","feel","like","also","from","that","this","with","into","some","other","more","much","many","about","over","under","between","behind","before","after","during","without"]);
+
+function sameRoot(a,b){if(a.length<4||b.length<4)return 0;return a.startsWith(b)||b.startsWith(a);}
+function unique(arr){const s=new Set();return arr.filter(w=>{const k=w.toLowerCase();if(s.has(k))return 0;s.add(k);return 1;});}
+
+function genKeywords(fileName, exif, colors, ctype, noPeople, conceptKw) {
+  const pool = [];
+
+  // from filename
+  const {words,numbers} = parseFilename(fileName);
+  for (const w of words) { const lc = w.toLowerCase(); if (lc.length>2 && !STOP_KW.has(lc)) pool.push(lc); }
+  for (const n of numbers) pool.push(n);
+
+  // from EXIF
+  if (exif.model) pool.push(exif.model.toLowerCase());
+  if (exif.make) pool.push(exif.make.toLowerCase());
+  if (exif.iso) pool.push("iso"+exif.iso);
+  if (exif.focal) pool.push(exif.focal+"mm");
+  if (exif.fnumber) pool.push("f/"+exif.fnumber);
+  if (exif.lat && exif.lon) pool.push("gps","coordinates");
+
+  // from colors
+  for (const c of colors) if (!pool.includes(c)) pool.push(c);
+
+  // content type
+  if (ctype==="video") pool.push("motion","clip","cinematic","movement");
+  else if (ctype==="vector") pool.push("vector","layered","scalable");
+  else if (ctype==="illustration") pool.push("illustration","digital","rendered");
+
+  // environment from EXIF date (rough)
+  if (exif.date) {
+    const m = exif.date.match(/(\d{4}):(\d{2})/);
+    if (m) {
+      const mon = parseInt(m[2]);
+      if (mon>=3 && mon<=5) pool.push("spring");
+      else if (mon>=6 && mon<=8) pool.push("summer");
+      else if (mon>=9 && mon<=11) pool.push("autumn");
+      else pool.push("winter");
+    }
+    pool.push("daytime");
+  }
+
+  // people
+  if (noPeople) { pool.push("no people","nobody","empty","unoccupied"); const f = pool.filter(w=>!PPL.has(w)); pool.length=0; pool.push(...f); }
+
+  // concept
+  if (conceptKw) { for (const k of conceptKw) pool.push(k.toLowerCase()); }
+
+  // dedup & roots
+  let clean = unique(pool);
+  const result = [];
+  for (const w of clean) { if (!result.some(r=>sameRoot(r,w))) result.push(w); }
+
+  // split phrases vs singles
+  const phrases = result.filter(w => w.includes(" "));
+  const singles = result.filter(w => !w.includes(" "));
+
+  const final = [];
+  // first 1-3 phrases
+  for (const p of phrases.slice(0,3)) final.push(p);
+  // then singles
+  for (const s of singles) { if (final.length >= 49) break; if (!final.includes(s)) final.push(s); }
+  // pad
+  while (final.length < 3) final.push("editorial","content","visual");
+  return final.slice(0,49);
+}
+
+function genTitle(fileName, exif, colors) {
+  const {words,numbers} = parseFilename(fileName);
+  if (words.length > 0) {
+    let t = words.map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(" ");
+    // add context
+    if (exif.model) t += " shot on " + exif.model.replace(/\s+/g," ");
+    if (exif.date) { const d = exif.date.replace(/:/g," "); t += ", " + d; }
+    if (colors.length > 0) t += ", " + colors.join(" ") + " tones";
+    return t.slice(0,180);
+  }
+  // fallback: no meaningful filename words
+  let t = "Photograph";
+  if (exif.model) t += " taken with " + exif.model;
+  if (exif.date) t += " on " + exif.date.replace(/:/g,"-").slice(0,10);
+  return t.slice(0,180);
+}
+
+// ===== UI =====
+const CATSEL = document.getElementById("category");
+CATS.forEach(([id,name])=>{const o=document.createElement("option");o.value=id;o.textContent=name;CATSEL.appendChild(o);});
+const CONSEL = document.getElementById("concept");
+CONC.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.en;CONSEL.appendChild(o);});
+
+const dz = document.getElementById("dzone");
+const fi = document.getElementById("files");
+let dragCounter = 0;
+
+dz.addEventListener("click",()=>fi.click());
+dz.addEventListener("dragenter",e=>{e.preventDefault();dragCounter++;dz.classList.add("dragover");});
+dz.addEventListener("dragleave",e=>{e.preventDefault();dragCounter--;if(!dragCounter)dz.classList.remove("dragover");});
+dz.addEventListener("dragover",e=>e.preventDefault());
+dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("dragover");dragCounter=0;handleFiles(e.dataTransfer.files);});
+fi.addEventListener("change",()=>{handleFiles(fi.files);fi.value="";});
+
+async function handleFiles(files) {
+  for (const file of files) {
+    const entry = { id: Date.now() + Math.random(), file, thumbUrl: null, ctype: file.type.startsWith("video/") ? "video" : "photo" };
+    entry.exif = await readEXIF(file);
+    entry.colors = await getColors(file);
+    if (file.type.startsWith("video/")) {
+      entry.vmeta = await getVideoMeta(file);
+    }
+    // create thumbnail blob URL
+    if (file.type.startsWith("image/")) {
+      entry.thumbUrl = URL.createObjectURL(file);
+    }
+    fileEntries.push(entry);
+  }
+
+  renderFileList();
+  selectFile(fileEntries[fileEntries.length-1].id);
+}
+
+function renderFileList() {
+  const container = document.getElementById("files-list");
+  const selectedId = container.querySelector(".pr.selected")?.dataset.id;
+  container.innerHTML = fileEntries.map(e => {
+    const f = e.file;
+    const info = [];
+    if (e.exif.model) info.push(e.exif.model);
+    if (e.exif.date) info.push(e.exif.date.slice(0,10).replace(/:/g,"-"));
+    if (e.vmeta?.duration) info.push(e.vmeta.duration+"s");
+    if (e.colors.length) info.push(e.colors.join(" "));
+    const sel = String(e.id) === String(selectedId) ? " selected" : "";
+    return `<div class="pr${sel}" data-id="${e.id}" onclick="selectFile('${e.id}')">
+      ${e.thumbUrl ? `<img class="th" src="${e.thumbUrl}" alt="">` : `<div class="th" style="display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:18px">&#9654;</div>`}
+      <div class="info"><span class="nm">${f.name}</span><span class="ex">${info.join(" · ")}</span></div>
+      <button class="dl-mini" title="Скачать метаданные (EN)" onclick="event.stopPropagation();downloadEntryMeta('${e.id}')">EN &#8595;</button>
+      <span class="rm-btn" onclick="event.stopPropagation();removeFile('${e.id}')" title="Удалить">&times;</span>
+    </div>`;
+  }).join("");
+  const b = document.getElementById("batch-btn");
+  if (b) b.textContent = fileEntries.length ? `Пакетная генерация (${fileEntries.length})` : "Пакетная генерация";
+}
+
+async function selectFile(id) {
+  const entry = fileEntries.find(e => e.id == id);
+  if (!entry) return;
+  currentFile = entry.file;
+  currentEntry = entry;
+  currentExif = entry.exif;
+  currentColors = entry.colors;
+
+  document.getElementById("editor").style.display = "block";
+  document.getElementById("ctype").value = entry.ctype || "photo";
+
+  // highlight selected
+  document.querySelectorAll(".pr").forEach(el => el.classList.remove("selected"));
+  const el = document.querySelector(`.pr[data-id="${id}"]`);
+  if (el) el.classList.add("selected");
+
+  // auto-fill title (AI result if generated)
+  const title = entry.generated?.title || genTitle(entry.file.name, entry.exif, entry.colors);
+  document.getElementById("title").value = title;
+  updateTitleCount();
+
+  // keywords
+  const noPeople = document.getElementById("no-people").checked;
+  const ctype = document.getElementById("ctype").value;
+  const cid = document.getElementById("concept").value;
+  const conc = CONC.find(c=>c.id===cid);
+  keywordList = entry.generated?.keywords?.slice() || genKeywords(entry.file.name, entry.exif, entry.colors, ctype, noPeople, conc?.kw||[]);
+  renderKeywords();
+  showRU(entry.generated || null);
+
+  // auto output preview
+  const meta = buildMeta(entry.file.name, title, keywordList, entry);
+  renderOutput(meta);
+}
+
+function removeFile(id) {
+  const idx = fileEntries.findIndex(e => e.id == id);
+  if (idx === -1) return;
+  const entry = fileEntries[idx];
+  if (entry.thumbUrl) URL.revokeObjectURL(entry.thumbUrl);
+  fileEntries.splice(idx, 1);
+  const rIdx = records.findIndex(r => String(r.file_id) === String(entry.id));
+  if (rIdx >= 0) { records.splice(rIdx, 1); updateExport(); }
+  if (!fileEntries.length) {
+    document.getElementById("editor").style.display = "none";
+    currentFile = null;
+  } else if (currentFile && currentFile.name === entry.file.name) {
+    const next = fileEntries[Math.min(idx, fileEntries.length - 1)];
+    if (next) selectFile(next.id);
+  }
+  renderFileList();
+}
+
+function updateTitleCount() {
+  const el = document.getElementById("title");
+  const len = el.value.length;
+  document.getElementById("tlen").textContent = len;
+  const warn = document.getElementById("tlen-warn");
+  if (len > 180) { warn.textContent = "превышение!"; warn.style.color = "var(--red)"; }
+  else if (len < 140) { warn.textContent = "менее 140"; warn.style.color = "var(--yellow)"; }
+  else { warn.textContent = "OK"; warn.style.color = "var(--green)"; }
+}
+
+document.getElementById("title").addEventListener("input", function(){ updateTitleCount(); syncCurrent(); });
+
+document.getElementById("no-people").addEventListener("change",()=>regenerateKW());
+document.getElementById("ctype").addEventListener("change",()=>regenerateKW());
+document.getElementById("concept").addEventListener("change",()=>regenerateKW());
+
+function regenerateKW() {
+  if (!currentFile) return;
+  const noPeople = document.getElementById("no-people").checked;
+  const ctype = document.getElementById("ctype").value;
+  const cid = document.getElementById("concept").value;
+  const conc = CONC.find(c=>c.id===cid);
+  keywordList = genKeywords(currentFile.name, currentExif, currentColors, ctype, noPeople, conc?.kw||[]);
+  renderKeywords();
+  syncCurrent();
+}
+
+function renderKeywords() {
+  const c = document.getElementById("kw-container");
+  document.getElementById("kwc").textContent = keywordList.length;
+  if (!keywordList.length) { c.innerHTML = '<span style="color:var(--text2);font-size:12px">Нет ключевых слов</span>'; return; }
+  c.innerHTML = keywordList.map((k,i)=>`<span class="tag">${k}<span class="rm" data-i="${i}">&times;</span></span>`).join("");
+  c.querySelectorAll(".rm").forEach(el=>el.addEventListener("click",()=>{keywordList.splice(parseInt(el.dataset.i),1);renderKeywords();syncCurrent();}));
+}
+
+function showRU(g) {
+  const card = document.getElementById("ru-card");
+  if (!g || (!g.title_ru && !(g.keywords_ru||[]).length)) { card.style.display = "none"; return; }
+  card.style.display = "block";
+  document.getElementById("title-ru").value = g.title_ru || "";
+  document.getElementById("kw-ru").innerHTML = (g.keywords_ru || []).map(k => `<span class="tag">${k}</span>`).join("");
+}
+
+function buildMeta(fname, title, keywords, entry) {
+  const kw = keywords || keywordList;
+  const exif = entry?.exif || currentExif;
+  const noPeople = document.getElementById("no-people").checked;
+  const ctype = (entry?.ctype) || document.getElementById("ctype").value;
+  const cat = document.getElementById("category").value;
+  const adult = document.getElementById("adult").value;
+  const isAI = document.getElementById("is-ai").checked;
+  const isEd = document.getElementById("is-editorial").checked;
+  const cid = document.getElementById("concept").value;
+  const conc = CONC.find(c=>c.id===cid);
+
+  const meta = {
+    file_id: entry?.id ?? "",
+    filename: fname,
+    title: fitTitle(title || fname.replace(/\.[^.]+$/,"")),
+    keywords: kw.join(", "),
+    category: cat ? `${cat}. ${CATS.find(c=>c[0]==cat)?.[1]||""}` : "",
+    category_id: cat,
+    content_type: ctype,
+    adult_type: adult,
+    no_people: noPeople ? "yes" : "no",
+    concept: conc?.en||"",
+    keyword_count: kw.length,
+  };
+  if (isAI) meta.ai_disclosure = "Created using generative AI";
+  if (isEd) meta.is_editorial = "true";
+  // add EXIF as extra fields
+  if (exif.model) meta.camera = exif.model;
+  if (exif.iso) meta.iso = exif.iso;
+  if (exif.date) meta.date_taken = exif.date;
+  // RU version from AI
+  if (entry?.generated) {
+    meta.title_ru = fitTitle(entry.generated.title_ru || "");
+    meta.keywords_ru = (entry.generated.keywords_ru || []).join(", ");
+    meta.keywords_ru_count = entry.generated.keywords_ru.length;
+  }
+  return meta;
+}
+
+function renderOutput(meta) {
+  const out = document.getElementById("output");
+  const sep = "=".repeat(54);
+  const lines = [sep,"  ADOBE STOCK METADATA",sep,
+    `  Title:        ${meta.title}`,
+    `  Filename:     ${meta.filename}`,
+    `  Category:     ${meta.category||"—"}`,
+    `  Type:         ${meta.content_type}`,
+    `  Adult:        ${meta.adult_type}`,
+    `  No People:    ${meta.no_people}`,
+  ];
+  if (meta.camera) lines.push(`  Camera:       ${meta.camera}`);
+  if (meta.date_taken) lines.push(`  Date:         ${meta.date_taken}`);
+  if (meta.concept) lines.push(`  Concept:      ${meta.concept}`);
+  lines.push(`  Keywords (${meta.keyword_count}):`, `  ${meta.keywords}`, sep);
+  if (meta.title_ru || meta.keywords_ru) {
+    lines.push("", "  --- РУССКАЯ ВЕРСИЯ ---", `  Title (RU):   ${meta.title_ru||"—"}`, `  Keywords (RU) (${meta.keywords_ru_count||0}):`, `  ${meta.keywords_ru||"—"}`, sep);  }
+  out.textContent = lines.join("\n");
+}
+
+// ===== AI VISION =====
+const OR_KEY_STORE = "or_key";
+const OR_MODEL_STORE = "or_model";
+
+function getStore(k) {
+  try { return localStorage.getItem(k) || ""; } catch (e) { return ""; }
+}
+function setStore(k, v) {
+  try { localStorage.setItem(k, v); } catch (e) {}
+}
+
+document.getElementById("or-key").value = getStore(OR_KEY_STORE);
+document.getElementById("or-model").value = getStore(OR_MODEL_STORE) || "openrouter/free";
+
+document.getElementById("or-key").addEventListener("input", e => setStore(OR_KEY_STORE, e.target.value.trim()));
+document.getElementById("or-model").addEventListener("input", e => setStore(OR_MODEL_STORE, e.target.value.trim()));
+document.getElementById("key-eye").addEventListener("click", () => {
+  const el = document.getElementById("or-key");
+  const show = el.type === "password";
+  el.type = show ? "text" : "password";
+  document.getElementById("key-eye").textContent = show ? "Скрыть" : "Показать";
+});
+
+function resizeToDataURL(file, maxSize) {
+  return new Promise(resolve => {
+    if (!file.type.startsWith("image/")) return resolve(null);
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    const timer = setTimeout(() => { try { img.src = ""; } catch (e) {} URL.revokeObjectURL(url); resolve(null); }, 20000);
+    img.onload = () => {
+      clearTimeout(timer);
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => { clearTimeout(timer); URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+function getVideoFrames(file, n) {
+  return new Promise(resolve => {
+    if (!file.type.startsWith("video/")) return resolve(null);
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = "auto";
+    const frames = [];
+    const want = Math.max(1, n || 1);
+    let done = false;
+    const overall = setTimeout(() => finish(frames.length ? frames : null), 45000);
+    function finish(val) {
+      if (done) return;
+      done = true;
+      clearTimeout(overall);
+      URL.revokeObjectURL(url);
+      try { v.removeAttribute("src"); v.load(); } catch (e) {}
+      resolve(val);
+    }
+    function draw() {
+      const sw = v.videoWidth || 0, sh = v.videoHeight || 0;
+      if (!sw || !sh) throw new Error("no dims");
+      const scale = Math.min(1, 1024 / Math.max(sw, sh));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(sw * scale));
+      c.height = Math.max(1, Math.round(sh * scale));
+      c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+      frames.push(c.toDataURL("image/jpeg", 0.8));
+    }
+    function drawRetry(cb) {
+      let tries = 0;
+      const attempt = () => {
+        tries++;
+        try { draw(); cb(); return; }
+        catch (e) { if (tries < 30) setTimeout(attempt, 200); else cb(); }
+      };
+      requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(attempt)));
+    }
+    function seekTo(t, ondone) {
+      let fired = false;
+      const doneFn = () => { if (fired) return; fired = true; v.onseeked = null; v.onerror = null; ondone(); };
+      const to = setTimeout(doneFn, 8000);
+      v.onseeked = () => { clearTimeout(to); doneFn(); };
+      v.onerror = () => { clearTimeout(to); doneFn(); };
+      v.currentTime = t;
+    }
+    v.onloadeddata = () => {
+      // первый кадр — текущая позиция (0), без перемотки: самый надёжный путь
+      drawRetry(() => {
+        if (frames.length >= want) return finish(frames);
+        let dur = v.duration;
+        if (!isFinite(dur) || dur <= 0) dur = 60;
+        const times = [dur * 0.25, dur * 0.75];
+        let qi = 0;
+        const step = () => {
+          if (frames.length >= want || qi >= times.length) return finish(frames);
+          seekTo(times[qi], () => { qi++; drawRetry(step); });
+        };
+        step();
+      });
+    };
+    v.onerror = () => finish(frames.length ? frames : null);
+    v.src = url;
+  });
+}
+
+function parseAI(content) {
+  let t = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+  const b0 = t.indexOf("{"), b1 = t.lastIndexOf("}");
+  if (b0 >= 0 && b1 > b0) t = t.slice(b0, b1 + 1); // отбросить текст вокруг JSON
+  t = t.replace(/[\u0000-\u001F]+/g, " "); // сырые переводы строк внутри JSON-строк ломают парсер
+  const grab = j => {
+    const norm = a => Array.isArray(a) ? a.map(k => String(k).trim().toLowerCase()).filter(Boolean) : [];
+    const title_en = String(j.title_en || j.title || "").trim();
+    const keywords_en = norm(j.keywords_en || j.keywords);
+    const title_ru = String(j.title_ru || j.titleRus || "").trim();
+    const keywords_ru = norm(j.keywords_ru || j.keywordsRus);
+    if (!title_en && !keywords_en.length) return null;
+    return { title_en, keywords_en, title_ru, keywords_ru };
+  };
+  try { return grab(JSON.parse(t)); } catch (e) {}
+  // ответ обрезан по лимиту токенов — достраиваем незакрытые кавычки и скобки
+  let inStr = false, esc = false;
+  const stack = [];
+  for (const c of t) {
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+    } else {
+      if (c === '"') inStr = true;
+      else if (c === "{" || c === "[") stack.push(c === "{" ? "}" : "]");
+      else if (c === "}" || c === "]") stack.pop();
+    }
+  }
+  let s = t;
+  if (inStr) s += '"';
+  s = s.replace(/,\s*$/, "").replace(/:\s*$/, ": \"\"");
+  while (stack.length) s += stack.pop();
+  try { return grab(JSON.parse(s)); } catch (e) { return null; }
+}
+
+const usedKeywords = new Set();
+const usedTitles = [];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function fitTitle(s) {
+  s = (s || "").replace(/\s+/g, " ").trim();
+  if (s.length <= 180) return s;
+  let cut = s.slice(0, 181).lastIndexOf(" ");
+  return (cut >= 140 ? s.slice(0, cut) : s.slice(0, 180)).trim();
+}
+
+function cleanAIKeywords(kws, addNoPeople, used) {
+  const phrases = [];
+  const extraPhraseWords = [];
+  const singles = [];
+  for (const raw of kws || []) {
+    const w = String(raw).trim().toLowerCase();
+    if (!w || w.length < 2) continue;
+    if (!/^[a-zа-яё][a-zа-яё\s-]*$/.test(w)) continue;   // reject junk (Chinese, symbols)
+    if (STOP_KW.has(w)) continue;
+    if (w.includes(" ")) {
+      phrases.push(w);
+      for (const ww of w.split(" ")) { if (ww.length > 2 && !STOP_KW.has(ww)) extraPhraseWords.push(ww); }
+    } else singles.push(w);
+  }
+  const final = [];
+  const seen = new Set();
+  const add = w => {
+    const k = w.toLowerCase();
+    if (seen.has(k)) return;
+    if (final.some(r => sameRoot(r, w))) return;
+    seen.add(k);
+    final.push(w);
+  };
+  // 3 фразы по 2 слова: сначала ещё не использованные в серии
+  for (const p of phrases) { if (final.length >= 3) break; if (used && used.has(p)) continue; add(p); }
+  // если уникальных фраз не хватило — добираем из использованных
+  for (const p of phrases) { if (final.length >= 3) break; add(p); }
+  // первый проход одиночных: только ещё не использованные и не сверхобщие
+  for (const s of singles) { if (final.length >= 49) break; if (used && used.has(s)) continue; if (GENERIC_KW.has(s)) continue; add(s); }
+  for (const w of extraPhraseWords) { if (final.length >= 49) break; if (used && used.has(w)) continue; add(w); }
+  // если уникальных меньше 40 — добираем до 40 из общих/использованных (не выше 49)
+  if (final.length < 40) for (const s of singles) { if (final.length >= 40) break; add(s); }
+  if (final.length < 40) for (const w of extraPhraseWords) { if (final.length >= 40) break; add(w); }
+  if (addNoPeople && !final.includes("no people") && final.length < 40) final.push("no people");
+  return final.slice(0, 49);
+}
+
+async function openrouterRequest(model, key, prompt, imgs) {
+  let attempt = 0;
+  for (;;) {
+    attempt++;
+    let res;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 90000);
+    try {
+      res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model,
+          max_tokens: 3000,
+          messages: [{ role: "user", content: [{ type: "text", text: prompt }].concat(imgs.map(f => ({ type: "image_url", image_url: { url: f } }))) }]
+        })
+      });
+    } catch (netErr) {
+      clearTimeout(timer);
+      if (netErr && netErr.name === "AbortError") {
+        if (attempt >= 4) throw new Error("таймаут запроса к API (90 c)");
+        await sleep(5000 * attempt);
+        continue;
+      }
+      if (attempt >= 4) throw new Error("сетевая ошибка: " + netErr.message);
+      await sleep(4000 * attempt);
+      continue;
+    }
+    clearTimeout(timer);
+    if (res.ok) return await res.json();
+    const err = await res.text();
+    if (res.status === 402) throw new Error("HTTP 402: не хватает кредитов OpenRouter — пополните баланс или используйте бесплатную модель (:free)");
+    // модель исчезла из каталога (ротация :free) или не принимает изображения —
+    // помечаем отдельно, чтобы вызывающий код переключился на openrouter/free
+    if (res.status === 404 || (res.status === 400 && /no endpoints found|no allowed providers|model not found|is not available|does not exist|invalid model/i.test(err))) {
+      throw new Error("MODEL_UNAVAILABLE: модель " + model + " недоступна (HTTP " + res.status + "): " + err.slice(0, 120));
+    }
+    if ((res.status === 429 || res.status >= 500) && attempt < 4) {
+      await sleep(15000 * attempt);
+      continue;
+    }
+    throw new Error("HTTP " + res.status + ": " + err.slice(0, 200));
+  }
+}
+
+async function aiForEntry(entry, model, key) {
+  const isVideo = entry.file.type.startsWith("video/");
+  let imgs = isVideo
+    ? await getVideoFrames(entry.file, 3)
+    : [await resizeToDataURL(entry.file, 1024)];
+  if ((!imgs || !imgs.length || imgs.some(f => !f)) && isVideo) {
+    await sleep(1000);
+    imgs = await getVideoFrames(entry.file, 1);
+  }
+  if (!imgs || !imgs.length || imgs.some(f => !f))
+    throw new Error(isVideo
+      ? "не удалось получить кадр из видео (очень высокий битрейт/разрешение или неподдерживаемый кодек — H.265/HEVC, AV1). Пережмите в MP4/H.264 с битрейтом до ~20 Мбит/с"
+      : "не удалось прочитать изображение");
+
+  const exif = entry.exif || {};
+  const colors = entry.colors || [];
+  const ctxParts = [];
+  ctxParts.push("Имя файла (слабая подсказка, может НЕ соответствовать содержимому): " + entry.file.name);
+  if (exif.model) ctxParts.push("Камера: " + exif.model);
+  if (exif.date) ctxParts.push("Дата: " + exif.date);
+  if (exif.iso) ctxParts.push("ISO: " + exif.iso);
+  if (exif.fnumber) ctxParts.push("Диафрагма: f/" + exif.fnumber);
+  if (colors.length) ctxParts.push("Доминирующие цвета: " + colors.join(", "));
+  if (exif.lat && exif.lon) ctxParts.push("Есть GPS-координаты");
+  const ctype = entry.ctype || "photo";
+
+  const prevWords = Array.from(usedKeywords);
+  const prev = (prevWords.length ? "ключи: " + prevWords.slice(0, 120).join(", ") : "") +
+    (usedTitles.length ? (prevWords.length ? ". " : "") + "заголовки: " + usedTitles.slice(-5).join(" | ") : "");
+  const prevNote = prev ? "РАНЕЕ ИСПОЛЬЗОВАНО В ЭТОЙ СЕРИИ РАБОТ (избегай повторов — максимум 3 совпадения по всей работе, меняй концептуальный угол и формулировки): " + prev + ". " : "";
+
+  const prompt = "Ты — профессиональный атрибутор для фотостоков (Adobe Stock, Shutterstock). Тип контента: " + ctype + ". Дополнительный контекст: " + (ctxParts.join("; ") || "нет") + ". " + prevNote +
+    "СНАЧАЛА внимательно изучи изображение/кадры: главный объект на переднем плане, кто/что действует, окружение, свет, ракурс, настроение. Заголовок обязан передавать ГЛАВНОЕ ИМЕННО В КАДРЕ: каждый объект, субъект, действие и деталь обстановки в title обязаны быть реально видны на изображении/кадрах. НЕ выдумывай декорации и условия, которых не видно (вода, снег, ночь, интерьер и т.п.). Если содержимое кадра расходится с именем файла — описывай то, что видишь, а не имя файла. " +
+    "Проанализируй изображение и верни СТРОГО JSON без markdown: {\"title_en\":\"...\",\"keywords_en\":[\"...\"],\"title_ru\":\"...\",\"keywords_ru\":[\"...\"]}. " +
+    "TITLE (title_en): ровно 2 предложения. Цель — ~160 символов, жёсткий диапазон 140–180 символов (ПОДСЧИТАЙ). ПЛОХО: 'A tired young professional sitting at a cluttered desk in a dimly lit office late at night, experiencing work-related stress and burnout. Perfect for articles about mental health, workplace wellness campaigns, and corporate blog illustrations.' — ВОДА: общие слова, повторы, шаблон. ХОРОШО: 'Exhausted startup founder slumps over laptop at 3am, empty coffee cups scattered. Podcast cover for entrepreneurship mental health episode.' — точно, конкретно, одно применение. ПИШИ КАК ХОРОШО: если вылезает за 180 — сокращай; если короче 140 — добавь конкретные детали кадра. УЧИТЫВАЙ РЕАЛЬНЫЕ ПОИСКОВЫЕ ЗАПРОСЫ АДОБ СТОК: начни 1-е предложение с главного объекта так, как его ищут покупатели (конкретное существительное + действие + обстановка: 'man working late at night office', 'steaming cup of coffee on wooden table autumn morning'), не с абстракции. 1-е предложение — ЧТО В КАДРЕ: главный объект/субъект + действие + обстановка, точно по изображению. 2-е предложение — СМЫСЛ + КОНКРЕТНОЕ ПРИМЕНЕНИЕ: одна главная мысль + точный сценарий, для чего именно эту работу купят на Adobe Stock. Каждая работа — СВОЁ уникальное применение, НЕ повторяй одно и то же в серии. Думай широко и конкретно, какие реальные задачи решает именно ЭТА работа: Примеры применений (выбери ОДНО подходящее и НЕ повторяй в серии): обложка подкаста, фон для приложения, дизайн упаковки, открытка, обложка книги, макет для печати на merchandise, постер, шапка сайта, миниатюра YouTube, инфографика, паттерн для ткани, концепт-арт, корпоративный отчёт, образовательный курс, детская книга. Назови его одним-двумя словосочетаниями. ЗАПРЕЩЕНА ВОДА: никаких общих фраз («для маркетинга», «для бизнеса», «универсальный дизайн», «широкое применение», «множество задач», «красивое изображение», «идеально подходит», «отличный выбор»). Только конкретный формат или задача. ЗАПРЕЩЕНЫ ПОВТОРЫ внутри одного заголовка: не называй одно и то же дваждя разными словами (например: «усталость и перегрузка», «стресс и давление», «спокойствие и умиротворение»). Каждое слово должно нести свою уникальную информацию. Не повторяй корни слов внутри заголовка (burn/burning/burnout). " +
+    "Для vector добавь 'vector illustration', без фона — 'isolated / no background'. Свет: soft light → calm/healing, dark → stress/isolation. Окружение усиливает смысл: ночь → давление, лес → восстановление. " +
+    "Для видео добавь движение, процесс, изменение состояния. КРИТИЧНО: источник правды — только кадр(ы). Не выдумывай людей, объекты, действия и обстановку, которых нет в кадре. Если человека не видно (например, ванна с водой без человека) — не упоминай людей ('человек', 'мужчина', 'женщина', 'руки', 'расслабляется' и т.п.), опиши предмет/сцену и обязательно включи 'no people'. Для видео дано несколько кадров из разных моментов ролика. " +
+    "ПРИМЕНЕНИЕ И КОММЕРЧЕСКИЕ АКЦЕНТЫ: заголовки и ключи содержат конкретный сценарий применения работы на Adobe Stock и выгоду покупателя. Определи целевую аудиторию и задачу (для кого и зачем купят: маркетинг, HR/благополучие, финансы, образование, ретейл) и отрази это явно. В заголовке — во 2-м предложении точный формат/задача (что именно на покупателя работают: иллюстрация к статье, обложка подкаста, фон для приложения, макет для печати на кружке и т.д.). В ключах — 3–5 низкочастотных ключа-применения (advertising, corporate website, marketing concept, blog banner, presentation background, social media content, packaging design, business communication, workplace wellness), уникальных для этой работы и НЕ повторяющихся в серии. Каждая работа получает СВОЁ применение и СВОЮ аудиторию, НЕ «corporate presentation» на каждую. Ищи применение среди реальных задач дизайнеров, маркетологов, издателей, контент-мейкеров. Без брендов, без слов stock/photo/image. " +
+    "KEYWORDS (keywords_en): 40–49 штук. Ровно 3 фразы по 2 слова + одиночные слова (всего 40–49). Без дублей и одинаковых корней, не повторяют title. " +
+    "ФРАЗЫ (первые 3): реальные, низкочастотные, длиннохвостовые поисковые запросы, собранные ИМЕННО из деталей этой сцены (конкретный объект+действие, состояние+контекст, место+обстановка, материал+фактура). ЗАПРЕЩЕНЫ базовые шаблонные фразы-пустышки, подходящие к любой работе: mental health, work stress, life crisis, digital fatigue, burnout, stress relief, self care, well being, work life. Каждая из 3 фраз обязана быть уникальной для этой конкретной работы и отличаться от фраз предыдущих работ. " +
+    "Ключи должны быть НИЗКОЧАСТОТНЫМИ и уникальными: конкретные, специфичные, длиннохвостовые (long-tail) запросы — детальная сцена, объект, действие, материал, состояние, ракурс, контекст. ИЗБЕГАЙ сверхобщих слов-гигантов (man, woman, hand, water, white, black, alone, people, life, time, work) и слов, уже повторённых в списке 'РАНЕЕ ИСПОЛЬЗОВАНО'. Каждая работа — свой уникальный набор ключей. " +
+    "Покрывают: объекты, людей, действия, окружение, эмоции, состояния, концепции, категории. Плюс 2–4 КЛЮЧА-ПРИМЕНЕНИЯ — конкретные форматы/задачи, для которых покупатели ищут именно такой контент на Adobe Stock (примеры рабочих задач: packaging mockup, recipe illustration, podcast cover, wedding invitation, textbook visual, book cover design, print on demand, merchandise design, thumbnail design, podcast artwork, Zoom background, social media content, editorial illustration, blog header, app UI background, recipe card, travel guide art, children book illustration, concept art, fabric pattern, fitness motivation image, spa branding visual, infographic element, event poster, album cover art). Каждая работа — свой уникальный набор ключей-применений, не повторяй одно и то же подряд. Если людей НЕТ — включи 'no people'. Если человек есть — не включай. Без брендов, тех. характеристик камеры, слабых слов (nice, good, beautiful). " +
+    "Смысловой слой — только во 2-м предложении заголовка, НЕ как ключевые слова. Варьируй смысловой угол (burnout, digital fatigue, decision fatigue, cognitive overload, emotional suppression, life crisis, existential crisis, isolation, recovery, healing, work pressure, productivity decline, survival mode, mental block, problem dead end). Названия этих смыслов в keywords НЕ включай. " +
+    "АНТИ-SIMILAR: каждое изображение = новый смысл. Меняй формулировки, концептуальный угол, первые 2 ключа. Не повторяй одинаковые конструкции и кластеры. " +
+    "title_ru — тот же смысл на русском, тоже длиной 120–180 символов (цель ~140), и keywords_ru — 40–49 русских ключей (первые 3 — фразы из 2 слов, остальные — по 1 слову).";
+
+  const data = await openrouterRequest(model, key, prompt, imgs);
+  const content = data.choices?.[0]?.message?.content || "";
+  const parsed = parseAI(content);
+  if (!parsed) {
+    const fin = data.choices?.[0]?.finish_reason;
+    throw new Error((fin === "length" ? "ответ обрезан по лимиту токенов: " : "модель вернула не JSON: ") + content.slice(0, 300));
+  }
+  const noPeople = document.getElementById("no-people").checked;
+  const result = {
+    title: fitTitle(parsed.title_en),
+    keywords: cleanAIKeywords(parsed.keywords_en, noPeople, usedKeywords),
+    title_ru: fitTitle(parsed.title_ru),
+    keywords_ru: cleanAIKeywords(parsed.keywords_ru, noPeople, usedKeywords)
+  };
+  result.keywords.forEach(k => usedKeywords.add(k.toLowerCase()));
+  result.keywords_ru.forEach(k => usedKeywords.add(k.toLowerCase()));
+  usedTitles.push(result.title);
+  usedTitles.push(result.title_ru);
+  return result;
+}
+
+async function aiGenerate() {
+  if (!currentFile || !currentEntry) return alert("Сначала выберите файл.");
+  const key = document.getElementById("or-key").value.trim();
+  if (!key) return alert("Введите API-ключ OpenRouter.");
+  const model = document.getElementById("or-model").value.trim();
+  setStore(OR_KEY_STORE, key);
+  setStore(OR_MODEL_STORE, model);
+
+  const status = document.getElementById("ai-status");
+  const btn = document.getElementById("ai-btn");
+  btn.disabled = true;
+  status.textContent = "Анализ изображения...";
+  status.style.color = "var(--text2)";
+
+  const run = async m => {
+    const result = await aiForEntry(currentEntry, m, key);
+    currentEntry.generated = result;
+    document.getElementById("title").value = result.title;
+    updateTitleCount();
+    keywordList = result.keywords.slice();
+    renderKeywords();
+    showRU(result);
+    renderOutput(buildMeta(currentFile.name, result.title, keywordList, currentEntry));
+    syncCurrent();
+    return result;
+  };
+
+  try {
+    let result;
+    try {
+      result = await run(model);
+    } catch (e) {
+      // 402 = не хватает кредитов, MODEL_UNAVAILABLE = модель исчезла из каталога:
+      // один раз пробуем бесплатную модель
+      if (!/HTTP 402|MODEL_UNAVAILABLE/.test(e.message) || /free/.test(model)) throw e;
+      const freeModel = "openrouter/free";
+      document.getElementById("or-model").value = freeModel;
+      setStore(OR_MODEL_STORE, freeModel);
+      status.textContent = /MODEL_UNAVAILABLE/.test(e.message)
+        ? "Модель недоступна → пробую openrouter/free..."
+        : "Кредиты кончились (402) → пробую бесплатную модель...";
+      result = await run(freeModel);
+    }
+    status.textContent = "Готово: " + result.keywords.length + " ключей (запись сохранена)";
+    status.style.color = "var(--green)";
+  } catch (e) {
+    status.textContent = "Ошибка: " + e.message;
+    status.style.color = "var(--red)";
+  }
+  btn.disabled = false;
+}
+
+async function aiBatch() {
+  if (!fileEntries.length) return alert("Сначала добавьте файлы.");
+  const key = document.getElementById("or-key").value.trim();
+  if (!key) return alert("Введите API-ключ OpenRouter.");
+  const model = document.getElementById("or-model").value.trim();
+  setStore(OR_KEY_STORE, key);
+  setStore(OR_MODEL_STORE, model);
+
+  const status = document.getElementById("ai-status");
+  const errBox = document.getElementById("ai-errors");
+  errBox.textContent = "";
+  const btn = document.getElementById("batch-btn");
+  btn.disabled = true;
+  let ok = 0;
+  const errors = [];
+  const noPeople = document.getElementById("no-people").checked;
+  const cid = document.getElementById("concept").value;
+  const conc = CONC.find(c=>c.id===cid);
+
+  // не сбрасываем usedKeywords: наполняем из уже сохранённых записей, чтобы повторные
+  // запуски не дублировали ключи ранее сгенерированных работ
+  for (const r of records) {
+    if (r.keywords) r.keywords.split(", ").forEach(k => { k = k.trim().toLowerCase(); if (k) usedKeywords.add(k); });
+    if (r.title) usedTitles.push(r.title);
+    if (r.title_ru) usedTitles.push(r.title_ru);
+  }
+
+  // модель может быть заменена автоматически (402 → бесплатная), состояние общее для проходов
+  const runState = { model };
+  const processOne = async entry => {
+    const attempt = async m => {
+      const result = await aiForEntry(entry, m, key);
+      entry.generated = result;
+      const meta = buildMeta(entry.file.name, result.title, result.keywords, entry);
+      meta.source = "ai";
+      saveRecord(JSON.parse(JSON.stringify(meta)));
+      ok++;
+      return true;
+    };
+    try {
+      return await attempt(runState.model);
+    } catch (e) {
+      // 402 = не хватает кредитов, MODEL_UNAVAILABLE = модель исчезла из каталога:
+      // один раз переключаемся на бесплатную и повторяем файл
+      if (/HTTP 402|MODEL_UNAVAILABLE/.test(e.message) && !/free/.test(runState.model)) {
+        const wasModelGone = /MODEL_UNAVAILABLE/.test(e.message);
+        runState.model = "openrouter/free";
+        document.getElementById("or-model").value = runState.model;
+        setStore(OR_MODEL_STORE, runState.model);
+        errors.push((wasModelGone ? "Модель недоступна" : "Кредитов не хватило (402)") +
+          " → переключились на бесплатную модель openrouter/free");
+        status.textContent = (wasModelGone ? "Модель недоступна" : "Кредиты кончились") +
+          " → переключаюсь на бесплатную модель openrouter/free";
+        try { return await attempt(runState.model); } catch (e2) { e = e2; }
+      }
+      errors.push(entry.file.name + ": " + e.message);
+      // fallback: save heuristic metadata so the file is not lost from CSV
+      const fTitle = genTitle(entry.file.name, entry.exif, entry.colors);
+      const fKw = genKeywords(entry.file.name, entry.exif, entry.colors, entry.ctype || "photo", noPeople, conc?.kw||[]);
+      const fb = buildMeta(entry.file.name, fTitle, fKw, entry);
+      fb.source = "heuristic";
+      fb.ai_error = e.message;
+      saveRecord(JSON.parse(JSON.stringify(fb)));
+      return false;
+    }
+  };
+
+  const runPass = (entries, concurrency, delay) => {
+    let idx = 0;
+    const failed = [];
+    const worker = async () => {
+      while (idx < entries.length) {
+        const i = idx++;
+        const entry = entries[i];
+        status.textContent = "[" + (i+1) + "/" + entries.length + "] " + entry.file.name;
+        status.style.color = "var(--text2)";
+        await sleep(delay);
+        if (!(await processOne(entry))) failed.push(entry);
+      }
+    };
+    return Promise.all(Array.from({ length: Math.min(concurrency, entries.length) }, () => worker())).then(() => failed);
+  };
+
+  // основной проход — последовательно, чтобы не словить rate limit (429)
+  let failed = await runPass(fileEntries, 1, 2000);
+
+  // повторные проходы по упавшим файлам: лимиты API (429) часто временные
+  let round = 0;
+  while (failed.length && round < 3) {
+    round++;
+    const prev = failed.slice();
+    status.textContent = "Повторная попытка: " + prev.length + " файлов (проход " + round + "/3)...";
+    status.style.color = "var(--yellow)";
+    await sleep(8000);
+    failed = await runPass(prev, 1, 4000);
+  }
+
+  btn.disabled = false;
+  renderFileList();
+  selectFile(fileEntries[0].id);
+  if (failed.length) {
+    status.textContent = "Готово: " + ok + " OK, " + failed.length + " не описаны (записи с эвристикой сохранены).";
+    status.style.color = "var(--yellow)";
+    errBox.style.color = "var(--red)";
+    errBox.textContent = errors.join("\n");
+  } else {
+    status.textContent = "Готово: " + ok + " файлов обработано.";
+    status.style.color = "var(--green)";
+  }
+}
+
+document.getElementById("ai-btn").addEventListener("click", aiGenerate);
+document.getElementById("batch-btn").addEventListener("click", aiBatch);
+
+// ===== BUTTONS =====
+function saveRecord(meta) {
+  const idx = meta.file_id
+    ? records.findIndex(r => String(r.file_id) === String(meta.file_id))
+    : records.findIndex(r => r.filename === meta.filename);
+  if (idx >= 0) records[idx] = meta; else records.push(meta);
+  updateExport();
+}
+
+function syncCurrent() {
+  if (!currentFile || !currentEntry) return;
+  const title = document.getElementById("title").value.trim();
+  if (!title) return;
+  const meta = buildMeta(currentFile.name, title, keywordList, currentEntry);
+  meta.source = currentEntry.generated ? "ai" : "heuristic";
+  saveRecord(JSON.parse(JSON.stringify(meta)));
+}
+
+document.getElementById("gen-btn").addEventListener("click",()=>{
+  if (!currentFile) return alert("Сначала добавьте файл.");
+  const title = document.getElementById("title").value.trim();
+  if (!title) return alert("Напишите заголовок.");
+  const meta = buildMeta(currentFile.name, title, keywordList, currentEntry);
+  renderOutput(meta);
+  saveRecord(JSON.parse(JSON.stringify(meta)));
+});
+
+document.getElementById("regen-btn").addEventListener("click",regenerateKW);
+
+document.getElementById("copy-btn").addEventListener("click",()=>{
+  const t=document.getElementById("output").textContent;
+  if(t.startsWith("Сгенерируйте")) return;
+  navigator.clipboard.writeText(t).then(()=>{document.getElementById("copy-btn").textContent="Скопировано!";setTimeout(()=>{document.getElementById("copy-btn").textContent="Копировать"},1500);});
+});
+
+function downloadFile(name, content, type) {
+  const b = new Blob([content], {type: type || "text/plain;charset=utf-8"});
+  const u = URL.createObjectURL(b);
+  const a = document.createElement("a");
+  a.href = u; a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(u);},100);
+}
+
+function buildCurrentMeta() {
+  if (!currentFile || !currentEntry) return null;
+  const title = document.getElementById("title").value.trim();
+  if (!title) return null;
+  return JSON.parse(JSON.stringify(buildMeta(currentFile.name, title, keywordList, currentEntry)));
+}
+
+const EN_FIELDS = ["filename","title","keywords","category","category_id","content_type","adult_type","no_people","concept","keyword_count","source","ai_disclosure","is_editorial"];
+
+function entryMetaById(id) {
+  const entry = fileEntries.find(e => String(e.id) === String(id));
+  const rec = records.find(r => String(r.file_id) === String(id));
+  // приоритет у живых данных ИИ: сохранённая запись могла устареть (эвристика до генерации)
+  if (entry?.generated) {
+    const meta = buildMeta(entry.file.name, entry.generated.title, entry.generated.keywords, entry);
+    meta.source = "ai";
+    return JSON.parse(JSON.stringify(meta));
+  }
+  if (rec) return rec;
+  if (!entry) return null;
+  const title = genTitle(entry.file.name, entry.exif, entry.colors);
+  const kw = genKeywords(entry.file.name, entry.exif, entry.colors, entry.ctype || "photo", document.getElementById("no-people").checked, CONC.find(c=>c.id===document.getElementById("concept").value)?.kw||[]);
+  const meta = buildMeta(entry.file.name, title, kw, entry);
+  meta.source = "heuristic";
+  return JSON.parse(JSON.stringify(meta));
+}
+
+// перед экспортом подтягиваем свежие ИИ-данные из всех файлов, чтобы в CSV
+// не попали устаревшие записи, созданные до генерации
+function syncAllGenerated() {
+  for (const e of fileEntries) {
+    if (!e.generated) continue;
+    const meta = buildMeta(e.file.name, e.generated.title, e.generated.keywords, e);
+    meta.source = "ai";
+    saveRecord(JSON.parse(JSON.stringify(meta)));
+  }
+}
+
+function downloadEntryMeta(id) {
+  const meta = entryMetaById(id);
+  if (!meta) return alert("Нет метаданных для этого файла.");
+  const keys = EN_FIELDS.filter(k => meta[k] !== undefined && meta[k] !== "");
+  const esc = v => { const s = String(v ?? ""); return s.includes(",")||s.includes('"')||s.includes("\n") ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const csv = "\uFEFF" + keys.join(",") + "\n" + keys.map(k => esc(meta[k])).join(",");
+  downloadFile(meta.filename.replace(/\.[^.]+$/, "") + "_EN.csv", csv, "text/csv;charset=utf-8");
+}
+
+document.getElementById("dl-btn").addEventListener("click",()=>{
+  const meta = buildCurrentMeta();
+  if (!meta) return alert("Сначала добавьте файл и сгенерируйте метаданные.");
+  const txt = [
+    "FILE: " + meta.filename,
+    "TITLE (EN): " + meta.title,
+    "TITLE (RU): " + (meta.title_ru || ""),
+    "KEYWORDS (EN, " + meta.keyword_count + "):",
+    meta.keywords,
+    "KEYWORDS (RU): " + (meta.keywords_ru || ""),
+    "CATEGORY: " + meta.category,
+    "CONTENT TYPE: " + meta.content_type,
+    "ADULT: " + meta.adult_type,
+    "NO PEOPLE: " + meta.no_people,
+    "CONCEPT: " + meta.concept
+  ].join("\n");
+  downloadFile(meta.filename.replace(/\.[^.]+$/, "") + "_metadata.txt", txt);
+});
+
+document.getElementById("dl-csv-btn").addEventListener("click",()=>{
+  if (!currentEntry) return alert("Сначала выберите файл.");
+  downloadEntryMeta(currentEntry.id);
+});
+
+// ===== EXPORT =====
+const recordKeys = () => [...new Set(records.flatMap(r => Object.keys(r)))];
+
+function updateExport() {
+  document.getElementById("rc").textContent=records.length;
+  const w=document.getElementById("rtw");const t=document.getElementById("rt");
+  if(!records.length){w.style.display="none";return;}
+  w.style.display="block";
+  const keys=recordKeys();
+  let h="<table><thead><tr><th>#</th>";
+  keys.forEach(k=>{h+=`<th>${k.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase())}</th>`;});
+  h+="</tr></thead><tbody>";
+  records.forEach((r,i)=>{h+=`<tr><td>${i+1}</td>`;keys.forEach(k=>{const vs=String(r[k]??"");let v=vs;if(v.length>50)v=v.slice(0,47)+"...";h+=`<td title="${vs.replace(/"/g,"&quot;")}">${v}</td>`;});h+="</tr>";});
+  h+="</tbody></table>";
+  t.innerHTML=h;
+}
+
+document.getElementById("exp-csv").addEventListener("click",()=>{
+  syncAllGenerated();
+  if(!records.length)return alert("Нет записей.");
+  // по умолчанию выгружаем только реально атрибутированные записи (source=ai),
+  // чтобы в CSV не попали заглушки, собранные из имени файла
+  const aiRows = records.filter(r=>r.source==="ai" || r.generated);
+  const onlyAi = aiRows.length>0 && aiRows.length<records.length
+    ? confirm("Без ИИ-описания осталось записей: "+(records.length-aiRows.length)+".\n"+
+              "OK — выгрузить только ИИ-описания ("+aiRows.length+").\n"+
+              "Отмена — выгрузить все ("+records.length+"), включая заглушки из имени файла.")
+    : false;
+  const rows = onlyAi ? aiRows : records;
+  if (!rows.length) return alert("Нет ИИ-описаний: сначала запустите генерацию.");
+  const keys=[...new Set(rows.flatMap(r=>Object.keys(r)))];
+  const esc=v=>{const s=String(v??"");return s.includes(",")||s.includes('"')||s.includes("\n")?'"'+s.replace(/"/g,'""')+'"':s;};
+  const csv="\uFEFF"+keys.join(",")+"\n"+rows.map(r=>keys.map(k=>esc(r[k])).join(",")).join("\n");
+  const b=new Blob([csv],{type:"text/csv;charset=utf-8"});const u=URL.createObjectURL(b);
+  const a=document.createElement("a");a.href=u;a.download="adobe_stock_metadata.csv";document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(u);},100);
+});
+document.getElementById("exp-json").addEventListener("click",()=>{
+  syncAllGenerated();
+  if(!records.length)return alert("Нет записей.");
+  const b=new Blob([JSON.stringify(records,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);
+  const a=document.createElement("a");a.href=u;a.download="adobe_stock_metadata.json";document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(u);},100);
+});
+document.getElementById("exp-clr").addEventListener("click",()=>{records=[];updateExport();});
+
+// ===== TABS =====
+document.querySelectorAll(".tab").forEach(t=>{t.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));t.classList.add("active");document.getElementById("tab-"+t.dataset.tab).classList.add("active");});});
+
+updateExport();
+</script>
+</body>
+</html>
