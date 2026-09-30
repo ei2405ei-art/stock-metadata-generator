@@ -9,5 +9,35 @@ Thumbs.db
 
 # ВНИМАНИЕ: deploy.js содержит захардкоженный GitHub-токен — не коммитить.
 # Остальные файлы рабочей папки (другие приложения) намеренно не отслеживаются:
-# в этом репозитории публикуется только генератор метаданных.
+# в этом репозитории публикуется ТОЛЬКО генератор метаданных.
 deploy.js
+
+# --- остальные приложения из рабочей папки (не публикуются) ---
+ai-video-studio.html
+attributor.js
+attributor-system-prompt.md
+cartoon-studio.html
+generators-app/
+hero-monster-rpg.html
+index.html
+japanese-learning-app.html
+math-quest.html
+metadata_generator.py
+package-lock.json
+package.json
+proxy-server.js
+public/
+script.js
+server.js
+server/
+start-server.bat
+stock-attributor-server.js
+stock-attributor.html
+stock_video_requirements_2026.md
+styles.css
+test-debug.html
+toonimator.html
+troll-battle.html
+vector-editor.html
+vector-studio/
+video-generator.html
