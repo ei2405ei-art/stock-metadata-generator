@@ -63,7 +63,7 @@ description: Use when working on metadata-generator.html (Adobe Stock / Shutters
 | `llmRequest(cfg, prompt, imgs)` | маршрутизация: `ollama` → `ollamaRequest`, иначе `openrouterRequest` |
 | `ollamaRequest(cfg, prompt, imgs)` | локальный провайдер: POST `{url}/api/chat`, `format:"json"`, `keep_alive:"30m"`, `num_ctx:8192`, таймаут 600 с, base64 **без** префикса `data:`; ответ нормализуется в `{choices:[{message:{content}}]}` |
 | `applyProviderUI()` | показывает/скрывает панели OpenRouter и Ollama, пишет подсказку; выбор провайдера хранится в `ai_provider` |
-| `openrouterRequest(model, key, prompt, imgs)` | fetch + ретраи (429/5xx/сеть, 4 попытки), таймаут 90с, `max_tokens: 3000`; помечает недоступность модели префиксом `MODEL_UNAVAILABLE` |
+| `openrouterRequest(model, key, prompt, imgs, base)` | OpenAI-совместимый POST; `base` не передан → OpenRouter, передан → Model Studio (`isOpenRouter=false`). Ретраи (429/5xx/сеть, 4 попытки), таймаут 90с, `max_tokens: 3000`; 401/403 → «ключ отклонён», 429 → «превышен лимит», 402 → понятный текст про кредиты/квоту |
 | `aiGenerate()` | одиночная генерация; при 402 или `MODEL_UNAVAILABLE` → авто-переключение на `openrouter/free` |
 | `aiBatch()` | батч: последовательный проход (1 воркер, задержка 2с — чтобы не ловить 429); до 3 повторных проходов по упавшим (пауза 8с, задержка 4с); 402/`MODEL_UNAVAILABLE` → `openrouter/free` |
 | `parseAI(content)` | вытаскивает JSON: снимает ```-fences, обрезает от первого `{` до последнего `}`, чистит control chars, латает обрезанный ответ |
@@ -103,7 +103,17 @@ description: Use when working on metadata-generator.html (Adobe Stock / Shutters
 | Провайдер | Когда | Детали |
 |---|---|---|
 | `openrouter` | облако, быстрее | Нужен ключ. Авто-переход на `openrouter/free` при 402 / `MODEL_UNAVAILABLE` |
+| `qwen` | Alibaba Model Studio, быстро | Vision. Нужен ключ `sk-…`. Поля: ключ, модель, базовый адрес. Бесплатная квота новичкам. Автопереходов нет |
 | `ollama` | локально, бесплатно, без лимитов | Ключ не нужен. Требуется `setx OLLAMA_ORIGINS *` и перезапуск Ollama. На CPU без GPU ~2–4 мин на файл. Переходы на другие модели НЕ применяются |
+
+Qwen в Model Studio работает через OpenAI-совместимый endpoint, поэтому переиспользуется
+`openrouterRequest(model, key, prompt, imgs, base)`; признак `isOpenRouter = !base` отличает
+его от OpenRouter и отключает автопереход на `:free`. Адреса: `dashscope-intl.aliyuncs.com`
+(международный) или `dashscope.aliyuncs.com` (Китай). Модели: `qwen3-vl-plus`, `qwen3-vl-flash`,
+`qwen-vl-max`, `qwen2.5-vl-72b-instruct`.
+
+**DeepSeek использовать нельзя:** его публичный API text-only, vision-моделей нет —
+описать изображение он не способен. Нужен именно Qwen (или любая другая VL-модель).
 
 Модели для 8 ГБ ОЗУ: `qwen2.5vl:3b` (рекомендуется), `qwen2.5vl:7b` (медленно),
 `moondream` (быстро, слабее). Скачивание: `ollama pull qwen2.5vl:3b`.
