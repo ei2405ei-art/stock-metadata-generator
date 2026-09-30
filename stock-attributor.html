@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock Metadata Attributor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a25;--border:#2a2a3a;--text:#e8e8f0;--text2:#8888a0;--accent:#6c5ce7;--accent2:#a29bfe;--green:#00b894;--red:#e17055;--yellow:#fdcb6e;--radius:12px}
+body{font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+::selection{background:var(--accent);color:#fff}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--surface)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.app{max-width:1200px;margin:0 auto;padding:20px}
+header{text-align:center;padding:24px 0 20px}
+h1{font-size:24px;font-weight:700;background:linear-gradient(135deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--text2);font-size:12px;margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.drop{border:2px dashed var(--border);border-radius:var(--radius);padding:48px 24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface)}
+.drop:hover,.drop.over{border-color:var(--accent);background:rgba(108,92,231,.04)}
+.drop-icon{font-size:36px;opacity:.25;margin-bottom:8px}
+.drop-t{color:var(--text2);font-size:13px;line-height:1.5}
+.drop-t strong{color:var(--text)}
+.drop-h{color:var(--text2);font-size:11px;margin-top:6px;opacity:.5}
+.btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:13px;font-family:inherit;transition:all .2s}
+.btn:hover{border-color:var(--accent);color:var(--accent2)}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.p:hover{background:var(--accent2)}
+.btn.p:disabled{opacity:.4;cursor:not-allowed}
+.btn.d{border-color:var(--red);color:var(--red)}
+.btn.d:hover{background:var(--red);color:#fff}
+.btn.g{border-color:var(--green);color:var(--green)}
+.btn.g:hover{background:var(--green);color:#fff}
+.queue{margin-top:12px}
+.qh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.qt{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:1px}
+.fl{display:flex;flex-direction:column;gap:6px}
+.fi{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;transition:all .2s}
+.fi.proc{border-color:var(--yellow);animation:pulse 2s infinite}
+.fi.ok{border-color:var(--green)}
+.fi.err{border-color:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.ft{width:40px;height:40px;border-radius:6px;object-fit:cover;background:var(--surface2);flex-shrink:0}
+.fn{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.fs{font-size:11px;color:var(--text2)}
+.fr{background:none;border:none;color:var(--text2);cursor:pointer;padding:2px;font-size:14px}
+.fr:hover{color:var(--red)}
+.bar{height:2px;background:var(--surface2);border-radius:1px;margin-top:6px;overflow:hidden}
+.bar-f{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:1px;transition:width .3s;width:0}
+.stats{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.st{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 20px;min-width:100px}
+.sv{font-size:24px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sl{font-size:11px;color:var(--text2);margin-top:2px;text-transform:uppercase;letter-spacing:1px}
+.rcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:10px}
+.rhdr{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .2s}
+.rhdr:hover{background:var(--surface2)}
+.rprev{width:52px;height:52px;border-radius:6px;object-fit:cover;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text2)}
+.rmeta{flex:1;min-width:0}
+.rfn{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rtp{font-size:11px;color:var(--text2);margin-top:1px}
+.rtg{color:var(--text2);font-size:16px;transition:transform .2s}
+.rtg.open{transform:rotate(180deg)}
+.rbody{padding:16px;display:none}
+.rbody.open{display:block}
+.fld{margin-bottom:14px}
+.flbl{font-size:10px;color:var(--accent2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;font-weight:600}
+.fval{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-size:13px;line-height:1.5;color:var(--text);white-space:pre-wrap;word-break:break-word;position:relative}
+.fval .cp{position:absolute;top:6px;right:6px;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:2px 8px;color:var(--text2);cursor:pointer;font-size:10px;transition:all .2s}
+.fval .cp:hover{border-color:var(--accent);color:var(--accent2)}
+.kg{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.kw{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;color:var(--text2);cursor:pointer;transition:all .15s}
+.kw:hover{border-color:var(--accent);color:var(--accent2)}
+.kw.c{border-color:var(--accent);color:var(--accent2);font-weight:600}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.bdg{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;margin-left:6px}
+.bdg.v{background:rgba(108,92,231,.2);color:var(--accent2)}
+.bdg.p{background:rgba(0,184,148,.2);color:var(--green)}
+.bdg.np{background:rgba(225,112,85,.2);color:var(--red)}
+.bdg.vid{background:rgba(253,203,110,.2);color:var(--yellow)}
+.csvb{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-top:12px;display:none}
+.csvb pre{font-family:'SF Mono',Monaco,Consolas,monospace;font-size:10px;color:var(--text2);overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto}
+.model-status{text-align:center;padding:8px;font-size:12px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:12px}
+.model-status.ready{border-color:var(--green);color:var(--green)}
+.model-status.loading{border-color:var(--yellow);color:var(--yellow)}
+.model-status.error{border-color:var(--red);color:var(--red)}
+.cplbl{cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;color:var(--text2);font-size:10px}
+.cplbl:hover{color:var(--accent2)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.tabs{display:flex;gap:4px;margin-bottom:8px}
+.tab{padding:6px 12px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;font-size:11px;border-radius:6px;transition:all .2s}
+.tab:hover{border-color:var(--accent);color:var(--accent2)}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.csvlbl{font-size:11px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <h1>Stock Metadata Attributor</h1>
+  <div class="sub">AI прямо в браузере — без сервера и API ключей</div>
+</header>
+
+<div class="model-status" id="modelStatus">Загрузка AI-модели... (первый раз ~1.5GB, потом из кэша)</div>
+
+<div class="card">
+  <div class="drop" id="dz" onclick="document.getElementById('fi').click()">
+    <div class="drop-icon">&#128444;</div>
+    <div class="drop-t"><strong>Перетащи файлы сюда</strong> или кликни</div>
+    <div class="drop-h">JPG, PNG, GIF, WEBP — изображения | MP4, MOV — видео (извлекает кадр)</div>
+    <input type="file" id="fi" multiple accept="image/*,video/*" style="display:none">
+  </div>
+  <div class="btns">
+    <button class="btn p" id="goBtn" onclick="window._startAll()" disabled>Начать атрибуцию</button>
+    <button class="btn d" onclick="window._clearAll()">Очистить</button>
+  </div>
+  <div class="queue" id="qS" style="display:none">
+    <div class="qh"><div class="qt">Очередь: <span id="qC">0</span></div></div>
+    <div class="bar"><div class="bar-f" id="bF"></div></div>
+    <div class="fl" id="fL"></div>
+  </div>
+</div>
+
+<div class="stats" id="sS" style="display:none">
+  <div class="st"><div class="sv" id="sT">0</div><div class="sl">Всего</div></div>
+  <div class="st"><div class="sv" id="sD">0</div><div class="sl">Готово</div></div>
+  <div class="st"><div class="sv" id="sE">0</div><div class="sl">Ошибки</div></div>
+</div>
+
+<div id="results"></div>
+
+<div class="csvb" id="csvB">
+  <div class="flbl" style="margin-bottom:8px">Adobe Stock CSV — загрузи на <a href="https://contributor.stock.adobe.com" target="_blank" style="color:var(--accent2)">contributor.stock.adobe.com</a></div>
+  <div class="btns" style="margin-bottom:8px;margin-top:0">
+    <button class="btn p" onclick="window._dlCSV('universal')">Скачать CSV — Универсальный</button>
+    <button class="btn p" onclick="window._dlCSV('emotional')">Скачать CSV — Эмоциональный</button>
+    <button class="btn" onclick="window._cpCSV('universal')">Копировать Универсальный</button>
+    <button class="btn" onclick="window._cpCSV('emotional')">Копировать Эмоциональный</button>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="window._switchTab('universal', this)">Универсальный / Коммерческий</button>
+    <button class="tab" onclick="window._switchTab('emotional', this)">Эмоциональный / Тематический</button>
+  </div>
+  <div class="csvlbl" id="csvLabel">Универсальный / Коммерческий</div>
+  <pre id="csvP"></pre>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { Florence2ForConditionalGeneration, AutoProcessor, load_image, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1';
+
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+
+let model = null;
+let processor = null;
+let queue = [];
+let results = [];
+let busy = false;
+let _csvUniversal = '';
+let _csvEmotional = '';
+let _currentTab = 'universal';
+
+const statusEl = document.getElementById('modelStatus');
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+function copyText(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+  showToast('Скопировано!');
+}
+
+try {
+  statusEl.textContent = 'Загрузка AI-модели Florence-2... (первый раз ~1.5GB)';
+  statusEl.className = 'model-status loading';
+  const model_id = 'onnx-community/Florence-2-base-ft';
+  model = await Florence2ForConditionalGeneration.from_pretrained(model_id, { dtype: 'fp32' });
+  processor = await AutoProcessor.from_pretrained(model_id);
+  statusEl.textContent = 'AI-модель готова';
+  statusEl.className = 'model-status ready';
+  document.getElementById('goBtn').disabled = false;
+} catch (e) {
+  statusEl.textContent = 'Ошибка загрузки модели: ' + e.message;
+  statusEl.className = 'model-status error';
+}
+
+const IMG = new Set(['.jpg','.jpeg','.png','.gif','.bmp','.tiff','.webp']);
+const VID = new Set(['.mp4','.mov','.avi','.mkv','.webm']);
+
+function ext(f) { return '.' + f.name.split('.').pop().toLowerCase(); }
+function isVid(f) { return VID.has(ext(f)); }
+
+document.getElementById('fi').addEventListener('change', e => addFiles(e.target.files));
+const dz = document.getElementById('dz');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); addFiles(e.dataTransfer.files); });
+
+function addFiles(files) {
+  for (const f of files) {
+    const e = ext(f);
+    if (!IMG.has(e) && !VID.has(e)) continue;
+    if (queue.find(q => q.file.name === f.name && q.file.size === f.size)) continue;
+    queue.push({ file: f, status: 'pending', result: null, caption: null });
+  }
+  renderQ();
+}
+
+function renderQ() {
+  const s = document.getElementById('qS');
+  if (!queue.length) { s.style.display = 'none'; return; }
+  s.style.display = '';
+  document.getElementById('qC').textContent = queue.length;
+  document.getElementById('fL').innerHTML = queue.map((it, i) => {
+    const v = isVid(it.file);
+    const cls = it.status === 'proc' ? 'proc' : it.status === 'ok' ? 'ok' : it.status === 'err' ? 'err' : '';
+    const txt = it.status === 'pending' ? 'Ожидает' : it.status === 'proc' ? 'Анализ...' : it.status === 'ok' ? 'Готово' : 'Ошибка: ' + (it.error||'');
+    return '<div class="fi ' + cls + '">' +
+      (v ? '<div class="ft" style="display:flex;align-items:center;justify-content:center;font-size:14px">&#9654;</div>' : '<img class="ft" src="' + URL.createObjectURL(it.file) + '">') +
+      '<div style="flex:1;min-width:0"><div class="fn">' + it.file.name + '</div><div class="fs" style="' + (it.status==='err'?'color:var(--red)':'') + '">' + txt + '</div></div>' +
+      '<button class="fr" onclick="window._rm(' + i + ')">&times;</button></div>';
+  }).join('');
+}
+
+window._rm = (i) => { queue.splice(i, 1); renderQ(); };
+
+window._clearAll = function() {
+  queue = [];
+  results = [];
+  renderQ();
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('sS').style.display = 'none';
+  document.getElementById('csvB').style.display = 'none';
+  document.getElementById('bF').style.width = '0';
+};
+
+async function getFrame(file) {
+  return new Promise((resolve, reject) => {
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.muted = true;
+    v.playsInline = true;
+    const url = URL.createObjectURL(file);
+    v.src = url;
+    v.onloadeddata = () => { v.currentTime = 1; };
+    v.onseeked = () => {
+      const c = document.createElement('canvas');
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      c.getContext('2d').drawImage(v, 0, 0);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.9));
+    };
+    v.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Не удалось прочитать видео')); };
+  });
+}
+
+async function captionImage(dataUrl, filename) {
+  try {
+    const image = await load_image(dataUrl);
+    
+    const task = '<MORE_DETAILED_CAPTION>';
+    const prompts = processor.construct_prompts(task);
+    const inputs = await processor(image, prompts);
+    
+    const generated_ids = await model.generate({
+      ...inputs,
+      max_new_tokens: 150,
+    });
+    
+    let generated_text = processor.batch_decode(generated_ids, { skip_special_tokens: false })[0];
+    let result = processor.post_process_generation(generated_text, task, image.size);
+    let cleaned = result[task] || generated_text.replace(task, '').trim();
+    
+    if (filename) {
+      const name = filename.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+      if (name.length > 2) {
+        cleaned = name + '. ' + cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+      }
+    }
+    
+    return cleaned || 'stock photo';
+  } catch (e) {
+    console.error('Caption error:', e);
+    return 'stock photo';
+  }
+}
+
+const CONCEPTS = [
+  {e:'burnout',r:'выгорание'},{e:'digital fatigue',r:'цифровая усталость'},
+  {e:'decision fatigue',r:'усталость от решений'},{e:'cognitive overload',r:'когнитивная перегрузка'},
+  {e:'emotional suppression',r:'подавление эмоций'},{e:'life crisis',r:'жизненный кризис'},
+  {e:'existential crisis',r:'экзистенциальный кризис'},{e:'isolation',r:'изоляция'},
+  {e:'recovery',r:'восстановление'},{e:'healing',r:'исцеление'},
+  {e:'work pressure',r:'рабочее давление'},{e:'productivity decline',r:'снижение продуктивности'},
+  {e:'survival mode',r:'режим выживания'},{e:'mental block',r:'ментальный блок'},
+  {e:'problem dead end',r:'тупик'},{e:'silent pressure',r:'тихое давление'},
+  {e:'internal conflict',r:'внутренний конфликт'},{e:'life transition',r:'жизненный переход'},
+  {e:'emotional collapse',r:'эмоциональный коллапс'},{e:'mental blockage',r:'психический блок'},
+  {e:'stress',r:'стресс'},{e:'anxiety',r:'тревога'},{e:'loneliness',r:'одиночество'},
+  {e:'exhaustion',r:'истощение'},{e:'overthinking',r:'зацикленность'},
+  {e:'self doubt',r:'сомнение в себе'},{e:'resilience',r:'стойкость'},
+  {e:'mindfulness',r:'осознанность'},{e:'corporate stress',r:'корпоративный стресс'},
+  {e:'emotional fatigue',r:'эмоциональная усталость'},{e:'quiet desperation',r:'тихое отчаяние'},
+  {e:'burnout syndrome',r:'синдром выгорания'},{e:'work life balance',r:'баланс работы и жизни'},
+  {e:'deadline pressure',r:'давление дедлайна'},{e:'overwhelm',r:'перегрузка'},
+];
+
+const KW_EN_EXTRA = [
+  'office','desk','computer','laptop','screen','phone','keyboard','mouse',
+  'chair','lamp','papers','documents','notebook','coffee','mug','watch',
+  'glasses','pen','calendar','whiteboard','headphones','backpack','jacket',
+  'window','door','wall','shelf','plant','clock','light','shadow','dark',
+  'bright','warm','cold','morning','night','evening','day','outdoor',
+  'indoor','home','work','city','nature','sky','tree','building','street',
+  'cafe','park','road','car','train','bus','modern','minimal','realism',
+  'concept','dramatic','moody','cinematic','editorial','commercial',
+  'professional','authentic','candid','lifestyle','wellness','health',
+  'mental','brain','cognitive','emotional','physical','workplace','remote',
+  'digital','technology','corporate','startup','freelance','homeworking',
+  'man','woman','person','people','face','hand','body','eye','head',
+  'thinking','working','sitting','standing','walking','running','resting',
+  'looking','staring','holding','touching','typing','writing','reading',
+  'tired','stressed','focused','worried','calm','determined','hopeful',
+  'no people','isolated','white background','vector','illustration',
+  'texture','pattern','gradient','geometric','abstract','silhouette',
+  'outline','flat','3d','realistic','photo','stock','image','background',
+  'foreground','composition','bokeh','depth','blur',
+  'sharp','contrast','saturation','vibrant','muted','pastel','neon',
+  'golden','silver','blue','red','green','yellow','orange','purple','pink',
+  'black','white','gray','brown','beige','teal','cyan','magenta',
+];
+
+function pickN(arr, n) {
+  const s = arr.slice();
+  for (let i = s.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [s[i], s[j]] = [s[j], s[i]]; }
+  return s.slice(0, n);
+}
+function pick1(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function uniq(a) { return [...new Set(a)]; }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+const SUBJECT_RU_MAP = {
+  'a man':'мужчина','a woman':'женщина','a person':'человек','people':'люди',
+  'a boy':'парень','a girl':'девушка','a child':'ребёнок','a worker':'работник',
+  'a businessman':'бизнесмен','a cat':'кошка','a dog':'собака','a bird':'птица',
+  'a tree':'дерево','a building':'здание','a house':'дом','a car':'машина',
+  'a flower':'цветок','a book':'книга','a cup':'чашка','a phone':'телефон',
+  'a computer':'компьютер','a screen':'экран','a desk':'стол','a chair':'стул',
+  'an office':'офис','a room':'комната','a street':'улица','a road':'дорога',
+  'a park':'парк','a sky':'небо','a mountain':'гора','a river':'река',
+  'a sea':'море','a beach':'пляж','a forest':'лес','a field':'поле',
+  'hands':'руки','face':'лицо','eyes':'глаза','head':'голова','body':'тело',
+  'a laptop':'ноутбук','a keyboard':'клавиатура','a mouse':'мышь',
+  'a lamp':'лампа','a window':'окно','a door':'дверь','a wall':'стена',
+  'a clock':'часы','a plant':'растение','a cup of coffee':'чашка кофе',
+  'coffee':'кофе','documents':'документы','papers':'бумаги',
+  'a backpack':'рюкзак','a jacket':'куртка','glasses':'очки',
+  'a pen':'ручка','a notebook':'блокнот','a mug':'кружка',
+  'a watch':'часы','headphones':'наушники','a calendar':'календарь',
+  'a whiteboard':'маркерная доска','a shelf':'полка',
+  'a cafe':'кафе','a city':'город','nature':'природа','the sky':'небо',
+  'a tree':'дерево','a street':'улица','a car':'машина','a train':'поезд',
+  'a bus':'автобус','the morning':'утро','the night':'ночь',
+  'the evening':'вечер','the day':'день','outdoor':'на улице',
+  'indoor':'в помещении','home':'дом','work':'работа',
+  'dark':'темнота','light':'свет','shadow':'тень','bright':'яркость',
+  'warm':'тепло','cold':'холод',
+};
+
+const translateSubject = (s) => {
+  const low = s.toLowerCase().trim();
+  if (SUBJECT_RU_MAP[low]) return SUBJECT_RU_MAP[low];
+  for (const [en, ru] of Object.entries(SUBJECT_RU_MAP)) {
+    if (low.includes(en)) return ru;
+  }
+  return low;
+};
+  man:'мужчина',woman:'женщина',person:'человек',people:'люди',face:'лицо',hand:'рука',
+  sitting:'сидит',standing:'стоит',walking:'идёт',working:'работает',thinking:'думает',
+  looking:'смотрит',holding:'держит',typing:'набирает',writing:'пишет',reading:'читает',
+  tired:'уставший',stressed:'напряжённый',focused:'сосредоточенный',worried:'обеспокоенный',
+  calm:'спокойный',determined:'решительный',office:'офис',desk:'стол',computer:'компьютер',
+  laptop:'ноутбук',screen:'экран',phone:'телефон',keyboard:'клавиатура',chair:'стул',
+  lamp:'лампа',papers:'документы',notebook:'блокнот',coffee:'кофе',window:'окно',
+  door:'дверь',wall:'стена',plant:'растение',clock:'часы',light:'свет',shadow:'тень',
+  dark:'темнота',bright:'яркость',warm:'тепло',cold:'холод',morning:'утро',night:'ночь',
+  evening:'вечер',day:'день',outdoor:'на улице',indoor:'в помещении',home:'дом',
+  work:'работа',city:'город',nature:'природа',sky:'небо',tree:'дерево',building:'здание',
+  street:'улица',modern:'современный',minimal:'минимализм',realism:'реализм',
+  dramatic:'драматизм',moody:'атмосфера',professional:'профессиональный',
+  technology:'технологии',digital:'цифровой',corporate:'корпоративный',
+  stress:'стресс',anxiety:'тревога',isolation:'изоляция',recovery:'восстановление',
+  healing:'исцеление',burnout:'выгорание',fatigue:'усталость',exhaustion:'истощение',
+  pressure:'давление',focus:'фокус',concentration:'концентрация',productivity:'продуктивность',
+  mental:'психический',emotional:'эмоциональный',health:'здоровье',wellness:'благополучие',
+  lifestyle:'стиль жизни',authentic:'аутентичность',candid:'непринуждённый',
+  concept:'концепция',stock:'сток',image:'изображение',background:'фон',texture:'текстура',
+  pattern:'паттерн',gradient:'градиент',abstract:'абстракция',silhouette:'силуэт',
+  flat:'плоский',realistic:'реалистичный','no people':'без людей',
+  vector:'вектор',illustration:'иллюстрация',
+  boy:'парень',girl:'девушка',child:'ребёнок',kid:'ребёнок',worker:'работник',businessman:'бизнесмен',
+  running:'бежит',resting:'отдыхает',sleeping:'спит',posing:'позирует',smiling:'улыбается',
+  hopeful:'надеющийся','staring':'смотрит в упор','touching':'касается',
+  editorial:'редакционное',commercial:'коммерческое','candid':'непринуждённый',
+  startup:'стартап',freelance:'фриланс',homeworking:'удалённая работа',
+  remote:'дистанционно','workplace':'рабочее место',
+  cafe:'кафе',park:'парк',road:'дорога',train:'поезд',bus:'автобус',
+  minimal:'минималистичный',cinematic:'кинематографичный',
+  wellness:'благополучие',health:'здоровье',brain:'мозг',cognitive:'когнитивный',
+  physical:'физический',
+  morning:'утро',night:'ночь',evening:'вечер',day:'день',
+  outdoor:'на улице',indoor:'в помещении',home:'дом',work:'работа',
+  city:'город',nature:'природа',sky:'небо',tree:'дерево',building:'здание',street:'улица',
+  dark:'темнота',light:'свет',shadow:'тень',bright:'яркость',
+  warm:'тепло',cold:'холод',sharp:'резкий',contrast:'контраст',
+  saturation:'насыщенность',vibrant:'яркий',muted:'приглушённый',pastel:'пастельный',
+  neon:'неоновый',golden:'золотой',silver:'серебряный',
+  blue:'синий',red:'красный',green:'зелёный',yellow:'жёлтый',
+  orange:'оранжевый',purple:'фиолетовый',pink:'розовый',
+  black:'чёрный',white:'белый',gray:'серый',brown:'коричневый',
+  beige:'бежевый',teal:'бирюзовый',cyan:'голубой',magenta:'пурпурный',
+  foreground:'передний план',composition:'композиция',bokeh:'боке',
+  depth:'глубина',blur:'размытие',outline:'контур',photo:'фото',
+  isolated:'изолированный','white background':'белый фон',
+  '3d':'трёхмерный',geometric:'геометричческий',
+  thinking:'думает',working:'работает',sitting:'сидит',standing:'стоит',
+  walking:'идёт',running:'бежит',resting:'отдыхает',looking:'смотрит',
+  holding:'держит',typing:'набирает',writing:'пишет',reading:'читает',
+  man:'мужчина',woman:'женщина',person:'человек',people:'люди',
+  face:'лицо',hand:'рука',eye:'глаз',head:'голова',body:'тело',
+  laptop:'ноутбук',computer:'компьютер',screen:'экран',phone:'телефон',
+  keyboard:'клавиатура',mouse:'мышь',chair:'стул',lamp:'лампа',
+  papers:'бумаги',documents:'документы',notebook:'блокнот',coffee:'кофе',
+  mug:'кружка',watch:'часы',glasses:'очки',pen:'ручка',
+  calendar:'календарь',whiteboard:'маркерная доска',headphones:'наушники',
+  backpack:'рюкзак',jacket:'куртка',
+  window:'окно',door:'дверь',wall:'стена',shelf:'полка',plant:'растение',clock:'часы',
+  stressed:'напряжённый',focused:'сосредоточенный',worried:'обеспокоенный',
+  calm:'спокойный',determined:'решительный',
+  professional:'профессиональный',technology:'технологии',digital:'цифровой',corporate:'корпоративный',
+  stress:'стресс',anxiety:'тревога',isolation:'изоляция',recovery:'восстановление',
+  healing:'исцеление',burnout:'выгорание',fatigue:'усталость',exhaustion:'истощение',
+  pressure:'давление',focus:'фокус',concentration:'консентрация',productivity:'продуктивность',
+  mental:'психический',emotional:'эмоциональный',
+  authentic:'аутентичность',
+};
+
+function buildMetadata(caption, filename, isVideo) {
+  const c = caption.toLowerCase();
+  const hasPeople = /\b(man|woman|person|people|face|hand|boy|girl|child|kid|worker|businessman)\b/.test(c);
+  const isVector = /vector|illustration|flat|cartoon|icon|drawing/.test(c);
+
+  const conceptPool = CONCEPTS.slice();
+  const pickConcept = () => {
+    const idx = Math.floor(Math.random() * conceptPool.length);
+    return conceptPool.splice(idx, 1)[0] || {e:'concept',r:'концепция'};
+  };
+  const c1 = pickConcept();
+  const c2 = pickConcept();
+
+  const subject = c.split(',')[0].trim() || 'subject';
+  
+  const commercialUse = ['lifestyle', 'concept', 'stock photo', 'commercial use', 'editorial'][Math.floor(Math.random() * 5)];
+  const commercialUseRu = ['стиль жизни', 'концепция', 'стоковое фото', 'коммерческое использование', 'редакционное'][Math.floor(Math.random() * 5)];
+  
+  const emotionalWords = ['touching', 'beautiful', 'atmospheric', 'dramatic', 'serene', 'vibrant', 'moody', 'evocative'];
+  const emotionalWordsRu = ['трогательная', 'красивая', 'атмосферная', 'драматичная', 'спокойная', 'яркая', 'выразительная', 'захватывающая'];
+  const emotional = emotionalWords[Math.floor(Math.random() * emotionalWords.length)];
+  const emotionalRu = emotionalWordsRu[Math.floor(Math.random() * emotionalWordsRu.length)];
+  
+  let titleEn1, titleEn2, titleRu1, titleRu2;
+  
+  const subjectRu = translateSubject(subject);
+  
+  if (hasPeople) {
+    const who = (c.match(/\b(man|woman|person|people|boy|girl|worker|businessman)\b/) || ['person'])[0];
+    const whoRu = {man:'Мужчина',woman:'Женщина',person:'Человек',people:'Люди',boy:'Парень',girl:'Девушка',worker:'Работник',businessman:'Бизнесмен'}[who] || 'Человек';
+    const action = (c.match(/\b(sitting|standing|walking|working|thinking|looking|holding|typing|writing|reading|running|resting|sleeping|posing|smiling)\b/) || ['presenting'])[0];
+    const actionRu = {sitting:'сидит',standing:'стоит',walking:'идёт',working:'работает',thinking:'думает',looking:'смотрит',holding:'держит',typing:'набирает',writing:'пишет',reading:'читает',running:'бежит',resting:'отдыхает',sleeping:'спит',posing:'позирует',smiling:'улыбается'}[action] || 'представлен';
+    
+    titleEn1 = cap(who) + ' ' + action + ' in a ' + subject + ' scene. ' + cap(commercialUse) + ' visual content.';
+    titleEn2 = emotional + ' scene of ' + who + ' ' + action + '. ' + cap(c1.e) + ' and ' + c2.e + ' themed concept.';
+    titleRu1 = whoRu + ' ' + actionRu + ' в сцене «' + subjectRu + '». ' + cap(commercialUseRu) + ' визуальный контент.';
+    titleRu2 = cap(emotionalRu) + ' сцена: ' + whoRu.toLowerCase() + ' ' + actionRu + '. Тематическая концепция ' + c1.r + ' и ' + c2.r + '.';
+  } else {
+    titleEn1 = cap(subject) + ' in a detailed scene. ' + cap(commercialUse) + ' stock imagery.';
+    titleEn2 = emotional + ' ' + subject + ' scene. ' + cap(c1.e) + ' and ' + c2.e + ' artistic concept.';
+    titleRu1 = cap(subjectRu) + ' в детальной сцене. ' + cap(commercialUseRu) + ' стоковое изображение.';
+    titleRu2 = cap(emotionalRu) + ' сцена: ' + subjectRu + '. Художественная концепция ' + c1.r + ' и ' + c2.r + '.';
+  }
+  
+  if (isVector) { 
+    titleEn1 += ' Vector illustration.'; titleRu1 += ' Векторная иллюстрация.';
+    titleEn2 += ' Vector illustration.'; titleRu2 += ' Векторная иллюстрация.';
+  }
+  if (isVideo) { 
+    titleEn1 += ' Video footage.'; titleRu1 += ' Видеоматериал.';
+    titleEn2 += ' Video footage.'; titleRu2 += ' Видеоматериал.';
+  }
+  
+  if (titleEn1.length > 200) titleEn1 = titleEn1.slice(0, 197) + '...';
+  if (titleEn2.length > 200) titleEn2 = titleEn2.slice(0, 197) + '...';
+
+  const captionWords = c.replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2);
+  const extraPool = KW_EN_EXTRA.filter(w => captionWords.indexOf(w) === -1);
+  const picked = pickN(captionWords.concat(pickN(extraPool, 46)), 46);
+  const kwEn = uniq(picked);
+  if (kwEn.indexOf('no people') === -1) kwEn.push('no people');
+  while (kwEn.length < 49) kwEn.push(pick1(extraPool));
+
+  const kwRu = kwEn.slice(0, 49).map(w => KW_RU_MAP[w] || w);
+  const kwRuFinal = uniq(kwRu);
+  while (kwRuFinal.length < 49) kwRuFinal.push(pick1(Object.values(KW_RU_MAP)));
+
+  return {
+    filename: filename,
+    title_en: titleEn1.slice(0, 200),
+    title_en_variant: titleEn2.slice(0, 200),
+    keywords_en: kwEn.slice(0, 49),
+    title_ru: titleRu1,
+    title_ru_variant: titleRu2,
+    keywords_ru: kwRuFinal.slice(0, 49),
+    is_vector: isVector,
+    has_people: hasPeople,
+    media_type: isVideo ? 'video' : isVector ? 'vector' : 'photo',
+    caption: caption,
+  };
+}
+
+window._startAll = async function() {
+  if (busy || !model) return;
+  busy = true;
+  document.getElementById('goBtn').disabled = true;
+
+  const pending = queue.filter(q => q.status !== 'ok');
+  const total = pending.length;
+  let done = 0;
+
+  for (const item of pending) {
+    item.status = 'proc';
+    renderQ();
+
+    try {
+      let dataUrl;
+      if (isVid(item.file)) {
+        dataUrl = await getFrame(item.file);
+      } else {
+        dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(item.file);
+        });
+      }
+
+      item.caption = await captionImage(dataUrl, item.file.name);
+      item.result = buildMetadata(item.caption, item.file.name, isVid(item.file));
+      item.status = 'ok';
+      results.push(item.result);
+    } catch (err) {
+      item.status = 'err';
+      item.error = err.message;
+    }
+
+    done++;
+    document.getElementById('bF').style.width = (done / total * 100) + '%';
+    updateStats();
+    renderQ();
+    renderResults();
+  }
+
+  busy = false;
+  document.getElementById('goBtn').disabled = false;
+  makeCSV();
+};
+
+function updateStats() {
+  document.getElementById('sS').style.display = 'flex';
+  document.getElementById('sT').textContent = queue.length;
+  document.getElementById('sD').textContent = results.length;
+  document.getElementById('sE').textContent = queue.filter(q => q.status === 'err').length;
+}
+
+function renderResults() {
+  const el = document.getElementById('results');
+  if (!results.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = results.map((r, i) => {
+    const v = r.media_type === 'video';
+    const bdgs = [];
+    if (r.is_vector) bdgs.push('<span class="bdg v">VECTOR</span>');
+    if (r.has_people) bdgs.push('<span class="bdg p">PEOPLE</span>');
+    else bdgs.push('<span class="bdg np">NO PEOPLE</span>');
+    if (v) bdgs.push('<span class="bdg vid">VIDEO</span>');
+
+    const kwEnHtml = r.keywords_en.map((k, j) =>
+      '<span class="kw' + (j < 3 ? ' c' : '') + '" onclick="window._cpKw1(this,\'' + esc(k) + '\')">' + esc(k) + '</span>'
+    ).join('');
+
+    const kwRuHtml = r.keywords_ru.map((k, j) =>
+      '<span class="kw' + (j < 3 ? ' c' : '') + '" onclick="window._cpKw1(this,\'' + esc(k) + '\')">' + esc(k) + '</span>'
+    ).join('');
+
+    return '<div class="rcard">' +
+      '<div class="rhdr" onclick="window._togR(' + i + ')">' +
+        '<div class="rprev">' + (v ? '&#9654;' : 'IMG') + '</div>' +
+        '<div class="rmeta">' +
+          '<div class="rfn">' + esc(r.filename) + ' ' + bdgs.join('') + '</div>' +
+          '<div class="rtp">' + r.media_type + ' | caption: ' + esc(r.caption ? r.caption.slice(0,60) : '') + '...</div>' +
+        '</div>' +
+        '<div class="rtg" id="tg' + i + '">&#9660;</div>' +
+      '</div>' +
+      '<div class="rbody" id="bd' + i + '">' +
+        '<div class="btns" style="margin-bottom:14px;margin-top:0">' +
+          '<button class="btn g" onclick="window._cpAdobeTitle(' + i + ')">&#10003; Копировать Title для Adobe Stock</button>' +
+          '<button class="btn g" onclick="window._cpAdobeKw(' + i + ')">&#10003; Копировать Keywords для Adobe Stock</button>' +
+        '</div>' +
+        '<div class="r2">' +
+          '<div class="fld"><div class="flbl">Title EN (Universal / Commercial)</div><div class="fval"><button class="cp" onclick="window._cpField(this)">Copy</button>' + esc(r.title_en) + '</div></div>' +
+          '<div class="fld"><div class="flbl">Title EN (Emotional / Thematic)</div><div class="fval"><button class="cp" onclick="window._cpField(this)">Copy</button>' + esc(r.title_en_variant || '') + '</div></div>' +
+        '</div>' +
+        '<div class="r2">' +
+          '<div class="fld"><div class="flbl">Заголовок RU (Универсальный / Коммерческий)</div><div class="fval"><button class="cp" onclick="window._cpField(this)">Copy</button>' + esc(r.title_ru) + '</div></div>' +
+          '<div class="fld"><div class="flbl">Заголовок RU (Эмоциональный / Тематический)</div><div class="fval"><button class="cp" onclick="window._cpField(this)">Copy</button>' + esc(r.title_ru_variant || '') + '</div></div>' +
+        '</div>' +
+        '<div class="r2">' +
+          '<div class="fld"><div class="flbl">Keywords EN (49) <span class="cplbl" onclick="window._cpKwAll(' + i + ',\'en\')">скопировать все</span></div><div class="kg">' + kwEnHtml + '</div></div>' +
+          '<div class="fld"><div class="flbl">Ключевые слова RU (49) <span class="cplbl" onclick="window._cpKwAll(' + i + ',\'ru\')">скопировать все</span></div><div class="kg">' + kwRuHtml + '</div></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+window._togR = function(i) {
+  document.getElementById('bd' + i).classList.toggle('open');
+  document.getElementById('tg' + i).classList.toggle('open');
+};
+
+window._cpField = function(el) {
+  const text = el.parentElement.textContent.replace('Copy', '').trim();
+  copyText(text);
+  el.textContent = 'Copied!';
+  setTimeout(() => el.textContent = 'Copy', 1200);
+};
+
+window._cpKw1 = function(el, word) {
+  copyText(word);
+  el.style.borderColor = 'var(--green)';
+  el.style.color = 'var(--green)';
+  setTimeout(() => { el.style.borderColor = ''; el.style.color = ''; }, 600);
+};
+
+window._cpKwAll = function(idx, lang) {
+  const r = results[idx];
+  if (!r) return;
+  const arr = lang === 'en' ? r.keywords_en : r.keywords_ru;
+  copyText(arr.join(', '));
+};
+
+window._cpAdobeTitle = function(idx) {
+  const r = results[idx];
+  if (!r) return;
+  copyText(r.title_en);
+};
+
+window._cpAdobeTitleVariant = function(idx) {
+  const r = results[idx];
+  if (!r) return;
+  copyText(r.title_en_variant || r.title_en);
+};
+
+window._cpAdobeKw = function(idx) {
+  const r = results[idx];
+  if (!r) return;
+  copyText(r.keywords_en.join(', '));
+};
+
+function makeCSV() {
+  if (!results.length) return;
+  
+  const rowsUniversal = ['Файл,Заголовок,Ключевые слова'];
+  const rowsEmotional = ['Файл,Заголовок,Ключевые слова'];
+  
+  for (const r of results) {
+    const titleUniversal = r.title_ru
+      .replace(/,/g, ' ')
+      .replace(/"/g, '')
+      .replace(/[^a-zA-Zа-яА-ЯёЁ0-9\s\-\.]/g, '')
+      .trim()
+      .slice(0, 70);
+    const titleEmotional = (r.title_ru_variant || r.title_ru)
+      .replace(/,/g, ' ')
+      .replace(/"/g, '')
+      .replace(/[^a-zA-Zа-яА-ЯёЁ0-9\s\-\.]/g, '')
+      .trim()
+      .slice(0, 70);
+    const kws = r.keywords_ru
+      .slice(0, 49)
+      .map(k => k.replace(/,/g, '').replace(/"/g, '').trim())
+      .join(',');
+    
+    rowsUniversal.push(r.filename + ',' + titleUniversal + ',' + kws);
+    rowsEmotional.push(r.filename + ',' + titleEmotional + ',' + kws);
+  }
+  
+  window._csvUniversal = rowsUniversal.join('\n');
+  window._csvEmotional = rowsEmotional.join('\n');
+  
+  document.getElementById('csvB').style.display = 'block';
+  document.getElementById('csvP').textContent = window._csvUniversal;
+}
+
+window._switchTab = function(type, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const label = type === 'universal' ? 'Универсальный / Коммерческий' : 'Эмоциональный / Тематический';
+  const content = type === 'universal' ? window._csvUniversal : window._csvEmotional;
+  document.getElementById('csvP').textContent = content;
+  document.getElementById('csvLabel').textContent = label;
+  window._currentTab = type;
+};
+
+window._dlCSV = function(type) {
+  const csv = type === 'emotional' ? window._csvEmotional : window._csvUniversal;
+  const filename = type === 'emotional' ? 'adobe_stock_emotional.csv' : 'adobe_stock_universal.csv';
+  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+window._cpCSV = function(type) {
+  const csv = type === 'emotional' ? window._csvEmotional : window._csvUniversal;
+  copyText(csv);
+};
+</script>
+</body>
+</html>

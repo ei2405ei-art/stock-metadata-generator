@@ -1,0 +1,11 @@
+<!DOCTYPE html><html><body><pre id="out">Loading...</pre><script>
+fetch('/api/debug', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'x-goog-api-key': 'browser_test_key' },
+  body: JSON.stringify({ instances: [{ prompt: 'test' }], parameters: { sampleCount: 1 } })
+}).then(r => r.json()).then(d => {
+  document.getElementById('out').textContent = JSON.stringify(d, null, 2);
+}).catch(e => {
+  document.getElementById('out').textContent = 'ERROR: ' + e.message;
+});
+</script></body></html>

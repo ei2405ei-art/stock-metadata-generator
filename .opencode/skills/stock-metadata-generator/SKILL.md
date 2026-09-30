@@ -58,7 +58,11 @@ description: Use when working on metadata-generator.html (Adobe Stock / Shutters
 
 | Function | Роль |
 |---|---|
-| `aiForEntry(entry, model, key)` | кадры/изображение → промпт → OpenRouter → `parseAI` |
+| `aiForEntry(entry, cfg)` | кадры/изображение → промпт → `llmRequest(cfg, …)` → `parseAI` |
+| `readCfg()` | собирает настройки выбранного провайдера из DOM: `{provider:"openrouter", key, model}` либо `{provider:"ollama", url, model}`; возвращает `{ok:false, err}` если ключа нет |
+| `llmRequest(cfg, prompt, imgs)` | маршрутизация: `ollama` → `ollamaRequest`, иначе `openrouterRequest` |
+| `ollamaRequest(cfg, prompt, imgs)` | локальный провайдер: POST `{url}/api/chat`, `format:"json"`, `keep_alive:"30m"`, `num_ctx:8192`, таймаут 600 с, base64 **без** префикса `data:`; ответ нормализуется в `{choices:[{message:{content}}]}` |
+| `applyProviderUI()` | показывает/скрывает панели OpenRouter и Ollama, пишет подсказку; выбор провайдера хранится в `ai_provider` |
 | `openrouterRequest(model, key, prompt, imgs)` | fetch + ретраи (429/5xx/сеть, 4 попытки), таймаут 90с, `max_tokens: 3000`; помечает недоступность модели префиксом `MODEL_UNAVAILABLE` |
 | `aiGenerate()` | одиночная генерация; при 402 или `MODEL_UNAVAILABLE` → авто-переключение на `openrouter/free` |
 | `aiBatch()` | батч: последовательный проход (1 воркер, задержка 2с — чтобы не ловить 429); до 3 повторных проходов по упавшим (пауза 8с, задержка 4с); 402/`MODEL_UNAVAILABLE` → `openrouter/free` |
@@ -94,6 +98,16 @@ description: Use when working on metadata-generator.html (Adobe Stock / Shutters
 Лимит бесплатных: ~20 req/min, ~200–1000/сутки. Повышается покупкой ≥$10 кредитов
 (не обязательно тратить их на free-модели).
 
+## Провайдеры (переключатель в UI)
+
+| Провайдер | Когда | Детали |
+|---|---|---|
+| `openrouter` | облако, быстрее | Нужен ключ. Авто-переход на `openrouter/free` при 402 / `MODEL_UNAVAILABLE` |
+| `ollama` | локально, бесплатно, без лимитов | Ключ не нужен. Требуется `setx OLLAMA_ORIGINS *` и перезапуск Ollama. На CPU без GPU ~2–4 мин на файл. Переходы на другие модели НЕ применяются |
+
+Модели для 8 ГБ ОЗУ: `qwen2.5vl:3b` (рекомендуется), `qwen2.5vl:7b` (медленно),
+`moondream` (быстро, слабее). Скачивание: `ollama pull qwen2.5vl:3b`.
+
 ## State
 
 - `fileEntries[]` — файлы: `{id: Date.now()+Math.random(), file, exif, colors, vmeta, thumbUrl, ctype, generated}`
@@ -118,6 +132,8 @@ description: Use when working on metadata-generator.html (Adobe Stock / Shutters
 | CSV содержит имя файла вместо описания | ИИ не отработал → fallback. Проверить `source`/`ai_error`. Добавлено: 402 → авто-переключение на `openrouter/free`, `syncAllGenerated()` перед экспортом, приоритет `entry.generated` в `entryMetaById` |
 | `HTTP 402 ... can only afford N` | Не задан `max_tokens` → OpenRouter считает по максимуму модели (32768/65536). Фикс: явный `max_tokens: 3000` + автопереход на `openrouter/free` |
 | `MODEL_UNAVAILABLE: модель ... недоступна` | `:free`-slug исчез при ротации каталога (404 / 400 «no endpoints found»). Single и batch один раз переключаются на `openrouter/free` |
+| `Ollama: не удалось обратиться к ...` | Ollama не запущена или браузер блокирует CORS. Лечится `setx OLLAMA_ORIGINS *` + перезапуск терминала и Ollama |
+| `MODEL_UNAVAILABLE ... ollama pull` (404 от Ollama) | Модель не скачана локально. Показываем готовую команду `ollama pull <model>` |
 | Заголовок > 180 / > 200 знаков | Устаревшая страница в кэше браузера — Ctrl+F5. Кап стоит в `fitTitle()` и `buildMeta()` |
 | «не удалось получить кадр из видео» | H.265/HEVC, AV1 или сверхвысокий битрейт → пережать MP4/H.264 |
 | Из 20 работ описано меньше | Раньше сдавались после 4 попыток; теперь 2 доп. прохода по упавшим |

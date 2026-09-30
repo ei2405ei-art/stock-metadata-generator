@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Generator — Стоковое видео</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/11.1.0/jsrsasign-all-min.js"></script>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0f0f1a; --bg2: #16162a; --bg3: #1e1e3a; --bg4: #262650;
+  --text: #e0e0f0; --text2: #a0a0c0; --text3: #707090;
+  --accent: #6c5ce7; --accent2: #a29bfe; --accent-dim: rgba(108,92,231,0.15);
+  --green: #00b894; --red: #e17055; --yellow: #fdcb6e; --blue: #74b9ff;
+  --border: #2a2a4a; --sidebar-w: 240px;
+  --radius: 8px; --radius-lg: 12px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+html, body { height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+input, textarea, select, button { font-family: inherit; font-size: inherit; }
+a { color: var(--accent2); text-decoration: none; }
+
+.layout { display: flex; height: 100vh; }
+
+.sidebar {
+  width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--bg2);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  z-index: 10;
+}
+.sidebar-header {
+  padding: 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.sidebar-header svg { width: 28px; height: 28px; fill: var(--accent); }
+.sidebar-header h1 { font-size: 15px; font-weight: 700; line-height: 1.2; }
+.sidebar-header span { font-size: 11px; color: var(--text3); font-weight: 400; }
+
+.sidebar-nav { flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
+.nav-link {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  border-radius: var(--radius); cursor: pointer; color: var(--text2);
+  font-size: 13px; font-weight: 500; transition: all 0.15s;
+}
+.nav-link:hover { background: var(--bg3); color: var(--text); }
+.nav-link.active { background: var(--accent-dim); color: var(--accent2); }
+.nav-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+.nav-spacer { flex: 1; }
+.nav-divider { height: 1px; background: var(--border); margin: 8px 14px; }
+
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.page { display: none; flex: 1; flex-direction: column; overflow-y: auto; padding: 28px 32px; }
+.page.active { display: flex; }
+.page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.page-desc { font-size: 13px; color: var(--text3); margin-bottom: 24px; }
+
+.form-row { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
+.form-group label { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+.form-group input, .form-group select, .form-group textarea {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 12px; color: var(--text); font-size: 13px; outline: none;
+  transition: border-color 0.15s;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+.form-group textarea { resize: vertical; min-height: 80px; }
+.form-group select { cursor: pointer; }
+.form-group select option { background: var(--bg3); }
+
+.api-switch {
+  display: flex; gap: 0; background: var(--bg3); border-radius: var(--radius);
+  padding: 3px; margin-bottom: 16px; border: 1px solid var(--border);
+}
+.api-switch label {
+  flex: 1; text-align: center; padding: 8px 12px; border-radius: 6px;
+  cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text3);
+  transition: all 0.15s;
+}
+.api-switch input { display: none; }
+.api-switch input:checked + label { background: var(--accent); color: #fff; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 20px; border-radius: var(--radius); font-size: 13px;
+  font-weight: 600; cursor: pointer; border: none; transition: all 0.15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #5b4bd6; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--bg4); color: var(--text); }
+.btn-success { background: var(--green); color: #fff; }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+.preview-area {
+  flex: 1; min-height: 300px; background: var(--bg2); border: 2px dashed var(--border);
+  border-radius: var(--radius-lg); display: flex; align-items: center;
+  justify-content: center; flex-direction: column; gap: 12px; color: var(--text3);
+  position: relative; overflow: hidden;
+}
+.preview-area.has-video { border-style: solid; border-color: var(--accent); }
+.preview-area video { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; }
+.preview-placeholder svg { width: 48px; height: 48px; fill: var(--text3); opacity: 0.5; }
+.preview-placeholder span { font-size: 13px; }
+
+.work-row { display: flex; gap: 20px; flex: 1; min-height: 0; }
+.work-col-left { flex: 1; display: flex; flex-direction: column; gap: 16px; min-width: 320px; max-width: 420px; }
+.work-col-right { flex: 2; display: flex; flex-direction: column; gap: 12px; }
+
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius-lg); padding: 32px;
+  text-align: center; cursor: pointer; transition: all 0.2s; color: var(--text3);
+}
+.drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: var(--accent-dim); color: var(--text); }
+.drop-zone svg { width: 36px; height: 36px; fill: currentColor; margin-bottom: 8px; opacity: 0.6; }
+.drop-zone p { font-size: 13px; margin-bottom: 4px; }
+.drop-zone small { font-size: 11px; color: var(--text3); }
+.drop-zone img, .drop-zone video { max-width: 100%; max-height: 160px; border-radius: var(--radius); margin-top: 8px; }
+
+.settings-section {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 20px; margin-bottom: 16px;
+}
+.settings-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.settings-section h3 .badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  background: var(--accent-dim); color: var(--accent2); font-weight: 600;
+}
+
+.history-list { display: flex; flex-direction: column; gap: 8px; }
+.history-item {
+  display: flex; align-items: center; gap: 14px; padding: 12px 16px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; transition: all 0.15s;
+}
+.history-item:hover { border-color: var(--accent); }
+.history-item .thumb {
+  width: 80px; height: 45px; border-radius: 6px; background: var(--bg3);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  flex-shrink: 0;
+}
+.history-item .thumb img, .history-item .thumb video { width: 100%; height: 100%; object-fit: cover; }
+.history-item .thumb svg { width: 20px; height: 20px; fill: var(--text3); }
+.history-item .info { flex: 1; min-width: 0; }
+.history-item .info .prompt { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-item .info .meta { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.history-item .actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.toast {
+  position: fixed; bottom: 20px; right: 20px; padding: 12px 20px;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 13px; z-index: 1000; box-shadow: var(--shadow);
+  transform: translateY(100px); opacity: 0; transition: all 0.3s;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: var(--green); }
+.toast.error { border-color: var(--red); }
+
+.spinner {
+  width: 20px; height: 20px; border: 2px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.progress-bar { width: 100%; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+.progress-bar .fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+
+@media (max-width: 900px) {
+  .sidebar { position: fixed; left: -260px; top: 0; bottom: 0; z-index: 100; transition: left 0.2s; }
+  .sidebar.open { left: 0; }
+  .mobile-toggle { display: flex !important; }
+  .work-row { flex-direction: column; }
+  .work-col-left { max-width: none; }
+}
+.mobile-toggle {
+  display: none; position: fixed; top: 12px; left: 12px; z-index: 50;
+  width: 40px; height: 40px; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text);
+}
+.mobile-toggle svg { width: 20px; height: 20px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <div class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+      <h1>Video Generator<br><span>Стоковое видео</span></h1>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-link active" data-page="text2video">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg>
+        Text-to-Video
+      </div>
+      <div class="nav-link" data-page="image2video">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        Image-to-Video
+      </div>
+      <div class="nav-link" data-page="upscale">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        Video Upscale
+      </div>
+      <div class="nav-divider"></div>
+      <div class="nav-link" data-page="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Настройки API
+      </div>
+      <div class="nav-link" data-page="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        История
+      </div>
+      <div class="nav-spacer"></div>
+      <div class="nav-link" onclick="window.open('vector-editor.html','_blank')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Vector Editor
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+    <div class="page active" id="page-text2video">
+      <div class="page-title">Text-to-Video</div>
+      <div class="page-desc">Генерация видео по текстовому описанию</div>
+      <div class="work-row">
+        <div class="work-col-left">
+          <div class="api-switch">
+            <input type="radio" name="t2v-api" id="t2v-grok" value="grok" checked>
+            <label for="t2v-grok">Grok</label>
+            <input type="radio" name="t2v-api" id="t2v-kling" value="kling">
+            <label for="t2v-kling">Kling</label>
+            <input type="radio" name="t2v-api" id="t2v-veo" value="veo">
+            <label for="t2v-veo">Veo</label>
+          </div>
+          <div class="form-group">
+            <label>Промпт</label>
+            <textarea id="t2v-prompt" placeholder="Опишите сцену... Например: Закат над океаном, волны разбиваются о скалы, золотой свет, кинематографично"></textarea>
+          </div>
+          <div class="form-group" id="t2v-neg-wrap">
+            <label>Негативный промпт</label>
+            <input type="text" id="t2v-neg" placeholder="Размытое, низкое качество, артефакты">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Модель</label>
+              <select id="t2v-model"></select>
+            </div>
+            <div class="form-group">
+              <label>Длительность</label>
+              <select id="t2v-duration"></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Разрешение</label>
+              <select id="t2v-resolution"></select>
+            </div>
+            <div class="form-group">
+              <label>Соотношение сторон</label>
+              <select id="t2v-aspect">
+                <option value="16:9">16:9 (Альбомное)</option>
+                <option value="9:16">9:16 (Вертикальное)</option>
+                <option value="1:1">1:1 (Квадрат)</option>
+                <option value="4:3">4:3</option>
+                <option value="3:4">3:4</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" id="t2v-sound-row" style="display:none">
+            <div class="form-group">
+              <label>Нативный звук</label>
+              <select id="t2v-sound">
+                <option value="off">Выкл</option>
+                <option value="on">Вкл</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="t2v-generate" style="width:100%;margin-top:8px" onclick="App.generateText2Video()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Генерировать
+          </button>
+        </div>
+        <div class="work-col-right">
+          <div class="preview-area" id="t2v-preview">
+            <div class="preview-placeholder">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+              <span>Видео появится здесь</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" id="t2v-download" disabled onclick="App.downloadVideo('t2v')">Скачать MP4</button>
+            <button class="btn btn-secondary btn-sm" id="t2v-history-btn" disabled onclick="App.addToHistory('t2v')">В историю</button>
+            <button class="btn btn-secondary btn-sm" id="t2v-upscale-btn" disabled onclick="App.sendToUpscale('t2v')">Апскейл</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-image2video">
+      <div class="page-title">Image-to-Video</div>
+      <div class="page-desc">Анимация статичного изображения</div>
+      <div class="work-row">
+        <div class="work-col-left">
+          <div class="api-switch">
+            <input type="radio" name="i2v-api" id="i2v-grok" value="grok" checked>
+            <label for="i2v-grok">Grok</label>
+            <input type="radio" name="i2v-api" id="i2v-kling" value="kling">
+            <label for="i2v-kling">Kling</label>
+            <input type="radio" name="i2v-api" id="i2v-veo" value="veo">
+            <label for="i2v-veo">Veo</label>
+          </div>
+          <div class="drop-zone" id="i2v-drop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p>Перетащите изображение сюда</p>
+            <small>или нажмите для выбора (JPG, PNG, до 20 МБ)</small>
+            <input type="file" id="i2v-file" accept="image/jpeg,image/png" hidden>
+          </div>
+          <div class="form-group">
+            <label>Промпт анимации</label>
+            <textarea id="i2v-prompt" placeholder="Опишите движение... Например: Мягкий ветер покачивает деревья, облака плывут"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Модель</label>
+              <select id="i2v-model"></select>
+            </div>
+            <div class="form-group">
+              <label>Длительность</label>
+              <select id="i2v-duration"></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Разрешение</label>
+              <select id="i2v-resolution"></select>
+            </div>
+            <div class="form-group">
+              <label>Соотношение сторон</label>
+              <select id="i2v-aspect">
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
+                <option value="1:1">1:1</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="i2v-generate" style="width:100%;margin-top:8px" onclick="App.generateImage2Video()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Анимировать
+          </button>
+        </div>
+        <div class="work-col-right">
+          <div class="preview-area" id="i2v-preview">
+            <div class="preview-placeholder">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+              <span>Анимированное видео появится здесь</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" id="i2v-download" disabled onclick="App.downloadVideo('i2v')">Скачать MP4</button>
+            <button class="btn btn-secondary btn-sm" id="i2v-history-btn" disabled onclick="App.addToHistory('i2v')">В историю</button>
+            <button class="btn btn-secondary btn-sm" id="i2v-upscale-btn" disabled onclick="App.sendToUpscale('i2v')">Апскейл</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-upscale">
+      <div class="page-title">Video Upscale</div>
+      <div class="page-desc">Увеличение разрешения видео до 4K через Topaz (Fal.ai)</div>
+      <div class="work-row">
+        <div class="work-col-left">
+          <div class="drop-zone" id="upscale-drop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p>Перетащите видео сюда</p>
+            <small>или нажмите для выбора (MP4, MOV)</small>
+            <input type="file" id="upscale-file" accept="video/mp4,video/quicktime" hidden>
+          </div>
+          <div class="form-group">
+            <label>Модель Topaz</label>
+            <select id="upscale-model">
+              <option value="proteus">Proteus (универсальная)</option>
+              <option value="starlight">Starlight (макс. качество)</option>
+              <option value="gaia">Gaia (быстрая)</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Целевое разрешение</label>
+              <select id="upscale-resolution">
+                <option value="1080p">1080p (FHD)</option>
+                <option value="2k">2K (QHD)</option>
+                <option value="4k" selected>4K (UHD)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Целевой FPS</label>
+              <select id="upscale-fps">
+                <option value="24">24 fps</option>
+                <option value="30" selected>30 fps</option>
+                <option value="60">60 fps</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="upscale-generate" style="width:100%;margin-top:8px" onclick="App.upscaleVideo()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            Апскейлить
+          </button>
+        </div>
+        <div class="work-col-right">
+          <div class="preview-area" id="upscale-preview">
+            <div class="preview-placeholder">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+              <span>Результат апскейла появится здесь</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" id="upscale-download" disabled onclick="App.downloadVideo('upscale')">Скачать MP4</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-settings">
+      <div class="page-title">Настройки API</div>
+      <div class="page-desc">Введите ключи для доступа к сервисам генерации видео</div>
+
+      <div class="settings-section">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Grok (xAI)
+          <span class="badge">Text/Image-to-Video</span>
+        </h3>
+        <div class="form-group">
+          <label>API Key</label>
+          <input type="password" id="key-xai" placeholder="xai-...">
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text3)">Получить ключ: <a href="https://console.x.ai" target="_blank">console.x.ai</a></div>
+      </div>
+
+      <div class="settings-section">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Kling (Kuaishou)
+          <span class="badge">Text/Image-to-Video + 4K</span>
+        </h3>
+        <div class="form-group" style="margin-bottom:14px">
+          <label>API Key <span style="text-transform:none;font-weight:400;color:var(--text3)">(новый способ, рекомендуется)</span></label>
+          <input type="password" id="key-kling-api" placeholder="Одиночный API key">
+        </div>
+        <div class="form-row" style="margin-bottom:0">
+          <div class="form-group">
+            <label>Access Key <span style="text-transform:none;font-weight:400;color:var(--text3)">(legacy)</span></label>
+            <input type="password" id="key-kling-ak" placeholder="Access Key">
+          </div>
+          <div class="form-group">
+            <label>Secret Key <span style="text-transform:none;font-weight:400;color:var(--text3)">(legacy)</span></label>
+            <input type="password" id="key-kling-sk" placeholder="Secret Key">
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text3)">Достаточно либо нового API key, либо пары Access + Secret. Получить: <a href="https://app.klingai.com/global/dev" target="_blank">app.klingai.com/global/dev</a></div>
+      </div>
+
+      <div class="settings-section">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M22 12A10 10 0 1112 2a10 10 0 0110 10z"/><path d="M12 6v6l4 2"/></svg>
+          Google Veo
+          <span class="badge">Text/Image-to-Video</span>
+        </h3>
+        <div class="form-group">
+          <label>API Key</label>
+          <input type="password" id="key-google" placeholder="AIzaSy...">
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text3)">Получить ключ: <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></div>
+      </div>
+
+      <div class="settings-section">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Fal.ai (Topaz Upscale)
+          <span class="badge">Video Upscale</span>
+        </h3>
+        <div class="form-group">
+          <label>FAL_KEY</label>
+          <input type="password" id="key-fal" placeholder="fal-...">
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text3)">Получить ключ: <a href="https://fal.ai" target="_blank">fal.ai</a></div>
+      </div>
+
+      <button class="btn btn-primary" onclick="App.saveKeys()">Сохранить ключи</button>
+      <button class="btn btn-secondary" onclick="App.loadKeys()" style="margin-left:8px">Загрузить</button>
+    </div>
+
+    <div class="page" id="page-history">
+      <div class="page-title">История генераций</div>
+      <div class="page-desc">Все созданные видео (сохраняются в браузере)</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn btn-secondary btn-sm" onclick="App.clearHistory()">Очистить историю</button>
+        <span id="history-count" style="font-size:12px;color:var(--text3);line-height:28px"></span>
+      </div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div id="debug-toggle" onclick="document.getElementById('debug-panel').style.display=document.getElementById('debug-panel').style.display==='none'?'flex':'none'" style="position:fixed;bottom:12px;right:12px;z-index:9999;background:var(--accent);color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:18px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center" title="Console log">L</div>
+<div id="debug-panel" style="display:none;position:fixed;bottom:60px;right:12px;z-index:9998;width:520px;max-height:45vh;background:#0a0a1a;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;flex-direction:column;box-shadow:0 4px 32px rgba(0,0,0,.6)">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg3);border-bottom:1px solid var(--border)">
+    <span style="font-size:13px;font-weight:600;color:var(--accent2)">Console</span>
+    <button onclick="document.getElementById('debug-log').innerHTML=''" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px">Clear</button>
+  </div>
+  <div id="debug-log" style="flex:1;overflow-y:auto;padding:8px 12px;font-family:monospace;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-all;max-height:40vh"></div>
+</div>
+
+<script>
+(function(){
+  var log=document.getElementById('debug-log');
+  var ts=function(){var d=new Date();return d.toLocaleTimeString()+'.'+String(d.getMilliseconds()).padStart(3,'0')};
+  var color={log:'#a0a0c0',info:'#74b9ff',warn:'#fdcb6e',error:'#e17055'};
+  ['log','info','warn','error'].forEach(function(m){
+    var orig=console[m];
+    console[m]=function(){
+      var args=Array.from(arguments);
+      var text=args.map(function(a){return typeof a==='object'?JSON.stringify(a,null,2):String(a)}).join(' ');
+      var line=document.createElement('div');
+      line.style.color=color[m];
+      line.textContent='['+ts()+'] ['+m.toUpperCase()+'] '+text;
+      log.appendChild(line);
+      log.scrollTop=log.scrollHeight;
+      orig.apply(console,arguments);
+    };
+  });
+  var _fetch=window.fetch;
+  window.fetch=function(url,opts){
+    var u=typeof url==='string'?url:url.url;
+    var method=(opts&&opts.method)||'GET';
+    console.log('FETCH → '+method+' '+u);
+    return _fetch.apply(this,arguments).then(function(res){
+      var cl=res.clone();
+      console.log('RESP ← '+res.status+' '+u);
+      cl.text().then(function(t){
+        var preview=t.length>500?t.substring(0,500)+'...':t;
+        console.log('BODY: '+preview);
+      })['catch'](function(){});
+      return res;
+    }).catch(function(e){
+      console.error('FETCH FAIL: '+method+' '+u+' — '+e.message);
+      throw e;
+    });
+  };
+  window.onerror=function(msg,url,line,col,err){
+    console.error(msg+' at '+url+':'+line);
+  };
+  window.onunhandledrejection=function(e){
+    console.error('Unhandled: '+(e.reason?.message||e.reason));
+  };
+})();
+
+const App = {
+  currentResults: { t2v: null, i2v: null, upscale: null },
+  _i2vImage: null,
+  _upscaleVideo: null,
+
+  init() {
+    this.bindNav();
+    this.loadKeys();
+    this.bindAPISwitches();
+    this.bindDropZones();
+    this.updateAPIOptions('t2v');
+    this.updateAPIOptions('i2v');
+    this.renderHistory();
+  },
+
+  bindNav() {
+    document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+      link.addEventListener('click', () => {
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-' + link.dataset.page).classList.add('active');
+        document.querySelector('.sidebar').classList.remove('open');
+      });
+    });
+  },
+
+  bindAPISwitches() {
+    ['t2v', 'i2v'].forEach(prefix => {
+      document.querySelectorAll('input[name="' + prefix + '-api"]').forEach(radio => {
+        radio.addEventListener('change', () => this.updateAPIOptions(prefix));
+      });
+    });
+  },
+
+  updateAPIOptions(prefix) {
+    const api = document.querySelector('input[name="' + prefix + '-api"]:checked').value;
+    const modelSel = document.getElementById(prefix + '-model');
+    const durSel = document.getElementById(prefix + '-duration');
+    const resSel = document.getElementById(prefix + '-resolution');
+    const soundRow = document.getElementById(prefix + '-sound-row');
+    const aspectSel = document.getElementById(prefix + '-aspect');
+
+    modelSel.innerHTML = '';
+    durSel.innerHTML = '';
+    resSel.innerHTML = '';
+
+    if (api === 'grok') {
+      modelSel.innerHTML =
+        '<option value="grok-imagine-video">grok-imagine-video</option>' +
+        '<option value="grok-imagine-video-1.5" selected>grok-imagine-video-1.5</option>';
+      durSel.innerHTML =
+        '<option value="5">5 сек</option><option value="8">8 сек</option>' +
+        '<option value="10">10 сек</option><option value="15" selected>15 сек</option>';
+      resSel.innerHTML =
+        '<option value="480p">480p</option><option value="720p" selected>720p</option>' +
+        '<option value="1080p">1080p</option>';
+      if (soundRow) soundRow.style.display = 'none';
+      this.updateAspectOptions(aspectSel, ['16:9','9:16','1:1','4:3','3:4','3:2','2:3']);
+    } else if (api === 'kling') {
+      if (prefix === 't2v') {
+        modelSel.innerHTML =
+          '<option value="kling-v3-omni">Kling 3.0 Omni</option>' +
+          '<option value="kling-v3">Kling 3.0</option>' +
+          '<option value="kling-v2-6">Kling 2.6</option>';
+      } else {
+        modelSel.innerHTML =
+          '<option value="kling-v3">Kling 3.0</option>' +
+          '<option value="kling-v2-6">Kling 2.6</option>';
+      }
+      durSel.innerHTML =
+        '<option value="3">3 сек</option><option value="5">5 сек</option>' +
+        '<option value="8" selected>8 сек</option><option value="10">10 сек</option>' +
+        '<option value="15">15 сек</option>';
+      resSel.innerHTML =
+        '<option value="720p" selected>720p</option><option value="1080p">1080p</option>' +
+        '<option value="4k">4K</option>';
+      if (soundRow) soundRow.style.display = prefix === 't2v' ? 'flex' : 'none';
+      this.updateAspectOptions(aspectSel, ['16:9','9:16','1:1']);
+    } else if (api === 'veo') {
+      modelSel.innerHTML =
+        '<option value="veo-3.0-generate-exp">Veo 3.0 ($0.40/сек)</option>' +
+        '<option value="veo-2.0-generate-exp">Veo 2.0 ($0.10/сек)</option>';
+      durSel.innerHTML = '<option value="8" selected>8 сек (фиксировано)</option>';
+      resSel.innerHTML =
+        '<option value="720p" selected>720p</option><option value="1080p">1080p</option>';
+      if (soundRow) soundRow.style.display = 'none';
+      this.updateAspectOptions(aspectSel, ['16:9','9:16']);
+    }
+  },
+
+  updateAspectOptions(sel, options) {
+    const labels = {
+      '16:9':'16:9 (Альбомное)','9:16':'9:16 (Вертикальное)',
+      '1:1':'1:1 (Квадрат)','4:3':'4:3','3:4':'3:4','3:2':'3:2','2:3':'2:3'
+    };
+    sel.innerHTML = options.map(function(o) {
+      return '<option value="' + o + '">' + (labels[o] || o) + '</option>';
+    }).join('');
+  },
+
+  bindDropZones() {
+    var self = this;
+    this.bindDrop('i2v-drop', 'i2v-file', function(file) {
+      self.showImagePreview('i2v-drop', file);
+      self._i2vImage = file;
+    });
+    this.bindDrop('upscale-drop', 'upscale-file', function(file) {
+      self.showVideoPreview('upscale-drop', file);
+      self._upscaleVideo = file;
+    });
+  },
+
+  bindDrop(zoneId, inputId, onFile) {
+    var zone = document.getElementById(zoneId);
+    var input = document.getElementById(inputId);
+    zone.addEventListener('click', function(e) {
+      if (e.target === zone || zone.contains(e.target)) input.click();
+    });
+    zone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      zone.classList.add('dragover');
+    });
+    zone.addEventListener('dragleave', function() {
+      zone.classList.remove('dragover');
+    });
+    zone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', function() {
+      if (input.files[0]) onFile(input.files[0]);
+    });
+  },
+
+  showImagePreview(zoneId, file) {
+    var zone = document.getElementById(zoneId);
+    var existing = zone.querySelector('img');
+    if (existing) existing.remove();
+    var img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    zone.appendChild(img);
+  },
+
+  showVideoPreview(zoneId, file) {
+    var zone = document.getElementById(zoneId);
+    var existing = zone.querySelector('video');
+    if (existing) existing.remove();
+    var vid = document.createElement('video');
+    vid.src = URL.createObjectURL(file);
+    vid.controls = true;
+    vid.style.maxHeight = '160px';
+    zone.appendChild(vid);
+  },
+
+  getAPIKey: function(service) {
+    return localStorage.getItem('key-' + service) || '';
+  },
+
+  saveKeys: function() {
+    var ids = ['xai', 'kling-api', 'kling-ak', 'kling-sk', 'google', 'fal'];
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById('key-' + ids[i]);
+      var val = el ? el.value.trim() : '';
+      if (val) localStorage.setItem('key-' + ids[i], val);
+    }
+    this.toast('Ключи сохранены', 'success');
+  },
+
+  loadKeys: function() {
+    var ids = ['xai', 'kling-api', 'kling-ak', 'kling-sk', 'google', 'fal'];
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById('key-' + ids[i]);
+      if (el) el.value = localStorage.getItem('key-' + ids[i]) || '';
+    }
+  },
+
+  toast: function(msg, type) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + (type || '');
+    clearTimeout(this._toastTimer);
+    var self = this;
+    this._toastTimer = setTimeout(function() { t.classList.remove('show'); }, 3500);
+  },
+
+  _safeJson: function(res) {
+    return res.text().then(function(text) {
+      if (!text) return {};
+      try { return JSON.parse(text); } catch (e) { return { _raw: text }; }
+    });
+  },
+
+  _respError: function(res, data) {
+    var e = data && data.error;
+    var msg = (e && e.message) || e || (data && data.message) || (data && data._raw) || ('HTTP ' + res.status);
+    if (typeof msg !== 'string') msg = JSON.stringify(msg);
+    return new Error(msg);
+  },
+
+  setLoading: function(btnId, loading) {
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (loading) {
+      btn.disabled = true;
+      btn.dataset.origHTML = btn.innerHTML;
+      btn.innerHTML = '<div class="spinner"></div> Генерация...';
+    } else {
+      btn.disabled = false;
+      if (btn.dataset.origHTML) btn.innerHTML = btn.dataset.origHTML;
+    }
+  },
+
+  setPreview: function(prefix, videoUrl) {
+    var area = document.getElementById(prefix + '-preview');
+    area.innerHTML = '';
+    area.classList.add('has-video');
+    var vid = document.createElement('video');
+    vid.src = videoUrl;
+    vid.controls = true;
+    vid.autoplay = true;
+    area.appendChild(vid);
+    this.currentResults[prefix] = videoUrl;
+    document.getElementById(prefix + '-download').disabled = false;
+    var hb = document.getElementById(prefix + '-history-btn');
+    if (hb) hb.disabled = false;
+    var ub = document.getElementById(prefix + '-upscale-btn');
+    if (ub) ub.disabled = false;
+  },
+
+  downloadVideo: function(prefix) {
+    var url = this.currentResults[prefix];
+    if (!url) return;
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'video-' + prefix + '-' + Date.now() + '.mp4';
+    a.click();
+  },
+
+  sendToUpscale: function(prefix) {
+    var self = this;
+    var url = this.currentResults[prefix];
+    if (!url) return;
+    document.querySelector('.nav-link[data-page="upscale"]').click();
+    this.setLoading('upscale-generate', true);
+    this.toast('Загружаю видео для апскейла...');
+
+    var fetchUrl;
+    if (url.startsWith('blob:') || url.startsWith('data:')) {
+      fetchUrl = fetch(url);
+    } else {
+      fetchUrl = fetch('/api/proxy-download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url, headers: {} })
+      });
+    }
+
+    fetchUrl.then(function(res) { return res.blob(); }).then(function(blob) {
+      var file = new File([blob], 'generated-video.mp4', { type: 'video/mp4' });
+      self._upscaleVideo = file;
+      self.showVideoPreview('upscale-drop', file);
+      self.setLoading('upscale-generate', false);
+      self.toast('Видео загружено — нажмите Апскейл', 'success');
+    }).catch(function(e) {
+      self.setLoading('upscale-generate', false);
+      self.toast('Не удалось загрузить видео: ' + e.message, 'error');
+    });
+  },
+
+  fileToBase64: function(file) {
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function() { resolve(reader.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  },
+
+  fileToBase64NoPrefix: function(file) {
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function() { resolve(reader.result.split(',')[1]); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  },
+
+  compressImage: function(file, maxDim) {
+    maxDim = maxDim || 1024;
+    return new Promise(function(resolve, reject) {
+      var img = new Image();
+      img.onload = function() {
+        var w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        var c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        c.toBlob(resolve, 'image/jpeg', 0.85);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  },
+
+  compressImageBase64: function(file, maxDim) {
+    maxDim = maxDim || 1024;
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function() {
+        var img = new Image();
+        img.onload = function() {
+          var w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          var c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          var dataUrl = c.toDataURL('image/jpeg', 0.85);
+          resolve(dataUrl);
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  },
+
+  getFormValues: function(prefix) {
+    var prompt = document.getElementById(prefix + '-prompt').value.trim();
+    var model = document.getElementById(prefix + '-model').value;
+    var duration = document.getElementById(prefix + '-duration').value;
+    var resolution = document.getElementById(prefix + '-resolution').value;
+    var aspect = document.getElementById(prefix + '-aspect').value;
+    var neg = '';
+    var negEl = document.getElementById(prefix + '-neg');
+    if (negEl) neg = negEl.value.trim();
+    var sound = 'off';
+    var soundEl = document.getElementById(prefix + '-sound');
+    if (soundEl) sound = soundEl.value;
+    return { prompt: prompt, model: model, duration: parseInt(duration), resolution: resolution, aspect: aspect, neg: neg, sound: sound };
+  },
+
+  // ===== UNIFIED GENERATORS =====
+  generateText2Video: function() {
+    var api = document.querySelector('input[name="t2v-api"]:checked').value;
+    if (api === 'grok') this._grokT2V();
+    else if (api === 'kling') this._klingT2V();
+    else if (api === 'veo') this._veoT2V();
+  },
+
+  generateImage2Video: function() {
+    var api = document.querySelector('input[name="i2v-api"]:checked').value;
+    if (api === 'grok') this._grokI2V();
+    else if (api === 'kling') this._klingI2V();
+    else if (api === 'veo') this._veoI2V();
+  },
+
+  // ===== GROK API =====
+  _grokT2V: function() {
+    var self = this;
+    var key = this.getAPIKey('xai');
+    if (!key) return this.toast('Введите API ключ Grok в настройках', 'error');
+    var v = this.getFormValues('t2v');
+    if (!v.prompt) return this.toast('Введите промпт', 'error');
+
+    this.setLoading('t2v-generate', true);
+    var body = { model: v.model, prompt: v.prompt, duration: v.duration, aspect_ratio: v.aspect, resolution: v.resolution };
+    if (v.neg) body.negative_prompt = v.neg;
+
+    fetch('/api/grok/generations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify(body)
+    }).then(function(res) {
+      return self._safeJson(res).then(function(data) {
+        if (!res.ok) throw self._respError(res, data);
+        return data;
+      });
+    }).then(function(data) {
+      self._pollGrok(data.request_id, 't2v', key);
+    }).catch(function(e) {
+      self.toast('Ошибка Grok: ' + e.message, 'error');
+      self.setLoading('t2v-generate', false);
+    });
+  },
+
+  _grokI2V: function() {
+    var self = this;
+    var key = this.getAPIKey('xai');
+    if (!key) return this.toast('Введите API ключ Grok в настройках', 'error');
+    if (!this._i2vImage) return this.toast('Загрузите изображение', 'error');
+    var v = this.getFormValues('i2v');
+    if (!v.prompt) v.prompt = 'Animate this image';
+
+    this.setLoading('i2v-generate', true);
+    this.fileToBase64(this._i2vImage).then(function(base64) {
+      return fetch('/api/grok/generations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify({ model: v.model, prompt: v.prompt, image: { url: base64 }, duration: v.duration, aspect_ratio: v.aspect, resolution: v.resolution })
+      });
+    }).then(function(res) {
+      return self._safeJson(res).then(function(data) {
+        if (!res.ok) throw self._respError(res, data);
+        return data;
+      });
+    }).then(function(data) {
+      self._pollGrok(data.request_id, 'i2v', key);
+    }).catch(function(e) {
+      self.toast('Ошибка Grok: ' + e.message, 'error');
+      self.setLoading('i2v-generate', false);
+    });
+  },
+
+  _pollGrok: function(requestId, prefix, key) {
+    var self = this;
+    fetch('/api/grok/' + requestId, {
+      headers: { 'Authorization': 'Bearer ' + key }
+    }).then(function(res) {
+      return self._safeJson(res).then(function(data) {
+        if (!res.ok) throw self._respError(res, data);
+        return data;
+      });
+    }).then(function(data) {
+      if (data.status === 'done') {
+        var url = data.video?.url || data.video?.uri;
+        self.setPreview(prefix, url);
+        self.setLoading(prefix + '-generate', false);
+        self.toast('Видео готово!', 'success');
+      } else if (data.status === 'failed' || data.status === 'expired') {
+        throw new Error(data.error?.message || 'Генерация не удалась');
+      } else {
+        setTimeout(function() { self._pollGrok(requestId, prefix, key); }, 5000);
+      }
+    }).catch(function(e) {
+      self.toast('Ошибка Grok: ' + e.message, 'error');
+      self.setLoading(prefix + '-generate', false);
+    });
+  },
+
+  // ===== KLING API =====
+  _klingAuth: function() {
+    var apiKey = this.getAPIKey('kling-api');
+    if (apiKey) return { value: apiKey };
+    var ak = this.getAPIKey('kling-ak');
+    var sk = this.getAPIKey('kling-sk');
+    if (ak && sk) {
+      if (typeof KJUR === 'undefined') return null;
+      var now = Math.floor(Date.now() / 1000);
+      var payload = { exp: now + 3600, nbf: now - 5, iat: now - 10, iss: ak, jti: 'idt' + Date.now() };
+      return { value: KJUR.jws.JWS.sign('HS256', { alg: 'HS256' }, payload, sk) };
+    }
+    return null;
+  },
+
+  _klingT2V: function() {
+    var self = this;
+    var auth = this._klingAuth();
+    if (!auth) return this.toast('Введите API key Kling (или пару Access + Secret) в настройках', 'error');
+    var v = this.getFormValues('t2v');
+    if (!v.prompt) return this.toast('Введите промпт', 'error');
+
+    this.setLoading('t2v-generate', true);
+    var body = { model_name: v.model, prompt: v.prompt, aspect_ratio: v.aspect, duration: String(v.duration) };
+    if (v.neg) body.negative_prompt = v.neg;
+    if (v.sound === 'on') body.sound = 'on';
+    if (v.resolution === '4k') body.resolution = '4k';
+
+    var ep = v.model === 'kling-v3-omni' ? 'omni-video' : 'text2video';
+    fetch('/api/kling/' + ep, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + auth.value },
+      body: JSON.stringify(body)
+    }).then(function(res) {
+      return self._safeJson(res).then(function(data) {
+        if (!res.ok) throw self._respError(res, data);
+        if (data.code !== 0) throw new Error(data.message || 'Kling API error');
+        return data;
+      });
+    }).then(function(data) {
+      self._pollKling(data.data.task_id, 't2v', auth.value, ep);
+    }).catch(function(e) {
+      self.toast('Ошибка Kling: ' + e.message, 'error');
+      self.setLoading('t2v-generate', false);
+    });
+  },
+
+  _klingI2V: function() {
+    var self = this;
+    var auth = this._klingAuth();
+    if (!auth) return this.toast('Введите API key Kling (или пару Access + Secret) в настройках', 'error');
+    if (!this._i2vImage) return this.toast('Загрузите изображение', 'error');
+    var v = this.getFormValues('i2v');
+    if (!v.prompt) v.prompt = 'Animate this scene';
+    var ep = 'image2video';
+
+    this.setLoading('i2v-generate', true);
+    this.compressImageBase64(this._i2vImage, 1024).then(function(b64) {
+      var body = { model_name: v.model, prompt: v.prompt, image: b64, aspect_ratio: v.aspect, duration: String(v.duration) };
+      if (v.sound === 'on') body.sound = 'on';
+      return fetch('/api/kling/' + ep, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + auth.value },
+        body: JSON.stringify(body)
+      });
+    }).then(function(res) {
+      return self._safeJson(res).then(function(data) {
+        if (!res.ok) throw self._respError(res, data);
+        if (data.code !== 0) throw new Error(data.message || 'Kling API error');
+        return data;
+      });
+    }).then(function(data) {
+      self._pollKling(data.data.task_id, 'i2v', auth.value, ep);
+    }).catch(function(e) {
+      self.toast('Ошибка Kling: ' + e.message, 'error');
+      self.setLoading('i2v-generate', false);
+    });
+  },
+
+  _pollKling: function(taskId, prefix, token, ep) {
+    var self = this;
+    fetch('/api/kling/' + (ep || 'text2video') + '/' + taskId, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).then(function(res) {
+      return self._safeJson(res).then(function(data) {
+        if (!res.ok) throw self._respError(res, data);
+        return data;
+      });
+    }).then(function(data) {
+      var st = data.data && data.data.task_status;
+      if (st === 'succeed') {
+        var videos = data.data.task_result && data.data.task_result.videos;
+        var url = videos && videos[0] && videos[0].url;
+        if (!url) throw new Error('Видео не найдено в ответе');
+        self.setPreview(prefix, url);
+        self.setLoading(prefix + '-generate', false);
+        self.toast('Видео готово!', 'success');
+      } else if (st === 'failed') {
+        throw new Error(data.data.task_status_msg || data.message || 'Генерация не удалась');
+      } else {
+        setTimeout(function() { self._pollKling(taskId, prefix, token, ep); }, 15000);
+      }
+    }).catch(function(e) {
+      self.toast('Ошибка Kling: ' + e.message, 'error');
+      self.setLoading(prefix + '-generate', false);
+    });
+  },
+
+  // ===== GOOGLE VEO API =====
+  _veoT2V: function() {
+    var self = this;
+    var key = this.getAPIKey('google');
+    if (!key) return this.toast('Введите API ключ Google в настройках', 'error');
+    var v = this.getFormValues('t2v');
+    if (!v.prompt) return this.toast('Введите промпт', 'error');
+    var base = '/api/veo';
+
+    this.setLoading('t2v-generate', true);
+    var params = { sampleCount: 1, aspectRatio: v.aspect };
+    if (v.resolution === '1080p') params.resolution = '1080p';
+
+    fetch(base + '/models/' + v.model + ':predictLongRunning', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({ instances: [{ prompt: v.prompt }], parameters: params })
+    }).then(function(res) {
+      return self._safeJson(res).then(function(data) {
+        if (!res.ok) throw self._respError(res, data);
+        return data;
+      });
+    }).then(function(op) {
+      self._pollVeo(op.name, 't2v', key, base);
+    }).catch(function(e) {
+      self.toast('Ошибка Veo: ' + e.message, 'error');
+      self.setLoading('t2v-generate', false);
+    });
+  },
+
+  _veoI2V: function() {
+    var self = this;
+    var key = this.getAPIKey('google');
+    if (!key) return this.toast('Введите API ключ Google в настройках', 'error');
+    if (!this._i2vImage) return this.toast('Загрузите изображение', 'error');
+    var v = this.getFormValues('i2v');
+    if (!v.prompt) v.prompt = 'Animate this scene';
+    var base = '/api/veo';
+    var imageFile = this._i2vImage;
+
+    this.setLoading('i2v-generate', true);
+    this.fileToBase64NoPrefix(imageFile).then(function(b64) {
+      var mimeType = imageFile.type || 'image/jpeg';
+      var params = { sampleCount: 1, aspectRatio: v.aspect };
+      if (v.resolution === '1080p') params.resolution = '1080p';
+      return fetch(base + '/models/' + v.model + ':predictLongRunning', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify({
+          instances: [{ prompt: v.prompt, image: { bytesBase64Encoded: b64, mimeType: mimeType } }],
+          parameters: params
+        })
+      });
+    }).then(function(res) {
+      return self._safeJson(res).then(function(data) {
+        if (!res.ok) throw self._respError(res, data);
+        return data;
+      });
+    }).then(function(op) {
+      self._pollVeo(op.name, 'i2v', key, base);
+    }).catch(function(e) {
+      self.toast('Ошибка Veo: ' + e.message, 'error');
+      self.setLoading('i2v-generate', false);
+    });
+  },
+
+  _pollVeo: function(operationName, prefix, key, base) {
+    var self = this;
+    fetch(base + '/' + operationName, {
+      headers: { 'x-goog-api-key': key }
+    }).then(function(res) {
+      return self._safeJson(res).then(function(data) {
+        if (!res.ok) throw self._respError(res, data);
+        return data;
+      });
+    }).then(function(data) {
+      if (data.done) {
+        if (data.error) throw new Error(data.error.message || 'Генерация не удалась');
+        var videoUri = data.response?.generatedVideos?.[0]?.video?.uri;
+        if (!videoUri) throw new Error('Видео не найдено в ответе');
+        return fetch('/api/proxy-download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: videoUri, headers: { 'x-goog-api-key': key } })
+        });
+      } else {
+        setTimeout(function() { self._pollVeo(operationName, prefix, key, base); }, 15000);
+        return null;
+      }
+    }).then(function(res) {
+      if (!res) return;
+      return res.blob();
+    }).then(function(blob) {
+      if (!blob) return;
+      var url = URL.createObjectURL(blob);
+      self.setPreview(prefix, url);
+      self.setLoading(prefix + '-generate', false);
+      self.toast('Видео готово!', 'success');
+    }).catch(function(e) {
+      self.toast('Ошибка Veo: ' + e.message, 'error');
+      self.setLoading(prefix + '-generate', false);
+    });
+  },
+
+  // ===== UPSCALE (Fal.ai Topaz) =====
+  upscaleVideo: function() {
+    var self = this;
+    var key = this.getAPIKey('fal');
+    if (!key) return this.toast('Введите FAL_KEY в настройках', 'error');
+    if (!this._upscaleVideo) return this.toast('Загрузите видео для апскейла', 'error');
+
+    var model = document.getElementById('upscale-model').value;
+    var resolution = document.getElementById('upscale-resolution').value;
+    var fps = document.getElementById('upscale-fps').value;
+    var targetRes = { '1080p': 1080, '2k': 1440, '4k': 2160 }[resolution];
+
+    this.setLoading('upscale-generate', true);
+    this.fileToBase64(this._upscaleVideo).then(function(b64) {
+      return fetch('/api/fal/topaz/upscale/video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Key ' + key },
+        body: JSON.stringify({ model: model, video_url: b64, target_resolution: targetRes, target_fps: parseInt(fps) })
+      });
+    }).then(function(res) {
+      return self._safeJson(res).then(function(data) {
+        if (!res.ok) throw self._respError(res, data);
+        return data;
+      });
+    }).then(function(data) {
+      self._pollFal(data.request_id, key);
+    }).catch(function(e) {
+      self.toast('Ошибка апскейла: ' + e.message, 'error');
+      self.setLoading('upscale-generate', false);
+    });
+  },
+
+  _pollFal: function(requestId, key) {
+    var self = this;
+    fetch('/api/fal/topaz/upscale/video/' + requestId, {
+      headers: { 'Authorization': 'Key ' + key }
+    }).then(function(res) {
+      return self._safeJson(res).then(function(data) {
+        if (!res.ok) throw self._respError(res, data);
+        return data;
+      });
+    }).then(function(data) {
+      if (data.status === 'completed') {
+        var videoUrl = data.output?.video_url || data.output?.url;
+        if (!videoUrl) throw new Error('Видео не найдено');
+        self.setPreview('upscale', videoUrl);
+        self.setLoading('upscale-generate', false);
+        self.toast('Апскейл завершён!', 'success');
+      } else if (data.status === 'failed') {
+        throw new Error(data.error || 'Апскейл не удался');
+      } else {
+        setTimeout(function() { self._pollFal(requestId, key); }, 10000);
+      }
+    }).catch(function(e) {
+      self.toast('Ошибка: ' + e.message, 'error');
+      self.setLoading('upscale-generate', false);
+    });
+  },
+
+  // ===== HISTORY =====
+  addToHistory: function(prefix) {
+    var url = this.currentResults[prefix];
+    if (!url) return;
+    var apiEl = document.querySelector('input[name="' + (prefix === 't2v' ? 't2v' : 'i2v') + '-api"]:checked');
+    var api = apiEl ? apiEl.value : 'unknown';
+    var promptEl = document.getElementById(prefix + '-prompt');
+    var prompt = promptEl ? promptEl.value : '';
+    var history = JSON.parse(localStorage.getItem('video-history') || '[]');
+    history.unshift({ url: url, api: api, prefix: prefix, prompt: prompt.substring(0, 200), time: Date.now() });
+    if (history.length > 50) history.pop();
+    localStorage.setItem('video-history', JSON.stringify(history));
+    this.renderHistory();
+    this.toast('Добавлено в историю', 'success');
+  },
+
+  renderHistory: function() {
+    var self = this;
+    var list = document.getElementById('history-list');
+    var history = JSON.parse(localStorage.getItem('video-history') || '[]');
+    document.getElementById('history-count').textContent = history.length ? history.length + ' видео' : '';
+    if (!history.length) {
+      list.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:20px">История пуста</div>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < history.length; i++) {
+      var item = history[i];
+      var timeStr = new Date(item.time).toLocaleString('ru');
+      var promptText = this.esc(item.prompt || 'Без промпта');
+      html += '<div class="history-item">' +
+        '<div class="thumb"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg></div>' +
+        '<div class="info"><div class="prompt">' + promptText + '</div>' +
+        '<div class="meta">' + item.api.toUpperCase() + ' &middot; ' + timeStr + '</div></div>' +
+        '<div class="actions">' +
+        '<button class="btn btn-secondary btn-sm" onclick="window.open(\'' + item.url + '\',\'_blank\')">Открыть</button>' +
+        '<a class="btn btn-secondary btn-sm" href="' + item.url + '" download="video-' + i + '.mp4">Скачать</a>' +
+        '<button class="btn btn-danger btn-sm" onclick="App.removeHistory(' + i + ')">Удалить</button>' +
+        '</div></div>';
+    }
+    list.innerHTML = html;
+  },
+
+  removeHistory: function(idx) {
+    var history = JSON.parse(localStorage.getItem('video-history') || '[]');
+    history.splice(idx, 1);
+    localStorage.setItem('video-history', JSON.stringify(history));
+    this.renderHistory();
+  },
+
+  clearHistory: function() {
+    if (!confirm('Очистить всю историю?')) return;
+    localStorage.removeItem('video-history');
+    this.renderHistory();
+    this.toast('История очищена');
+  },
+
+  esc: function(str) {
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+};
+
+document.addEventListener('DOMContentLoaded', function() { App.init(); });
+</script>
+</body>
+</html>

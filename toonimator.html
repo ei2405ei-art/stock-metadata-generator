@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toonimator - AI Мультфильм Генератор</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#1a1a2e;--panel:#16213e;--accent:#e94560;--text:#eee;--text2:#aab;--border:#2a2a4e;--input-bg:#0f1629;--hover:#e94560aa}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh;display:flex;flex-direction:column}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+.top-bar{background:var(--panel);padding:10px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.top-bar h1{font-size:20px;color:var(--accent);white-space:nowrap}
+.top-bar h1 span{color:var(--text);font-weight:300}
+.main-layout{display:flex;flex:1;overflow:hidden}
+.input-section{background:var(--panel);padding:12px 16px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.input-section textarea{width:100%;min-height:52px;max-height:100px;resize:vertical;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:14px;font-family:inherit}
+.input-section textarea:focus{outline:none;border-color:var(--accent)}
+.input-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.input-row label{font-size:12px;color:var(--text2)}
+.input-row select,.input-row input[type=number]{background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:13px}
+.input-row select:focus,.input-row input:focus{outline:none;border-color:var(--accent)}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:14px;cursor:pointer;font-weight:600;transition:all .2s}
+.btn:hover{filter:brightness(1.2);transform:translateY(-1px)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-sm{padding:5px 12px;font-size:12px;border-radius:6px}
+.btn-outline{background:transparent;border:1px solid var(--accent);color:var(--accent)}
+.btn-outline:hover{background:var(--accent);color:#fff}
+.center-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.canvas-wrapper{flex:1;display:flex;align-items:center;justify-content:center;background:#111;position:relative;overflow:hidden;min-height:200px}
+.canvas-wrapper canvas{max-width:100%;max-height:100%;object-fit:contain}
+.canvas-controls{position:absolute;top:8px;right:8px;display:flex;gap:4px;z-index:2}
+.canvas-controls .btn-sm{font-size:11px;padding:4px 8px;background:var(--panel);border:1px solid var(--border);color:var(--text)}
+.canvas-controls .btn-sm:hover{border-color:var(--accent)}
+.canvas-controls .btn-sm.active{background:var(--accent);border-color:var(--accent)}
+.timeline{background:var(--panel);border-top:1px solid var(--border);padding:8px 12px;flex-shrink:0}
+.timeline-controls{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.timeline-controls .btn-sm{background:var(--input-bg);border:1px solid var(--border);color:var(--text);font-size:16px;padding:4px 10px}
+.timeline-controls .btn-sm:hover{border-color:var(--accent)}
+.timeline-controls .btn-sm.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.fps-control{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2)}
+.fps-control input[type=range]{width:80px;accent-color:var(--accent)}
+.frames-row{display:flex;gap:6px;overflow-x:auto;padding:4px 0}
+.frame-thumb{width:80px;height:56px;border-radius:6px;border:2px solid var(--border);overflow:hidden;cursor:pointer;flex-shrink:0;position:relative;background:#111;transition:border-color .2s}
+.frame-thumb:hover{border-color:var(--hover)}
+.frame-thumb.active{border-color:var(--accent);box-shadow:0 0 8px var(--accent)}
+.frame-thumb img{width:100%;height:100%;object-fit:cover}
+.frame-thumb .frame-num{position:absolute;bottom:1px;right:2px;font-size:9px;background:rgba(0,0,0,.7);color:#fff;padding:1px 4px;border-radius:3px}
+.frame-thumb.empty{display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:10px}
+.side-panel{width:300px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.side-panel section{padding:10px 12px;border-bottom:1px solid var(--border)}
+.side-panel section h3{font-size:13px;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.prompt-list{flex:1;overflow-y:auto;padding:0}
+.prompt-item{padding:6px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.prompt-item:hover{background:rgba(233,69,96,.08)}
+.prompt-item.active{background:rgba(233,69,96,.15);border-left:3px solid var(--accent)}
+.prompt-item .prompt-label{font-size:10px;color:var(--accent);margin-bottom:2px}
+.prompt-item textarea{width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 6px;font-size:11px;resize:none;font-family:inherit;min-height:40px}
+.prompt-item textarea:focus{outline:none;border-color:var(--accent)}
+.side-actions{display:flex;flex-direction:column;gap:6px}
+.side-actions .btn{width:100%;text-align:center}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:center;justify-content:center;display:none}
+.modal-overlay.show{display:flex}
+.modal{background:var(--panel);border-radius:12px;padding:20px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
+.modal h2{color:var(--accent);margin-bottom:12px;font-size:18px}
+.progress-bar{width:100%;height:8px;background:var(--input-bg);border-radius:4px;overflow:hidden;margin:8px 0}
+.progress-bar-fill{height:100%;background:var(--accent);border-radius:4px;transition:width .3s;width:0%}
+.progress-text{font-size:13px;color:var(--text2);margin:4px 0}
+.frame-previews{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.frame-previews .fp{aspect-ratio:4/3;background:#111;border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+.frame-previews .fp img{width:100%;height:100%;object-fit:cover}
+.frame-previews .fp.loading{display:flex;align-items:center;justify-content:center}
+.pulse-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;animation:pulse .8s infinite alternate}
+@keyframes pulse{from{opacity:.3;transform:scale(.8)}to{opacity:1;transform:scale(1.2)}}
+.history-list{max-height:200px;overflow-y:auto}
+.history-item{padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px;color:var(--text2);transition:background .15s;display:flex;justify-content:space-between;align-items:center}
+.history-item:hover{background:rgba(233,69,96,.1);color:var(--text)}
+.history-item .del{color:var(--accent);cursor:pointer;padding:2px 6px;font-size:14px}
+.onion-label{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px}
+.onion-label input{accent-color:var(--accent)}
+.zoom-label{font-size:11px;color:var(--text2)}
+
+.img-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:none;align-items:center;justify-content:center}
+.img-modal-overlay.show{display:flex}
+.img-modal{background:var(--panel);border-radius:12px;padding:24px;max-width:600px;width:95%;max-height:90vh;overflow-y:auto}
+.img-modal h2{color:var(--accent);margin-bottom:16px;font-size:18px}
+.img-upload-zone{border:2px dashed var(--border);border-radius:10px;padding:30px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px;position:relative;overflow:hidden}
+.img-upload-zone:hover{border-color:var(--accent);background:rgba(233,69,96,.05)}
+.img-upload-zone.has-image{padding:0;border-style:solid}
+.img-upload-zone img{width:100%;max-height:300px;object-fit:contain;border-radius:8px}
+.img-upload-zone .placeholder{color:var(--text2)}
+.img-upload-zone .placeholder .icon{font-size:40px;margin-bottom:8px}
+.img-upload-zone input{display:none}
+.img-modal .field{margin-bottom:12px}
+.img-modal .field label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px}
+.img-modal .field textarea,.img-modal .field select{width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical}
+.img-modal .field textarea:focus,.img-modal .field select:focus{outline:none;border-color:var(--accent)}
+.img-modal .field textarea{min-height:60px}
+.img-modal .btn-row{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+</style>
+</head>
+<body>
+
+<div class="input-section">
+  <textarea id="userIdea" placeholder="Опишите вашу идею мультфильма... например: 'кот прыгает через забор в саду'"></textarea>
+  <div class="input-row">
+    <label>Стиль:</label>
+    <select id="styleSelect">
+      <option value="cartoon">Мультфильм (Disney)</option>
+      <option value="anime">Аниме</option>
+      <option value="pixel art">Пиксель-арт</option>
+      <option value="hand-drawn sketch">Рисованный</option>
+      <option value="3D render">3D-рендер</option>
+      <option value="comic book">Комикс</option>
+      <option value="watercolor">Водяная краска</option>
+      <option value="claymation puppet">Кукольный</option>
+    </select>
+    <label>Кадров:</label>
+    <input type="number" id="frameCount" min="2" max="24" value="8" style="width:50px">
+    <label>Разрешение:</label>
+    <select id="resolution">
+      <option value="480">480p</option>
+      <option value="720" selected>720p</option>
+      <option value="1080">1080p</option>
+    </select>
+    <button class="btn" id="generateBtn" onclick="startGeneration()">СГЕНЕРИРОВАТЬ</button>
+    <button class="btn btn-outline" id="imgToCartoonBtn" onclick="openImgToCartoon()">🖼 Превратить изображение в мультик</button>
+  </div>
+</div>
+
+<div class="main-layout">
+  <div class="center-area">
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <canvas id="mainCanvas" width="800" height="600"></canvas>
+      <div class="canvas-controls">
+        <button class="btn-sm" onclick="setZoom(50)">50%</button>
+        <button class="btn-sm active" onclick="setZoom(100)" id="zoom100">100%</button>
+        <button class="btn-sm" onclick="setZoom(200)">200%</button>
+        <button class="btn-sm" onclick="setZoom(0)">Fit</button>
+        <button class="btn-sm" id="onionBtn" onclick="toggleOnion()">Onion</button>
+      </div>
+      <div id="canvasPlaceholder" style="position:absolute;color:var(--text2);font-size:16px;text-align:center;pointer-events:none">
+        <div style="font-size:48px;margin-bottom:12px">🎬</div>
+        <div>Опишите идею и нажмите "СГЕНЕРИРОВАТЬ"</div>
+      </div>
+    </div>
+    <div class="timeline">
+      <div class="timeline-controls">
+        <button class="btn-sm" id="playBtn" onclick="togglePlay()">▶</button>
+        <button class="btn-sm" onclick="stopPlay()">■</button>
+        <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:3px">
+          <input type="checkbox" id="loopCheck" checked style="accent-color:var(--accent)"> Цикл
+        </label>
+        <div class="fps-control">
+          <span>FPS:</span>
+          <input type="range" id="fpsSlider" min="1" max="24" value="8" oninput="updateFps()">
+          <span id="fpsVal">8</span>
+        </div>
+        <div style="flex:1"></div>
+        <span id="frameInfo" style="font-size:12px;color:var(--text2)">Кадр: -/-</span>
+      </div>
+      <div class="frames-row" id="framesRow"></div>
+    </div>
+  </div>
+
+  <div class="side-panel">
+    <section>
+      <h3>Стиль</h3>
+      <div id="currentStyle" style="font-size:13px;margin-bottom:6px">Мультфильм (Disney)</div>
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('styleSelect').focus()">Изменить</button>
+    </section>
+    <section style="flex-shrink:0">
+      <h3>Промпты кадров</h3>
+    </section>
+    <div class="prompt-list" id="promptList">
+      <div style="padding:20px;text-align:center;color:var(--text2);font-size:12px">Промпты появятся после генерации</div>
+    </div>
+    <section>
+      <h3>Действия</h3>
+      <div class="side-actions">
+        <button class="btn btn-sm" onclick="regenerateAll()">🔄 Перегенерировать всё</button>
+        <button class="btn btn-sm" onclick="regenerateSelected()">🔄 Перегенерировать кадр</button>
+        <button class="btn btn-sm btn-outline" onclick="exportGIF()">📥 Экспорт GIF</button>
+        <button class="btn btn-sm btn-outline" onclick="downloadPNG()">📥 Скачать текущий PNG</button>
+        <button class="btn btn-sm btn-outline" onclick="saveProject()">💾 Сохранить проект</button>
+        <button class="btn btn-sm btn-outline" onclick="loadProject()">📂 Загрузить проект</button>
+      </div>
+    </section>
+    <section>
+      <h3>История</h3>
+      <div class="history-list" id="historyList"></div>
+    </section>
+  </div>
+</div>
+
+<div class="img-modal-overlay" id="imgModal">
+  <div class="img-modal">
+    <h2>🖼 Превратить изображение в мультик</h2>
+    <div class="img-upload-zone" id="imgUploadZone" onclick="document.getElementById('imgFileInput').click()">
+      <input type="file" id="imgFileInput" accept="image/*" onchange="handleImgUpload(event)">
+      <div class="placeholder" id="imgPlaceholder">
+        <div class="icon">📁</div>
+        <div>Нажмите или перетащите изображение сюда</div>
+        <div style="font-size:11px;margin-top:4px;color:var(--text2)">JPG, PNG, GIF — до 10 МБ</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Опишите что происходит на изображении (для лучшего результата)</label>
+      <textarea id="imgDescription" placeholder="Например: кот сидит на заборе и смотрит на птицу"></textarea>
+    </div>
+    <div class="field">
+      <label>Стиль мультика</label>
+      <select id="imgStyle">
+        <option value="cartoon">Мультфильм (Disney)</option>
+        <option value="anime">Аниме</option>
+        <option value="pixel art">Пиксель-арт</option>
+        <option value="hand-drawn sketch">Рисованный</option>
+        <option value="3D render">3D-рендер</option>
+        <option value="comic book">Комикс</option>
+        <option value="watercolor">Водяная краска</option>
+        <option value="claymation puppet">Кукольный</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Количество кадров анимации</label>
+      <select id="imgFrameCount">
+        <option value="4">4 кадра</option>
+        <option value="6">6 кадров</option>
+        <option value="8" selected>8 кадров</option>
+        <option value="12">12 кадров</option>
+        <option value="16">16 кадров</option>
+        <option value="24">24 кадра</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Разрешение</label>
+      <select id="imgResolution">
+        <option value="480">480p</option>
+        <option value="720" selected>720p</option>
+        <option value="1080">1080p</option>
+      </select>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm btn-outline" onclick="closeImgToCartoon()">Отмена</button>
+      <button class="btn btn-sm" id="imgConvertBtn" onclick="startImgConversion()" disabled>✨ Превратить в мультик</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="progressModal">
+  <div class="modal">
+    <h2>Генерация мультфильма</h2>
+    <div class="progress-text" id="progressText">Подготовка...</div>
+    <div class="progress-bar"><div class="progress-bar-fill" id="progressFill"></div></div>
+    <div class="frame-previews" id="framePreviews"></div>
+    <div style="text-align:center;margin-top:12px">
+      <button class="btn btn-sm btn-outline" onclick="cancelGeneration()">Отменить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const canvas = $('mainCanvas');
+const ctx = canvas.getContext('2d');
+
+let state = {
+  frames: [],
+  framePrompts: [],
+  selectedFrame: 0,
+  playing: false,
+  playInterval: null,
+  fps: 8,
+  zoom: 100,
+  onionSkin: false,
+  generating: false,
+  cancelGen: false,
+  animId: null
+};
+
+const styleNames = {
+  'cartoon':'Мультфильм (Disney)',
+  'anime':'Аниме',
+  'pixel art':'Пиксель-арт',
+  'hand-drawn sketch':'Рисованный',
+  '3D render':'3D-рендер',
+  'comic book':'Комикс',
+  'watercolor':'Водяная краска',
+  'claymation puppet':'Кукольный'
+};
+
+const frameTransitions = [
+  'начальная сцена, статичная поза, обстановка',
+  'персонаж начинает движение',
+  'персонаж в движении, нарастание действия',
+  'подготовка к кульминации',
+  'кульминация, самый динамичный момент',
+  'разрешение действия',
+  'персонаж завершает действие',
+  'финальная поза, завершение сцены',
+  'кадр замедленного действия',
+  'деталь сцены крупным планом',
+  'панорама, общий вид',
+  'реакция персонажа',
+  'второй персонаж появляется',
+  'взаимодействие персонажей',
+  'поворотный момент',
+  'неожиданное событие',
+  'персонаж удивлён',
+  'персонаж радуется',
+  'персонаж бежит',
+  'персонаж прыгает',
+  'персонаж падает',
+  'персонаж летит',
+  'медленное движение',
+  'резкое движение',
+  'конец сцены, финальный кадр'
+];
+
+function generateFramePrompts(userIdea, style, frameCount) {
+  const prompts = [];
+  const clamped = Math.min(Math.max(parseInt(frameCount)||8,2),24);
+  for (let i = 0; i < clamped; i++) {
+    const ratio = i / (clamped - 1);
+    const transIdx = Math.min(Math.floor(ratio * (frameTransitions.length - 1)), frameTransitions.length - 1);
+    const trans = frameTransitions[transIdx];
+    const prompt = `${style} style, ${userIdea}, ${trans}, animation frame ${i+1} of ${clamped}, consistent character design, high quality, colorful, detailed background, professional animation`;
+    prompts.push(prompt);
+  }
+  return prompts;
+}
+
+function encodeURL(str) {
+  return encodeURIComponent(str).replace(/'/g,'%27');
+}
+
+async function fetchFrameAsDataUrl(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const cx = c.getContext('2d');
+      cx.drawImage(img, 0, 0);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    const timeout = setTimeout(() => { img.src = ''; reject(new Error('Timeout')); }, 60000);
+    img.onload = function() { clearTimeout(timeout); this._onload && this._onload(); };
+    const origOnload = img.onload;
+    img.onload = function() {
+      clearTimeout(timeout);
+      try {
+        const c = document.createElement('canvas');
+        c.width = this.naturalWidth;
+        c.height = this.naturalHeight;
+        const cx = c.getContext('2d');
+        cx.drawImage(this, 0, 0);
+        resolve(c.toDataURL('image/png'));
+      } catch(e) { reject(e); }
+    };
+    img.src = url;
+  });
+}
+
+async function fetchFrameAsDataUrl2(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    let done = false;
+    const timer = setTimeout(() => {
+      if (!done) { done = true; reject(new Error('Timeout')); }
+    }, 90000);
+    img.onload = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth;
+        c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img, 0, 0);
+        resolve(c.toDataURL('image/png'));
+      } catch(e) { reject(e); }
+    };
+    img.onerror = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      reject(new Error('Failed to load'));
+    };
+    img.src = url;
+  });
+}
+
+function getResolution() {
+  const r = parseInt($('resolution').value);
+  if (r === 480) return { w: 640, h: 480 };
+  if (r === 1080) return { w: 1920, h: 1080 };
+  return { w: 1280, h: 720 };
+}
+
+async function startGeneration() {
+  const idea = $('userIdea').value.trim();
+  if (!idea) { alert('Пожалуйста, опишите идею мультфильма'); return; }
+  if (state.generating) return;
+
+  const style = $('styleSelect').value;
+  const frameCount = parseInt($('frameCount').value) || 8;
+  const prompts = generateFramePrompts(idea, style, frameCount);
+
+  state.generating = true;
+  state.cancelGen = false;
+  state.framePrompts = prompts;
+  state.frames = new Array(prompts.length).fill(null);
+  state.selectedFrame = 0;
+
+  $('currentStyle').textContent = styleNames[style] || style;
+  $('generateBtn').disabled = true;
+
+  $('progressModal').classList.add('show');
+  $('progressText').textContent = 'Подготовка...';
+  $('progressFill').style.width = '0%';
+
+  const prevDiv = $('framePreviews');
+  prevDiv.innerHTML = '';
+  for (let i = 0; i < prompts.length; i++) {
+    const d = document.createElement('div');
+    d.className = 'fp loading';
+    d.innerHTML = '<div class="pulse-dot"></div>';
+    d.id = 'fpreview_' + i;
+    prevDiv.appendChild(d);
+  }
+
+  const res = getResolution();
+  canvas.width = res.w;
+  canvas.height = res.h;
+
+  for (let i = 0; i < prompts.length; i++) {
+    if (state.cancelGen) break;
+
+    $('progressText').textContent = `Кадр ${i+1} из ${prompts.length}...`;
+    $('progressFill').style.width = ((i / prompts.length) * 100) + '%';
+
+    const seed = Math.floor(Math.random() * 999999);
+    const url = `https://image.pollinations.ai/prompt/${encodeURL(prompts[i])}?width=${res.w}&height=${res.h}&seed=${seed}&nologo=true`;
+
+    let attempts = 0;
+    let success = false;
+    while (attempts < 3 && !success && !state.cancelGen) {
+      try {
+        const dataUrl = await fetchFrameAsDataUrl2(url);
+        state.frames[i] = dataUrl;
+        const preview = $('fpreview_' + i);
+        if (preview) {
+          preview.className = 'fp';
+          preview.innerHTML = `<img src="${dataUrl}">`;
+        }
+        success = true;
+      } catch(e) {
+        attempts++;
+        if (attempts < 3) {
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+    }
+
+    if (!success && !state.cancelGen) {
+      state.frames[i] = null;
+      const preview = $('fpreview_' + i);
+      if (preview) {
+        preview.className = 'fp';
+        preview.innerHTML = '<div style="color:var(--accent);font-size:10px;text-align:center;padding:4px">Ошибка<br><span style="cursor:pointer;text-decoration:underline" onclick="retryFrame('+i+')">Повтор</span></div>';
+      }
+    }
+  }
+
+  $('progressFill').style.width = '100%';
+  if (!state.cancelGen) {
+    $('progressText').textContent = 'Готово!';
+    await new Promise(r => setTimeout(r, 800));
+  }
+
+  $('progressModal').classList.remove('show');
+  state.generating = false;
+  $('generateBtn').disabled = false;
+
+  renderTimeline();
+  renderPrompts();
+  selectFrame(0);
+  saveToHistory(idea, style);
+  $('canvasPlaceholder').style.display = 'none';
+}
+
+function cancelGeneration() {
+  state.cancelGen = true;
+}
+
+async function retryFrame(idx) {
+  const res = getResolution();
+  const prompt = state.framePrompts[idx];
+  if (!prompt) return;
+  const seed = Math.floor(Math.random() * 999999);
+  const url = `https://image.pollinations.ai/prompt/${encodeURL(prompt)}?width=${res.w}&height=${res.h}&seed=${seed}&nologo=true`;
+  const preview = $('fpreview_' + idx);
+  if (preview) { preview.className = 'fp loading'; preview.innerHTML = '<div class="pulse-dot"></div>'; }
+  try {
+    const dataUrl = await fetchFrameAsDataUrl2(url);
+    state.frames[idx] = dataUrl;
+    if (preview) { preview.className = 'fp'; preview.innerHTML = `<img src="${dataUrl}">`; }
+    renderTimeline();
+    if (state.selectedFrame === idx) drawFrame(idx);
+  } catch(e) {
+    if (preview) { preview.className = 'fp'; preview.innerHTML = '<div style="color:var(--accent);font-size:10px">Ошибка</div>'; }
+  }
+}
+
+function renderTimeline() {
+  const row = $('framesRow');
+  row.innerHTML = '';
+  for (let i = 0; i < state.frames.length; i++) {
+    const div = document.createElement('div');
+    div.className = 'frame-thumb' + (i === state.selectedFrame ? ' active' : '') + (state.frames[i] ? '' : ' empty');
+    div.onclick = () => selectFrame(i);
+    if (state.frames[i]) {
+      div.innerHTML = `<img src="${state.frames[i]}"><span class="frame-num">${i+1}</span>`;
+    } else {
+      div.innerHTML = `<span class="frame-num">${i+1}</span>`;
+    }
+    row.appendChild(div);
+  }
+  $('frameInfo').textContent = `Кадр: ${state.selectedFrame+1}/${state.frames.length || '-'}`;
+}
+
+function renderPrompts() {
+  const list = $('promptList');
+  list.innerHTML = '';
+  for (let i = 0; i < state.framePrompts.length; i++) {
+    const item = document.createElement('div');
+    item.className = 'prompt-item' + (i === state.selectedFrame ? ' active' : '');
+    item.innerHTML = `
+      <div class="prompt-label">Кадр ${i+1}</div>
+      <textarea onchange="updatePrompt(${i}, this.value)" onclick="event.stopPropagation()">${state.framePrompts[i]}</textarea>
+    `;
+    item.onclick = () => selectFrame(i);
+    list.appendChild(item);
+  }
+}
+
+function updatePrompt(idx, val) {
+  state.framePrompts[idx] = val;
+}
+
+function selectFrame(idx) {
+  state.selectedFrame = idx;
+  renderTimeline();
+  renderPrompts();
+  drawFrame(idx);
+  const items = document.querySelectorAll('.prompt-item');
+  items.forEach((it, i) => { it.classList.toggle('active', i === idx); });
+}
+
+function drawFrame(idx) {
+  const data = state.frames[idx];
+  if (!data) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#555';
+    ctx.font = '18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Кадр ${idx+1} не загружен`, canvas.width/2, canvas.height/2);
+    return;
+  }
+  const img = new Image();
+  img.onload = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (state.onionSkin && idx > 0 && state.frames[idx-1]) {
+      const prev = new Image();
+      prev.onload = () => {
+        ctx.globalAlpha = 0.25;
+        ctx.drawImage(prev, 0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      };
+      prev.src = state.frames[idx-1];
+    } else {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    }
+  };
+  img.src = data;
+}
+
+function togglePlay() {
+  if (state.playing) {
+    stopPlay();
+  } else {
+    state.playing = true;
+    $('playBtn').textContent = '⏸';
+    $('playBtn').classList.add('active');
+    playNext();
+  }
+}
+
+function playNext() {
+  if (!state.playing) return;
+  const hasFrames = state.frames.some(f => f !== null);
+  if (!hasFrames) { stopPlay(); return; }
+
+  let next = state.selectedFrame + 1;
+  const total = state.frames.length;
+  if (next >= total) {
+    if ($('loopCheck').checked) {
+      next = 0;
+    } else {
+      stopPlay();
+      return;
+    }
+  }
+
+  while (!state.frames[next] && next < total) next++;
+  if (next >= total) { if ($('loopCheck').checked) next = 0; else { stopPlay(); return; } }
+
+  selectFrame(next);
+  const delay = 1000 / state.fps;
+  state.playInterval = setTimeout(playNext, delay);
+}
+
+function stopPlay() {
+  state.playing = false;
+  clearTimeout(state.playInterval);
+  $('playBtn').textContent = '▶';
+  $('playBtn').classList.remove('active');
+}
+
+function updateFps() {
+  state.fps = parseInt($('fpsSlider').value);
+  $('fpsVal').textContent = state.fps;
+}
+
+function toggleOnion() {
+  state.onionSkin = !state.onionSkin;
+  $('onionBtn').classList.toggle('active', state.onionSkin);
+  drawFrame(state.selectedFrame);
+}
+
+function setZoom(z) {
+  state.zoom = z;
+  document.querySelectorAll('.canvas-controls .btn-sm').forEach(b => b.classList.remove('active'));
+  const wrapper = $('canvasWrapper');
+  if (z === 0) {
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.maxWidth = '100%';
+    canvas.style.maxHeight = '100%';
+    document.querySelectorAll('.canvas-controls .btn-sm').forEach(b => { if(b.textContent==='Fit') b.classList.add('active'); });
+  } else {
+    canvas.style.maxWidth = 'none';
+    canvas.style.maxHeight = 'none';
+    canvas.style.width = (canvas.width * z / 100) + 'px';
+    canvas.style.height = (canvas.height * z / 100) + 'px';
+    document.querySelectorAll('.canvas-controls .btn-sm').forEach(b => {
+      if(b.textContent === z+'%') b.classList.add('active');
+    });
+  }
+}
+
+async function regenerateSelected() {
+  const idx = state.selectedFrame;
+  if (idx < 0 || !state.framePrompts[idx]) return;
+  const res = getResolution();
+  const seed = Math.floor(Math.random() * 999999);
+  const url = `https://image.pollinations.ai/prompt/${encodeURL(state.framePrompts[idx])}?width=${res.w}&height=${res.h}&seed=${seed}&nologo=true`;
+  try {
+    state.frames[idx] = await fetchFrameAsDataUrl2(url);
+    renderTimeline();
+    drawFrame(idx);
+  } catch(e) {
+    alert('Ошибка генерации кадра. Попробуйте ещё раз.');
+  }
+}
+
+async function regenerateAll() {
+  const idea = $('userIdea').value.trim();
+  if (!idea) { alert('Опишите идею мультфильма'); return; }
+  if (state.generating) return;
+  if (state.frames.length === 0) { startGeneration(); return; }
+  state.generating = true;
+  state.cancelGen = false;
+  const style = $('styleSelect').value;
+  const res = getResolution();
+
+  $('progressModal').classList.add('show');
+  $('progressText').textContent = 'Перегенерация...';
+  const prevDiv = $('framePreviews');
+  prevDiv.innerHTML = '';
+  for (let i = 0; i < state.framePrompts.length; i++) {
+    const d = document.createElement('div');
+    d.className = 'fp loading';
+    d.innerHTML = '<div class="pulse-dot"></div>';
+    d.id = 'fpreview_' + i;
+    prevDiv.appendChild(d);
+  }
+
+  for (let i = 0; i < state.framePrompts.length; i++) {
+    if (state.cancelGen) break;
+    $('progressText').textContent = `Кадр ${i+1} из ${state.framePrompts.length}...`;
+    $('progressFill').style.width = ((i / state.framePrompts.length) * 100) + '%';
+    const seed = Math.floor(Math.random() * 999999);
+    const url = `https://image.pollinations.ai/prompt/${encodeURL(state.framePrompts[i])}?width=${res.w}&height=${res.h}&seed=${seed}&nologo=true`;
+    try {
+      const dataUrl = await fetchFrameAsDataUrl2(url);
+      state.frames[i] = dataUrl;
+      const preview = $('fpreview_' + i);
+      if (preview) { preview.className = 'fp'; preview.innerHTML = `<img src="${dataUrl}">`; }
+    } catch(e) {
+      const preview = $('fpreview_' + i);
+      if (preview) { preview.className = 'fp'; preview.innerHTML = '<div style="color:var(--accent);font-size:10px">Ошибка</div>'; }
+    }
+  }
+
+  $('progressFill').style.width = '100%';
+  $('progressText').textContent = 'Готово!';
+  await new Promise(r => setTimeout(r, 600));
+  $('progressModal').classList.remove('show');
+  state.generating = false;
+  renderTimeline();
+  drawFrame(state.selectedFrame);
+}
+
+function downloadPNG() {
+  const data = state.frames[state.selectedFrame];
+  if (!data) { alert('Нет кадра для скачивания'); return; }
+  const a = document.createElement('a');
+  a.href = data;
+  a.download = `toonimator_frame_${state.selectedFrame+1}.png`;
+  a.click();
+}
+
+function saveProject() {
+  const project = {
+    idea: $('userIdea').value,
+    style: $('styleSelect').value,
+    frameCount: $('frameCount').value,
+    resolution: $('resolution').value,
+    frames: state.frames,
+    framePrompts: state.framePrompts
+  };
+  const blob = new Blob([JSON.stringify(project)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'toonimator_project.json';
+  a.click();
+}
+
+function loadProject() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    try {
+      const project = JSON.parse(text);
+      $('userIdea').value = project.idea || '';
+      $('styleSelect').value = project.style || 'cartoon';
+      $('frameCount').value = project.frameCount || 8;
+      $('resolution').value = project.resolution || '720';
+      state.frames = project.frames || [];
+      state.framePrompts = project.framePrompts || [];
+      state.selectedFrame = 0;
+      const res = getResolution();
+      canvas.width = res.w;
+      canvas.height = res.h;
+      renderTimeline();
+      renderPrompts();
+      selectFrame(0);
+      $('currentStyle').textContent = styleNames[project.style] || project.style;
+      $('canvasPlaceholder').style.display = state.frames.some(f=>f) ? 'none' : '';
+    } catch(e) {
+      alert('Ошибка загрузки файла проекта');
+    }
+  };
+  input.click();
+}
+
+/* ========== IMAGE TO CARTOON ========== */
+let uploadedImgDataUrl = null;
+
+function openImgToCartoon() {
+  $('imgModal').classList.add('show');
+  uploadedImgDataUrl = null;
+  $('imgUploadZone').classList.remove('has-image');
+  $('imgPlaceholder').style.display = '';
+  $('imgDescription').value = '';
+  $('imgConvertBtn').disabled = true;
+  $('imgFileInput').value = '';
+}
+
+function closeImgToCartoon() {
+  $('imgModal').classList.remove('show');
+}
+
+function handleImgUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { alert('Файл слишком большой (макс. 10 МБ)'); return; }
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    uploadedImgDataUrl = ev.target.result;
+    $('imgUploadZone').classList.add('has-image');
+    $('imgPlaceholder').style.display = 'none';
+    const existingImg = $('imgUploadZone').querySelector('img');
+    if (existingImg) existingImg.remove();
+    const img = document.createElement('img');
+    img.src = uploadedImgDataUrl;
+    $('imgUploadZone').appendChild(img);
+    $('imgConvertBtn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Drag & drop
+const imgUploadZone = $('imgUploadZone');
+imgUploadZone.addEventListener('dragover', e => { e.preventDefault(); imgUploadZone.style.borderColor = 'var(--accent)'; });
+imgUploadZone.addEventListener('dragleave', () => { imgUploadZone.style.borderColor = ''; });
+imgUploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  imgUploadZone.style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    $('imgFileInput').files = e.dataTransfer.files;
+    handleImgUpload({ target: { files: [file] } });
+  }
+});
+
+function describeImageToPrompts(description, style, frameCount) {
+  const base = description || 'the scene';
+  const prompts = [];
+  const actions = [
+    'static scene, initial pose, establishing shot',
+    'character starts to move slightly, subtle motion',
+    'character moving, building action',
+    'main action happening, dynamic movement',
+    'action continues, most energetic moment',
+    'action resolving, movement slowing down',
+    'character settles into new pose',
+    'final pose, scene conclusion',
+    'slight idle animation, breathing motion',
+    'close-up detail of the scene',
+    'wide angle, full scene view',
+    'character reacting to something',
+    'second element appears in scene',
+    'interaction between elements',
+    'turning point in the scene',
+    'unexpected event occurs',
+    'character shows surprise',
+    'character shows joy',
+    'character running',
+    'character jumping',
+    'character falling',
+    'character flying through air',
+    'slow motion movement',
+    'quick dynamic movement',
+    'end of scene, final frame'
+  ];
+  const clamped = Math.min(Math.max(parseInt(frameCount) || 8, 2), 24);
+  for (let i = 0; i < clamped; i++) {
+    const ratio = i / (clamped - 1);
+    const actIdx = Math.min(Math.floor(ratio * (actions.length - 1)), actions.length - 1);
+    prompts.push(`${style} style, ${base}, ${actions[actIdx]}, animation frame ${i+1} of ${clamped}, consistent character and scene design, smooth transition, high quality, colorful, detailed`);
+  }
+  return prompts;
+}
+
+async function startImgConversion() {
+  if (!uploadedImgDataUrl) { alert('Сначала загрузите изображение'); return; }
+  if (state.generating) return;
+
+  const desc = $('imgDescription').value.trim();
+  const style = $('imgStyle').value;
+  const frameCount = parseInt($('imgFrameCount').value) || 8;
+  const resVal = $('imgResolution').value;
+  const resW = resVal === '480' ? 640 : resVal === '1080' ? 1280 : 960;
+  const resH = resVal === '480' ? 480 : resVal === '1080' ? 720 : 640;
+
+  closeImgToCartoon();
+
+  const prompts = describeImageToPrompts(desc, style, frameCount);
+  state.generating = true;
+  state.cancelGen = false;
+  state.framePrompts = prompts;
+  state.frames = new Array(prompts.length).fill(null);
+  state.selectedFrame = 0;
+
+  $('currentStyle').textContent = styleNames[style] || style;
+  $('generateBtn').disabled = true;
+  $('imgToCartoonBtn').disabled = true;
+
+  $('progressModal').classList.add('show');
+  $('progressText').textContent = 'Превращаем изображение в мультик...';
+  $('progressFill').style.width = '0%';
+
+  const prevDiv = $('framePreviews');
+  prevDiv.innerHTML = '';
+
+  // First frame is the uploaded image converted to style
+  const d0 = document.createElement('div');
+  d0.className = 'fp loading';
+  d0.innerHTML = '<div class="pulse-dot"></div>';
+  d0.id = 'fpreview_0';
+  prevDiv.appendChild(d0);
+
+  for (let i = 1; i < prompts.length; i++) {
+    const d = document.createElement('div');
+    d.className = 'fp loading';
+    d.innerHTML = '<div class="pulse-dot"></div>';
+    d.id = 'fpreview_' + i;
+    prevDiv.appendChild(d);
+  }
+
+  canvas.width = resW;
+  canvas.height = resH;
+
+  // Frame 0: convert the uploaded image itself to cartoon style
+  const firstPrompt = `convert this photo to ${style} cartoon style, ${desc || 'same scene'}, same composition, high quality, colorful`;
+  const seed0 = Math.floor(Math.random() * 999999);
+  $('progressText').textContent = 'Кадр 1 из ' + prompts.length + ' (стилизация исходного изображения)...';
+  $('progressFill').style.width = '0%';
+
+  // For the first frame, we use the uploaded image directly with a cartoon-style filter prompt
+  // Pollinations can't do img2img via URL, so we generate from prompt + use uploaded as base
+  const firstUrl = `https://image.pollinations.ai/prompt/${encodeURL(prompts[0])}?width=${resW}&height=${resH}&seed=${seed0}&nologo=true`;
+
+  let attempts = 0;
+  let success = false;
+  while (attempts < 3 && !success && !state.cancelGen) {
+    try {
+      const dataUrl = await fetchFrameAsDataUrl2(firstUrl);
+      state.frames[0] = dataUrl;
+      const preview = $('fpreview_0');
+      if (preview) { preview.className = 'fp'; preview.innerHTML = `<img src="${dataUrl}">`; }
+      success = true;
+    } catch(e) {
+      attempts++;
+      if (attempts < 3) await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+  if (!success && !state.cancelGen) {
+    state.frames[0] = uploadedImgDataUrl;
+    const preview = $('fpreview_0');
+    if (preview) { preview.className = 'fp'; preview.innerHTML = `<img src="${uploadedImgDataUrl}">`; }
+  }
+
+  // Generate remaining frames
+  for (let i = 1; i < prompts.length; i++) {
+    if (state.cancelGen) break;
+    $('progressText').textContent = `Кадр ${i+1} из ${prompts.length}...`;
+    $('progressFill').style.width = ((i / prompts.length) * 100) + '%';
+    const seed = Math.floor(Math.random() * 999999);
+    const url = `https://image.pollinations.ai/prompt/${encodeURL(prompts[i])}?width=${resW}&height=${resH}&seed=${seed}&nologo=true`;
+    let att = 0;
+    let ok = false;
+    while (att < 3 && !ok && !state.cancelGen) {
+      try {
+        const dataUrl = await fetchFrameAsDataUrl2(url);
+        state.frames[i] = dataUrl;
+        const preview = $('fpreview_' + i);
+        if (preview) { preview.className = 'fp'; preview.innerHTML = `<img src="${dataUrl}">`; }
+        ok = true;
+      } catch(e) {
+        att++;
+        if (att < 3) await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+    if (!ok && !state.cancelGen) {
+      state.frames[i] = null;
+      const preview = $('fpreview_' + i);
+      if (preview) {
+        preview.className = 'fp';
+        preview.innerHTML = '<div style="color:var(--accent);font-size:10px;text-align:center;padding:4px">Ошибка<br><span style="cursor:pointer;text-decoration:underline" onclick="retryFrame('+i+')">Повтор</span></div>';
+      }
+    }
+  }
+
+  $('progressFill').style.width = '100%';
+  if (!state.cancelGen) {
+    $('progressText').textContent = 'Готово! Изображение превращено в мультик!';
+    await new Promise(r => setTimeout(r, 800));
+  }
+
+  $('progressModal').classList.remove('show');
+  state.generating = false;
+  $('generateBtn').disabled = false;
+  $('imgToCartoonBtn').disabled = false;
+
+  renderTimeline();
+  renderPrompts();
+  selectFrame(0);
+  saveToHistory(desc || 'Изображение в мультике', style);
+  $('canvasPlaceholder').style.display = 'none';
+}
+
+/* ========== GIF ENCODER ========== */
+function rgbToPalette(r,g,b) { return [r,g,b]; }
+
+function quantize(imageData, maxColors) {
+  const data = imageData.data;
+  const pixelCount = data.length / 4;
+  if (pixelCount === 0) return { palette: [[0,0,0]], indices: new Uint8Array(0) };
+
+  const colorMap = new Map();
+  const pixels = [];
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    const qr = Math.round(r / 8) * 8;
+    const qg = Math.round(g / 8) * 8;
+    const qb = Math.round(b / 8) * 8;
+    const key = (qr << 16) | (qg << 8) | qb;
+    if (!colorMap.has(key)) {
+      colorMap.set(key, { r: qr, g: qg, b: qb, count: 0 });
+    }
+    colorMap.get(key).count++;
+    pixels.push(key);
+  }
+
+  let colors = Array.from(colorMap.values());
+  colors.sort((a,b) => b.count - a.count);
+
+  if (colors.length > maxColors) {
+    colors = colors.slice(0, maxColors);
+  }
+
+  const palette = colors.map(c => [c.r, c.g, c.b]);
+  const paletteMap = new Map();
+  colors.forEach((c, i) => {
+    paletteMap.set((c.r << 16) | (c.g << 8) | c.b, i);
+  });
+
+  const indices = new Uint8Array(pixelCount);
+  for (let i = 0; i < pixelCount; i++) {
+    const key = pixels[i];
+    if (paletteMap.has(key)) {
+      indices[i] = paletteMap.get(key);
+    } else {
+      const r = (key >> 16) & 0xff;
+      const g = (key >> 8) & 0xff;
+      const b = key & 0xff;
+      let bestIdx = 0, bestDist = Infinity;
+      for (let j = 0; j < palette.length; j++) {
+        const dr = r - palette[j][0], dg = g - palette[j][1], db = b - palette[j][2];
+        const dist = dr*dr + dg*dg + db*db;
+        if (dist < bestDist) { bestDist = dist; bestIdx = j; }
+      }
+      indices[i] = bestIdx;
+    }
+  }
+
+  return { palette, indices };
+}
+
+function lzwEncode(minCodeSize, pixels) {
+  const clearCode = 1 << minCodeSize;
+  const eoiCode = clearCode + 1;
+  let codeSize = minCodeSize + 1;
+  let nextCode = eoiCode + 1;
+  const table = new Map();
+  for (let i = 0; i < clearCode; i++) {
+    table.set(String(i), i);
+  }
+
+  const output = [];
+  let buffer = 0;
+  let bitsInBuffer = 0;
+
+  function writeCode(code) {
+    buffer |= (code << bitsInBuffer);
+    bitsInBuffer += codeSize;
+    while (bitsInBuffer >= 8) {
+      output.push(buffer & 0xff);
+      buffer >>= 8;
+      bitsInBuffer -= 8;
+    }
+  }
+
+  writeCode(clearCode);
+
+  let current = String(pixels[0]);
+  for (let i = 1; i < pixels.length; i++) {
+    const next = current + ',' + pixels[i];
+    if (table.has(next)) {
+      current = next;
+    } else {
+      writeCode(table.get(current));
+      if (nextCode < 4096) {
+        table.set(next, nextCode++);
+        if (nextCode > (1 << codeSize) && codeSize < 12) {
+          codeSize++;
+        }
+      } else {
+        writeCode(clearCode);
+        table.clear();
+        for (let j = 0; j < clearCode; j++) {
+          table.set(String(j), j);
+        }
+        nextCode = eoiCode + 1;
+        codeSize = minCodeSize + 1;
+      }
+      current = String(pixels[i]);
+    }
+  }
+  writeCode(table.get(current));
+  writeCode(eoiCode);
+
+  if (bitsInBuffer > 0) {
+    output.push(buffer & 0xff);
+  }
+
+  return output;
+}
+
+function buildGIF(frames, width, height, delay) {
+  const byteChunks = [];
+
+  function writeByte(b) { byteChunks.push([b & 0xff]); }
+  function writeBytes(arr) { byteChunks.push(Array.from(arr)); }
+  function writeStr(s) { byteChunks.push(Array.from(s).map(c => c.charCodeAt(0))); }
+
+  writeStr('GIF89a');
+
+  writeByte(width & 0xff);
+  writeByte((width >> 8) & 0xff);
+  writeByte(height & 0xff);
+  writeByte((height >> 8) & 0xff);
+
+  writeByte(0xf7);
+  writeByte(0);
+  writeByte(0);
+
+  const globalPalette = [];
+  for (let i = 0; i < 256; i++) {
+    globalPalette.push(i, i, i);
+  }
+  writeBytes(globalPalette);
+
+  writeBytes([0x21, 0xff, 0x0b]);
+  writeStr('NETSCAPE2.0');
+  writeByte(3);
+  writeByte(1);
+  writeByte(0);
+  writeByte(0);
+  writeByte(0);
+
+  const delayCentiseconds = Math.max(1, Math.round(delay * 100 / 1000));
+
+  for (let fi = 0; fi < frames.length; fi++) {
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = width;
+    frameCanvas.height = height;
+    const fctx = frameCanvas.getContext('2d');
+
+    if (!frames[fi]) {
+      fctx.fillStyle = '#000';
+      fctx.fillRect(0, 0, width, height);
+    } else {
+      const img = new Image();
+      img.src = frames[fi];
+      fctx.drawImage(img, 0, 0, width, height);
+    }
+
+    const imageData = fctx.getImageData(0, 0, width, height);
+    const { palette, indices } = quantize(imageData, 256);
+
+    while (palette.length < 256) palette.push([0, 0, 0]);
+
+    writeByte(0x21);
+    writeByte(0xf9);
+    writeByte(4);
+    writeByte(0x08);
+    writeByte(delayCentiseconds & 0xff);
+    writeByte((delayCentiseconds >> 8) & 0xff);
+    writeByte(0);
+    writeByte(0);
+
+    writeByte(0x2c);
+    writeByte(0); writeByte(0);
+    writeByte(0); writeByte(0);
+    writeByte(width & 0xff); writeByte((width >> 8) & 0xff);
+    writeByte(height & 0xff); writeByte((height >> 8) & 0xff);
+    writeByte(0);
+
+    const minCodeSize = 8;
+    writeByte(minCodeSize);
+
+    const encoded = lzwEncode(minCodeSize, indices);
+
+    const MAX_BLOCK = 255;
+    let pos = 0;
+    while (pos < encoded.length) {
+      const blockSize = Math.min(MAX_BLOCK, encoded.length - pos);
+      writeByte(blockSize);
+      writeBytes(encoded.slice(pos, pos + blockSize));
+      pos += blockSize;
+    }
+    writeByte(0);
+  }
+
+  writeByte(0x3b);
+
+  const totalSize = byteChunks.reduce((s, c) => s + c.length, 0);
+  const result = new Uint8Array(totalSize);
+  let offset = 0;
+  for (const chunk of byteChunks) {
+    for (const b of chunk) {
+      result[offset++] = b;
+    }
+  }
+  return result;
+}
+
+function exportGIF() {
+  const validFrames = state.frames.filter(f => f !== null);
+  if (validFrames.length === 0) { alert('Нет кадров для экспорта'); return; }
+
+  const btn = document.querySelector('[onclick="exportGIF()"]');
+  btn.textContent = '⏳ Экспорт...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    try {
+      const delay = 1000 / state.fps;
+      const gifData = buildGIF(state.frames, canvas.width, canvas.height, delay);
+      const blob = new Blob([gifData], { type: 'image/gif' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'toonimator_animation.gif';
+      a.click();
+      btn.textContent = '📥 Экспорт GIF';
+      btn.disabled = false;
+    } catch(e) {
+      alert('Ошибка экспорта GIF: ' + e.message);
+      btn.textContent = '📥 Экспорт GIF';
+      btn.disabled = false;
+    }
+  }, 100);
+}
+
+/* ========== HISTORY ========== */
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('toonimator_history') || '[]'); }
+  catch { return []; }
+}
+
+function saveHistory(history) {
+  try { localStorage.setItem('toonimator_history', JSON.stringify(history)); } catch(e) {}
+}
+
+function saveToHistory(idea, style) {
+  const history = getHistory();
+  const entry = {
+    id: Date.now(),
+    idea: idea,
+    style: styleNames[style] || style,
+    date: new Date().toLocaleString('ru'),
+    frames: state.frames.map(f => f ? f.substring(0, 100) : null),
+    fullFrames: state.frames,
+    prompts: [...state.framePrompts]
+  };
+  history.unshift(entry);
+  if (history.length > 20) history.pop();
+  saveHistory(history);
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = $('historyList');
+  const history = getHistory();
+  list.innerHTML = '';
+  if (history.length === 0) {
+    list.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text2);font-size:11px">Пока нет проектов</div>';
+    return;
+  }
+  history.forEach((h, i) => {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `<span title="${h.idea}">${h.idea.substring(0,30)}${h.idea.length>30?'...':''} <span style="color:var(--accent);font-size:10px">${h.style}</span></span><span class="del" onclick="event.stopPropagation();deleteHistory(${i})">×</span>`;
+    item.onclick = () => loadFromHistory(i);
+    list.appendChild(item);
+  });
+}
+
+function loadFromHistory(idx) {
+  const history = getHistory();
+  const h = history[idx];
+  if (!h) return;
+  state.frames = h.fullFrames || [];
+  state.framePrompts = h.prompts || [];
+  state.selectedFrame = 0;
+  const res = getResolution();
+  canvas.width = res.w;
+  canvas.height = res.h;
+  renderTimeline();
+  renderPrompts();
+  selectFrame(0);
+  $('canvasPlaceholder').style.display = state.frames.some(f=>f) ? 'none' : '';
+}
+
+function deleteHistory(idx) {
+  const history = getHistory();
+  history.splice(idx, 1);
+  saveHistory(history);
+  renderHistory();
+}
+
+$('styleSelect').onchange = function() {
+  $('currentStyle').textContent = styleNames[this.value] || this.value;
+};
+
+setZoom(100);
+renderHistory();
+renderTimeline();
+</script>
+</body>
+</html>

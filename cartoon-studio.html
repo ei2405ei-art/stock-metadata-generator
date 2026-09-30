@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мультстудия — рисование мультфильмов</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#1a1a2e;--panel:#16213e;--panel2:#1e2a4a;--accent:#e94560;--accent2:#00c2a8;
+  --text:#eee;--text2:#9aa;--border:#2a2a4e;--input-bg:#0f1629;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+
+.header{background:var(--panel);padding:8px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.header h1{font-size:18px;color:var(--accent);white-space:nowrap}
+.header h1 span{color:var(--text);font-weight:300}
+.spacer{flex:1}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;cursor:pointer;font-weight:600;transition:all .2s;white-space:nowrap}
+.btn:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-sm{padding:4px 10px;font-size:12px;border-radius:6px}
+.btn-ghost{background:var(--panel2);border:1px solid var(--border);color:var(--text)}
+.btn-ghost:hover{border-color:var(--accent)}
+.btn-green{background:var(--accent2)}
+select,input[type=color],input[type=number],input[type=range]{background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:13px;accent-color:var(--accent)}
+input[type=color]{width:38px;height:32px;padding:2px;cursor:pointer}
+
+.workspace{flex:1;display:flex;overflow:hidden}
+.left-panel{width:212px;background:var(--panel);border-right:1px solid var(--border);padding:12px 12px;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;gap:14px}
+.left-panel h3{font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
+
+.tool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tool-btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 4px;cursor:pointer;font-size:11px;text-align:center;transition:all .15s;line-height:1.2}
+.tool-btn .ico{display:block;font-size:18px;margin-bottom:3px}
+.tool-btn:hover{border-color:var(--accent)}
+.tool-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.colors-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.swatch{width:100%;aspect-ratio:1;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:transform .1s}
+.swatch:hover{transform:scale(1.12)}
+.swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--accent)}
+.color-row{display:flex;gap:8px;align-items:center;margin-top:6px}
+.color-row label{font-size:12px;color:var(--text2)}
+
+.slider-row{margin-bottom:10px}
+.slider-row label{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:2px}
+.slider-row input[type=range]{width:100%}
+.opt-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:8px;cursor:pointer}
+.opt-row input{accent-color:var(--accent)}
+
+.center-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#101018 0% 25%,#0b0b12 0% 50%) 50%/24px 24px;position:relative;overflow:hidden;min-height:200px;touch-action:none}
+#stage{box-shadow:0 8px 40px rgba(0,0,0,.6);background:#fff;border-radius:4px;max-width:96%;max-height:94%;object-fit:contain}
+#stage.dark-bg{background:#000}
+.hint{position:absolute;bottom:10px;right:12px;font-size:11px;color:var(--text2);background:rgba(10,10,20,.7);padding:4px 10px;border-radius:20px;pointer-events:none}
+.hint kbd{background:#333;border-radius:3px;padding:0 4px;font-size:10px}
+
+.timeline{background:var(--panel);border-top:1px solid var(--border);padding:8px 12px 10px;flex-shrink:0}
+.tl-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.tl-btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px;transition:all .15s}
+.tl-btn:hover{border-color:var(--accent)}
+.tl-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.fps-wrap{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);margin-left:auto}
+.fps-wrap input{width:110px}
+.frames-row{display:flex;gap:8px;overflow-x:auto;padding:6px 2px 8px}
+.frame-card{width:92px;flex-shrink:0;border-radius:8px;border:2px solid var(--border);overflow:hidden;cursor:pointer;position:relative;background:#111;transition:border-color .15s}
+.frame-card:hover{border-color:var(--accent)}
+.frame-card.active{border-color:var(--accent);box-shadow:0 0 10px var(--accent)}
+.frame-card canvas{width:100%;display:block;aspect-ratio:3/2;background:repeating-conic-gradient(#eee 0% 25%,#ddd 0% 50%) 50%/12px 12px}
+.frame-card .num{position:absolute;top:2px;left:4px;font-size:10px;background:rgba(0,0,0,.75);color:#fff;padding:1px 6px;border-radius:10px}
+.frame-card .dup{position:absolute;top:2px;right:22px;font-size:11px;background:rgba(0,0,0,.75);color:#fff;border:none;border-radius:10px;padding:1px 6px;cursor:pointer}
+.frame-card .del{position:absolute;top:2px;right:4px;font-size:11px;background:rgba(233,69,96,.9);color:#fff;border:none;border-radius:10px;padding:1px 6px;cursor:pointer}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--panel);border-radius:12px;padding:22px;max-width:520px;width:92%;max-height:85vh;overflow-y:auto}
+.modal h2{color:var(--accent);margin-bottom:10px;font-size:18px}
+.modal p{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:6px}
+.kbd-table{width:100%;border-collapse:collapse;margin-top:8px}
+.kbd-table td{padding:5px 8px;font-size:13px;border-bottom:1px solid var(--border)}
+.kbd-table td:first-child{color:var(--accent);white-space:nowrap}
+kbd{background:#333;border-radius:3px;padding:0 5px;font-size:11px;font-family:inherit}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--accent);color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;opacity:0;transition:all .3s;z-index:200;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:820px){.left-panel{width:100%;flex-direction:row;flex-wrap:wrap}.workspace{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🎬 Мультстудия <span>— рисуй мультики по кадрам</span></h1>
+    <div class="spacer"></div>
+    <select id="sizeSel" title="Размер холста">
+        <option value="320,240">320×240</option>
+        <option value="480,320" selected>480×320</option>
+        <option value="640,360">640×360</option>
+        <option value="800,450">800×450</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" id="newBtn">🆕 Новый</button>
+    <button class="btn btn-ghost btn-sm" id="helpBtn">⌨️ Горячие клавиши</button>
+    <button class="btn btn-green" id="exportGifBtn">💾 Экспорт GIF</button>
+</div>
+
+<div class="workspace">
+    <div class="left-panel">
+        <div>
+            <h3>Инструменты</h3>
+            <div class="tool-grid">
+                <button class="tool-btn active" data-tool="brush"><span class="ico">🖌️</span>Кисть</button>
+                <button class="tool-btn" data-tool="eraser"><span class="ico">🧽</span>Ластик</button>
+                <button class="tool-btn" data-tool="line"><span class="ico">📏</span>Линия</button>
+                <button class="tool-btn" data-tool="fill"><span class="ico">🪣</span>Заливка</button>
+                <button class="tool-btn" data-tool="picker"><span class="ico">💉</span>Пипетка</button>
+            </div>
+        </div>
+
+        <div>
+            <h3>Цвет</h3>
+            <div class="colors-grid" id="palette"></div>
+            <div class="color-row">
+                <input type="color" id="customColor" value="#e94560" title="Свой цвет">
+                <label id="colorLabel">#e94560</label>
+            </div>
+        </div>
+
+        <div>
+            <h3>Кисть</h3>
+            <div class="slider-row">
+                <label>Размер <span id="sizeVal">8</span></label>
+                <input type="range" id="sizeSlider" min="1" max="60" value="8">
+            </div>
+        </div>
+
+        <div>
+            <h3>Луковая кожа</h3>
+            <label class="opt-row"><input type="checkbox" id="onionChk" checked> Показывать</label>
+            <div class="slider-row">
+                <label>Прозрачность <span id="onionVal">35%</span></label>
+                <input type="range" id="onionSlider" min="5" max="80" value="35">
+            </div>
+            <label class="opt-row"><input type="checkbox" id="checkerChk" checked> Прозрачный фон</label>
+        </div>
+
+        <div>
+            <h3>Правка</h3>
+            <div style="display:flex;gap:6px">
+                <button class="tl-btn" id="undoBtn" title="Ctrl+Z">↩️ Отменить</button>
+                <button class="tl-btn" id="redoBtn" title="Ctrl+Y">↪️ Вернуть</button>
+            </div>
+            <button class="tl-btn" id="clearBtn" style="width:100%;margin-top:8px">🗑 Очистить кадр</button>
+        </div>
+    </div>
+
+    <div class="center-area">
+        <div class="canvas-wrap" id="canvasWrap">
+            <canvas id="stage"></canvas>
+            <div class="hint">Пробел — играть · B кисть · E ластик · [ ] размер</div>
+        </div>
+
+        <div class="timeline">
+            <div class="tl-top">
+                <button class="tl-btn primary" id="playBtn">▶ Играть</button>
+                <button class="tl-btn" id="addBtn">+ Кадр</button>
+                <button class="tl-btn" id="dupBtn">⧉ Дублировать</button>
+                <button class="tl-btn" id="delBtn">− Удалить</button>
+                <button class="tl-btn" id="mvLBtn">←</button>
+                <button class="tl-btn" id="mvRBtn">→</button>
+                <div class="fps-wrap">
+                    <span>FPS</span>
+                    <input type="range" id="fpsSlider" min="1" max="30" value="12">
+                    <span id="fpsVal">12</span>
+                </div>
+            </div>
+            <div class="frames-row" id="framesRow"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="helpModal">
+    <div class="modal">
+        <h2>⌨️ Горячие клавиши</h2>
+        <table class="kbd-table">
+            <tr><td><kbd>B</kbd> / <kbd>E</kbd> / <kbd>L</kbd></td><td>Кисть / Ластик / Линия</td></tr>
+            <tr><td><kbd>F</kbd> / <kbd>I</kbd></td><td>Заливка / Пипетка</td></tr>
+            <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Уменьшить / увеличить кисть</td></tr>
+            <tr><td><kbd>Пробел</kbd></td><td>Играть / стоп</td></tr>
+            <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Предыдущий / следующий кадр</td></tr>
+            <tr><td><kbd>N</kbd></td><td>Добавить кадр</td></tr>
+            <tr><td><kbd>D</kbd></td><td>Дублировать кадр</td></tr>
+            <tr><td><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd></td><td>Отменить / вернуть</td></tr>
+        </table>
+        <p style="margin-top:10px">Кликните мимо, чтобы закрыть.</p>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ================= СОСТОЯНИЕ ================= */
+const W = 480, H = 320;
+const PALETTE = ['#000000','#ffffff','#e94560','#ff6b35','#ffd93d','#6bcb77','#2a9d8f','#457b9d','#6c5ce7','#e056fd','#8d5524','#c0c0c0'];
+
+const state = {
+    frames: [],
+    current: 0,
+    tool: 'brush',
+    color: '#e94560',
+    size: 8,
+    onion: true,
+    onionAlpha: 0.35,
+    fps: 12,
+    playing: false,
+    playIndex: 0,
+    playTimer: null,
+    transparentBg: true,
+    w: W,
+    h: H,
+    undo: {},
+    redo: {}
+};
+
+const stage = document.getElementById('stage');
+const sctx = stage.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+const toast = document.getElementById('toast');
+
+const els = id => document.getElementById(id);
+const sizeSel = els('sizeSel'), newBtn = els('newBtn'), helpBtn = els('helpBtn'), exportGifBtn = els('exportGifBtn');
+const paletteEl = els('palette'), customColor = els('customColor'), colorLabel = els('colorLabel');
+const sizeSlider = els('sizeSlider'), sizeVal = els('sizeVal');
+const onionChk = els('onionChk'), onionSlider = els('onionSlider'), onionVal = els('onionVal'), checkerChk = els('checkerChk');
+const undoBtn = els('undoBtn'), redoBtn = els('redoBtn'), clearBtn = els('clearBtn');
+const playBtn = els('playBtn'), addBtn = els('addBtn'), dupBtn = els('dupBtn'), delBtn = els('delBtn');
+const mvLBtn = els('mvLBtn'), mvRBtn = els('mvRBtn');
+const fpsSlider = els('fpsSlider'), fpsVal = els('fpsVal'), framesRow = els('framesRow');
+
+/* ================= КАДРЫ ================= */
+function makeCanvas(w, h) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    return c;
+}
+function newFrame(w, h) { return makeCanvas(w || state.w, h || state.h); }
+function clearFrame(c) {
+    const x = c.getContext('2d');
+    x.save(); x.setTransform(1,0,0,1,0,0);
+    x.clearRect(0,0,c.width,c.height);
+    x.restore();
+}
+function frameIndex(i) { return (i + state.frames.length) % state.frames.length; }
+
+/* ================= ОТРИСОВКА ================= */
+function drawChecker(ctx, w, h, cell) {
+    cell = cell || 8;
+    ctx.save();
+    for (let y = 0; y < h; y += cell)
+        for (let x = 0; x < w; x += cell) {
+            ctx.fillStyle = ((x/cell + y/cell) % 2 === 0) ? 'rgba(255,255,255,.5)' : 'rgba(0,0,0,.08)';
+            ctx.fillRect(x, y, cell, cell);
+        }
+    ctx.restore();
+}
+function composite(showOnion) {
+    const w = state.w, h = state.h;
+    sctx.clearRect(0,0,w,h);
+    if (state.transparentBg) drawChecker(sctx, w, h);
+    const idx = state.current;
+    if (state.onion && showOnion !== false) {
+        const p = frameIndex(idx - 1), n = frameIndex(idx + 1);
+        if (p !== idx) { sctx.save(); sctx.globalAlpha = state.onionAlpha; sctx.drawImage(state.frames[p],0,0); sctx.restore(); }
+        if (n !== idx) { sctx.save(); sctx.globalAlpha = state.onionAlpha; sctx.drawImage(state.frames[n],0,0); sctx.restore(); }
+    }
+    sctx.drawImage(state.frames[idx], 0, 0);
+}
+function renderPlay() {
+    const w = state.w, h = state.h;
+    sctx.clearRect(0,0,w,h);
+    if (state.transparentBg) drawChecker(sctx, w, h);
+    sctx.drawImage(state.frames[state.playIndex], 0, 0);
+}
+function updateStageSize() {
+    stage.width = state.w; stage.height = state.h;
+    composite();
+}
+function updateThumb(i) {
+    const card = framesRow.children[i];
+    if (!card) return;
+    const tc = card.querySelector('canvas');
+    if (!tc) return;
+    const tctx = tc.getContext('2d');
+    tctx.clearRect(0,0,tc.width,tc.height);
+    tctx.drawImage(state.frames[i], 0, 0, tc.width, tc.height);
+}
+function refreshTimeline(keepScroll) {
+    const st = framesRow.scrollLeft;
+    framesRow.innerHTML = '';
+    state.frames.forEach((f, i) => {
+        const card = document.createElement('div');
+        card.className = 'frame-card' + (i === state.current ? ' active' : '');
+        const tc = makeCanvas(96, 64);
+        const tctx = tc.getContext('2d');
+        tctx.drawImage(f, 0, 0, tc.width, tc.height);
+        const num = document.createElement('span'); num.className = 'num'; num.textContent = i + 1;
+        const dup = document.createElement('button'); dup.className = 'dup'; dup.textContent = '⧉'; dup.title = 'Дублировать';
+        const del = document.createElement('button'); del.className = 'del'; del.textContent = '✕'; del.title = 'Удалить';
+        dup.onmousedown = e => { e.stopPropagation(); duplicateFrame(); };
+        del.onmousedown = e => { e.stopPropagation(); deleteFrame(); };
+        card.append(tc, num, dup, del);
+        card.onclick = () => selectFrame(i);
+        framesRow.appendChild(card);
+    });
+    if (keepScroll) framesRow.scrollLeft = st;
+    if (state.frames[state.current]) {
+        const active = framesRow.children[state.current];
+        if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+    updateBtnState();
+}
+function selectFrame(i) {
+    if (state.playing) stopPlay();
+    state.current = i;
+    refreshTimeline(true);
+    composite();
+}
+function updateBtnState() {
+    playBtn.textContent = state.playing ? '⏸ Стоп' : '▶ Играть';
+    delBtn.disabled = state.frames.length <= 1;
+    mvLBtn.disabled = state.current <= 0;
+    mvRBtn.disabled = state.current >= state.frames.length - 1;
+    undoBtn.disabled = !(state.undo[state.current] || []).length;
+    redoBtn.disabled = !(state.redo[state.current] || []).length;
+}
+
+/* ================= UNDO / REDO ================= */
+const UNDO_LIMIT = 40;
+function snapshot(i) {
+    const c = state.frames[i];
+    return c.getContext('2d').getImageData(0, 0, c.width, c.height);
+}
+function pushUndo(i) {
+    if (!state.undo[i]) state.undo[i] = [];
+    state.undo[i].push(snapshot(i));
+    if (state.undo[i].length > UNDO_LIMIT) state.undo[i].shift();
+    state.redo[i] = [];
+}
+function undo() {
+    const i = state.current;
+    const stack = state.undo[i] || [];
+    if (!stack.length) return;
+    if (!state.redo[i]) state.redo[i] = [];
+    state.redo[i].push(snapshot(i));
+    state.frames[i].getContext('2d').putImageData(stack.pop(), 0, 0);
+    composite(); updateThumb(i); updateBtnState(); scheduleSave();
+}
+function redo() {
+    const i = state.current;
+    const stack = state.redo[i] || [];
+    if (!stack.length) return;
+    if (!state.undo[i]) state.undo[i] = [];
+    state.undo[i].push(snapshot(i));
+    state.frames[i].getContext('2d').putImageData(stack.pop(), 0, 0);
+    composite(); updateThumb(i); updateBtnState(); scheduleSave();
+}
+
+/* ================= РИСОВАНИЕ ================= */
+const drawing = { on: false, lastX: 0, lastY: 0, startX: 0, startY: 0, frame: null };
+function toCanvas(e) {
+    const r = stage.getBoundingClientRect();
+    return {
+        x: (e.clientX - r.left) * (state.w / r.width),
+        y: (e.clientY - r.top) * (state.h / r.height)
+    };
+}
+function getToolCtx() {
+    const c = state.frames[state.current];
+    const ctx = c.getContext('2d');
+    if (state.tool === 'eraser') ctx.globalCompositeOperation = 'destination-out';
+    else ctx.globalCompositeOperation = 'source-over';
+    return ctx;
+}
+function stamp(ctx, x, y, size, color) {
+    ctx.beginPath();
+    ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+}
+function drawSegment(ctx, x0, y0, x1, y1, size, color) {
+    const dist = Math.hypot(x1 - x0, y1 - y0);
+    const step = Math.max(1, size / 2);
+    const steps = Math.max(1, Math.ceil(dist / step));
+    for (let s = 0; s <= steps; s++) {
+        const t = s / steps;
+        stamp(ctx, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, size, color);
+    }
+}
+function drawBrushRing(x, y) {
+    sctx.save();
+    sctx.setLineDash([4, 4]);
+    sctx.strokeStyle = state.tool === 'eraser' ? '#e94560' : '#fff';
+    sctx.lineWidth = 1.5;
+    sctx.beginPath();
+    sctx.arc(x, y, state.size / 2, 0, Math.PI * 2);
+    sctx.stroke();
+    sctx.restore();
+}
+function onPointerDown(e) {
+    if (state.playing) stopPlay();
+    e.preventDefault();
+    const p = toCanvas(e);
+    drawing.on = true; drawing.frame = state.current;
+    drawing.startX = drawing.lastX = p.x;
+    drawing.startY = drawing.lastY = p.y;
+    pushUndo(drawing.frame);
+    if (state.tool === 'brush' || state.tool === 'eraser') {
+        const ctx = getToolCtx();
+        stamp(ctx, p.x, p.y, state.size, state.color);
+        composite();
+    } else if (state.tool === 'picker') {
+        pickColor(p.x, p.y);
+    } else if (state.tool === 'fill') {
+        floodFill(p.x, p.y);
+    } else if (state.tool === 'line') {
+        composite(); drawLinePreview(p.x, p.y);
+    }
+}
+function onPointerMove(e) {
+    if (!drawing.on) return;
+    if (drawing.frame !== state.current) return;
+    e.preventDefault();
+    const p = toCanvas(e);
+    if (state.tool === 'brush' || state.tool === 'eraser') {
+        const ctx = getToolCtx();
+        drawSegment(ctx, drawing.lastX, drawing.lastY, p.x, p.y, state.size, state.color);
+        composite();
+        drawBrushRing(p.x, p.y);
+    } else if (state.tool === 'line') {
+        composite(); drawLinePreview(p.x, p.y);
+    }
+    drawing.lastX = p.x; drawing.lastY = p.y;
+}
+function onPointerUp(e) {
+    if (!drawing.on) return;
+    drawing.on = false;
+    if (state.tool === 'line' && drawing.frame === state.current) {
+        const p = toCanvas(e);
+        const ctx = state.frames[state.current].getContext('2d');
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = state.color;
+        ctx.lineWidth = state.size;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(drawing.startX, drawing.startY);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        composite();
+    }
+    if (state.tool === 'brush' || state.tool === 'eraser' || state.tool === 'line' || state.tool === 'fill') {
+        if (drawing.frame === state.current) { updateThumb(state.current); scheduleSave(); }
+    }
+    if (state.tool === 'picker') pickColor(toCanvas(e).x, toCanvas(e).y);
+    updateBtnState();
+}
+function drawLinePreview(x, y) {
+    sctx.save();
+    sctx.strokeStyle = state.color;
+    sctx.lineWidth = state.size;
+    sctx.lineCap = 'round';
+    sctx.beginPath();
+    sctx.moveTo(drawing.startX, drawing.startY);
+    sctx.lineTo(x, y);
+    sctx.stroke();
+    sctx.restore();
+}
+function pickColor(x, y) {
+    const i = Math.round(y) * state.w + Math.round(x);
+    const d = state.frames[state.current].getContext('2d').getImageData(Math.max(0,Math.min(state.w-1,Math.round(x))), Math.max(0,Math.min(state.h-1,Math.round(y))), 1, 1).data;
+    if (d[3] > 0) {
+        const c = '#' + [d[0],d[1],d[2]].map(v => v.toString(16).padStart(2,'0')).join('');
+        setColor(c);
+    } else toastMsg('Пипетка: в этом месте прозрачный фон');
+}
+function floodFill(x, y) {
+    const c = state.frames[state.current];
+    const ctx = c.getContext('2d');
+    const w = c.width, h = c.height;
+    x = Math.round(x); y = Math.round(y);
+    if (x < 0 || y < 0 || x >= w || y >= h) return;
+    const img = ctx.getImageData(0, 0, w, h);
+    const data = img.data;
+    const [cr, cg, cb] = hexToRgb(state.color);
+    const i = (y * w + x) * 4;
+    const tr = data[i], tg = data[i+1], tb = data[i+2], ta = data[i+3];
+    if (tr === cr && tg === cg && tb === cb && ta === 255) return;
+    const stack = [[x, y]];
+    while (stack.length) {
+        const [cx, cy] = stack.pop();
+        if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue;
+        const j = (cy * w + cx) * 4;
+        if (data[j] !== tr || data[j+1] !== tg || data[j+2] !== tb || data[j+3] !== ta) continue;
+        data[j] = cr; data[j+1] = cg; data[j+2] = cb; data[j+3] = 255;
+        stack.push([cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]);
+    }
+    ctx.putImageData(img, 0, 0);
+    composite(); updateThumb(state.current); updateBtnState(); scheduleSave();
+}
+function hexToRgb(h) {
+    return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+}
+
+/* ================= КАДРЫ: операции ================= */
+function addFrame() {
+    const f = newFrame();
+    state.frames.splice(state.current + 1, 0, f);
+    state.current += 1;
+    state.undo[state.current] = []; state.redo[state.current] = [];
+    refreshTimeline(); composite(); scheduleSave();
+}
+function duplicateFrame() {
+    const src = state.frames[state.current];
+    const f = newFrame();
+    f.getContext('2d').drawImage(src, 0, 0);
+    state.frames.splice(state.current + 1, 0, f);
+    state.current += 1;
+    state.undo[state.current] = []; state.redo[state.current] = [];
+    refreshTimeline(); composite(); scheduleSave();
+}
+function deleteFrame() {
+    if (state.frames.length <= 1) { toastMsg('Нужен хотя бы один кадр'); return; }
+    state.frames.splice(state.current, 1);
+    if (state.current >= state.frames.length) state.current = state.frames.length - 1;
+    state.undo[state.current] = []; state.redo[state.current] = [];
+    refreshTimeline(); composite(); scheduleSave();
+}
+function moveFrame(dir) {
+    const n = state.current + dir;
+    if (n < 0 || n >= state.frames.length) return;
+    const f = state.frames.splice(state.current, 1)[0];
+    state.frames.splice(n, 0, f);
+    state.current = n;
+    refreshTimeline(); composite(); scheduleSave();
+}
+function clearCurrent() {
+    pushUndo(state.current);
+    clearFrame(state.frames[state.current]);
+    composite(); updateThumb(state.current); updateBtnState(); scheduleSave();
+}
+function newProject() {
+    const [nw, nh] = sizeSel.value.split(',').map(Number);
+    state.w = nw; state.h = nh;
+    state.frames = [newFrame()];
+    state.current = 0;
+    state.undo = {}; state.redo = {};
+    updateStageSize();
+    refreshTimeline();
+    scheduleSave();
+}
+
+/* ================= ВОСПРОИЗВЕДЕНИЕ ================= */
+function startPlay() {
+    if (state.frames.length < 1) return;
+    state.playing = true;
+    state.playIndex = state.current;
+    playBtn.textContent = '⏸ Стоп';
+    clearInterval(state.playTimer);
+    state.playTimer = setInterval(() => {
+        state.playIndex++;
+        if (state.playIndex >= state.frames.length) {
+            if (state.loop) state.playIndex = 0;
+            else { stopPlay(); return; }
+        }
+        renderPlay();
+    }, 1000 / state.fps);
+}
+function stopPlay() {
+    state.playing = false;
+    clearInterval(state.playTimer);
+    playBtn.textContent = '▶ Играть';
+    composite();
+}
+
+/* ================= ЭКСПОРТ GIF ================= */
+function buildPalette(colors, maxColors) {
+    if (!colors.length) return [[0,0,0]];
+    function range(box) {
+        let mr = -1;
+        for (let c = 0; c < 3; c++) {
+            let mn = 255, mx = 0;
+            for (const p of box) { if (p[c] < mn) mn = p[c]; if (p[c] > mx) mx = p[c]; }
+            mr = Math.max(mr, mx - mn);
+        }
+        return mr;
+    }
+    function split(box) {
+        let ch = 0, mr = -1;
+        for (let c = 0; c < 3; c++) {
+            let mn = 255, mx = 0;
+            for (const p of box) { if (p[c] < mn) mn = p[c]; if (p[c] > mx) mx = p[c]; }
+            const r = mx - mn;
+            if (r > mr) { mr = r; ch = c; }
+        }
+        if (mr <= 0) return null;
+        box.sort((a, b) => a[ch] - b[ch]);
+        const mid = box.length >> 1;
+        return [box.slice(0, mid), box.slice(mid)];
+    }
+    const boxes = [colors];
+    while (boxes.length < maxColors) {
+        let bi = -1, best = -1;
+        for (let i = 0; i < boxes.length; i++) {
+            const r = range(boxes[i]);
+            if (r > best) { best = r; bi = i; }
+        }
+        if (bi < 0) break;
+        const parts = split(boxes[bi]);
+        if (!parts) break;
+        boxes.splice(bi, 1, ...parts);
+    }
+    return boxes.map(b => {
+        let r = 0, g = 0, bl = 0;
+        for (const p of b) { r += p[0]; g += p[1]; bl += p[2]; }
+        const n = b.length || 1;
+        return [Math.round(r/n), Math.round(g/n), Math.round(bl/n)];
+    });
+}
+function buildLookup(palette) {
+    const lut = new Uint8Array(32768);
+    for (let i = 0; i < 32768; i++) {
+        const r = ((i >> 10) & 31) << 3, g = ((i >> 5) & 31) << 3, b = (i & 31) << 3;
+        let best = 0, bestD = Infinity;
+        for (let p = 0; p < palette.length; p++) {
+            const dr = palette[p][0] - r, dg = palette[p][1] - g, db = palette[p][2] - b;
+            const d = dr*dr + dg*dg + db*db;
+            if (d < bestD) { bestD = d; best = p; }
+        }
+        lut[i] = best;
+    }
+    return lut;
+}
+function mapIndices(pixels, lut, transparentIndex) {
+    const n = pixels.length >> 2;
+    const out = new Uint8Array(n);
+    for (let i = 0, j = 0; i < pixels.length; i += 4, j++) {
+        if (pixels[i+3] < 128) out[j] = transparentIndex;
+        else out[j] = lut[((pixels[i] >> 3) << 10) | ((pixels[i+1] >> 3) << 5) | (pixels[i+2] >> 3)];
+    }
+    return out;
+}
+// LZW-энкодер: порт классического GIF LZWEncoder
+// (Kevin Weiner / Johan Nordberg / Matt DesLauriers, MIT) из gifenc
+function lzwEncode(pixels, colorDepth, out, accum, htab, codetab) {
+    const EOF = -1, BITS = 12;
+    const MASKS = [0,1,3,7,15,31,63,127,255,511,1023,2047,4095,8191,16383,32767,65535];
+    out = out || [];
+    accum = accum || new Uint8Array(256);
+    const hsize = 5003;
+    htab = htab || new Int32Array(hsize);
+    codetab = codetab || new Int32Array(hsize);
+
+    accum.fill(0);
+    codetab.fill(0);
+    htab.fill(-1);
+
+    const initCodeSize = Math.max(2, colorDepth);
+    let cur_accum = 0, cur_bits = 0;
+    const g_init_bits = initCodeSize + 1;
+    let clear_flg = false;
+    let n_bits = g_init_bits;
+    let maxcode = (1 << n_bits) - 1;
+    const ClearCode = 1 << initCodeSize;
+    const EOFCode = ClearCode + 1;
+    let free_ent = ClearCode + 2;
+    let a_count = 0;
+
+    let ent = pixels[0];
+
+    let hshift = 0;
+    for (let fcode = hsize; fcode < 65536; fcode *= 2) ++hshift;
+    hshift = 8 - hshift;
+
+    out.push(initCodeSize);
+
+    output(ClearCode);
+
+    const length = pixels.length;
+    for (let idx = 1; idx < length; idx++) {
+        next_block: {
+            const c = pixels[idx];
+            const fcode = (c << BITS) + ent;
+            let i = (c << hshift) ^ ent;
+            if (htab[i] === fcode) { ent = codetab[i]; break next_block; }
+            const disp = i === 0 ? 1 : hsize - i;
+            while (htab[i] >= 0) {
+                i -= disp;
+                if (i < 0) i += hsize;
+                if (htab[i] === fcode) { ent = codetab[i]; break next_block; }
+            }
+            output(ent);
+            ent = c;
+            if (free_ent < 1 << BITS) {
+                codetab[i] = free_ent++;
+                htab[i] = fcode;
+            } else {
+                htab.fill(-1);
+                free_ent = ClearCode + 2;
+                clear_flg = true;
+                output(ClearCode);
+            }
+        }
+    }
+
+    output(ent);
+    output(EOFCode);
+    out.push(0);
+
+    function output(code) {
+        cur_accum &= MASKS[cur_bits];
+        if (cur_bits > 0) cur_accum |= code << cur_bits;
+        else cur_accum = code;
+        cur_bits += n_bits;
+        while (cur_bits >= 8) {
+            accum[a_count++] = cur_accum & 0xff;
+            if (a_count >= 254) {
+                out.push(a_count);
+                for (let i = 0; i < a_count; i++) out.push(accum[i]);
+                a_count = 0;
+            }
+            cur_accum >>= 8;
+            cur_bits -= 8;
+        }
+        if (free_ent > maxcode || clear_flg) {
+            if (clear_flg) {
+                n_bits = g_init_bits;
+                maxcode = (1 << n_bits) - 1;
+                clear_flg = false;
+            } else {
+                ++n_bits;
+                maxcode = n_bits === BITS ? (1 << n_bits) : (1 << n_bits) - 1;
+            }
+        }
+        if (code === EOFCode) {
+            while (cur_bits > 0) {
+                accum[a_count++] = cur_accum & 0xff;
+                if (a_count >= 254) {
+                    out.push(a_count);
+                    for (let i = 0; i < a_count; i++) out.push(accum[i]);
+                    a_count = 0;
+                }
+                cur_accum >>= 8;
+                cur_bits -= 8;
+            }
+            if (a_count > 0) {
+                out.push(a_count);
+                for (let i = 0; i < a_count; i++) out.push(accum[i]);
+                a_count = 0;
+            }
+        }
+    }
+    return out;
+}
+function buildGIF(w, h, frames) {
+    const transparentIndex = 255;
+    const samples = [];
+    const datas = [];
+    for (const f of frames) {
+        datas.push(f.pixels);
+        for (let i = 0; i < f.pixels.length; i += 4) {
+            if (f.pixels[i+3] >= 128) samples.push([f.pixels[i], f.pixels[i+1], f.pixels[i+2]]);
+        }
+    }
+    const palette = buildPalette(samples, 255);
+    while (palette.length < 256) palette.push([0,0,0]);
+    palette[255] = [0,0,0]; // индекс 255 = прозрачный
+    const lut = buildLookup(palette.slice(0, 255));
+    const bytes = [];
+    bytes.push(0x47,0x49,0x46,0x38,0x39,0x61); // GIF89a
+    bytes.push(w & 0xff, (w >> 8) & 0xff, h & 0xff, (h >> 8) & 0xff);
+    bytes.push(0xF7, 0x00, 0x00); // GCT flag, 256 цветов
+    for (const p of palette) bytes.push(p[0], p[1], p[2]);
+    // Netscape loop
+    bytes.push(0x21, 0xFF, 0x0B);
+    bytes.push(...[0x4E,0x45,0x54,0x53,0x43,0x41,0x50,0x45,0x32,0x2E,0x30]);
+    bytes.push(0x03, 0x01, 0x00, 0x00, 0x00);
+    for (const f of frames) {
+        const delay = Math.max(2, Math.round(f.delayMs / 10));
+        bytes.push(0x21, 0xF9, 0x04, 0x01, delay & 0xff, (delay >> 8) & 0xff, transparentIndex, 0x00);
+        bytes.push(0x2C, 0x00, 0x00, 0x00, 0x00);
+        bytes.push(w & 0xff, (w >> 8) & 0xff, h & 0xff, (h >> 8) & 0xff, 0x00);
+        const idx = mapIndices(f.pixels, lut, transparentIndex);
+        const lzw = lzwEncode(idx, 8);
+        for (const b of lzw) bytes.push(b);
+    }
+    bytes.push(0x3B);
+    return new Uint8Array(bytes);
+}
+function exportGif() {
+    if (state.frames.length === 0) return;
+    toastMsg('Экспортирую GIF...');
+    setTimeout(() => {
+        try {
+            const off = makeCanvas(state.w, state.h);
+            const octx = off.getContext('2d');
+            const frames = state.frames.map(f => {
+                octx.clearRect(0,0,state.w,state.h);
+                octx.drawImage(f, 0, 0);
+                return { pixels: octx.getImageData(0,0,state.w,state.h).data, delayMs: 1000 / state.fps };
+            });
+            const gif = buildGIF(state.w, state.h, frames);
+            const blob = new Blob([gif], { type: 'image/gif' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'multik.gif';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+            toastMsg('GIF сохранён 🎉');
+        } catch (err) {
+            console.error(err);
+            toastMsg('Ошибка экспорта: ' + err.message);
+        }
+    }, 30);
+}
+
+/* ================= СОХРАНЕНИЕ ================= */
+let saveTimer = null;
+function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveProject, 400);
+}
+function saveProject() {
+    try {
+        const data = {
+            w: state.w, h: state.h, fps: state.fps, frames: state.frames.map(f => f.toDataURL('image/png'))
+        };
+        localStorage.setItem('cartoon-studio', JSON.stringify(data));
+    } catch (e) {
+        toastMsg('Не удалось сохранить (слишком много данных)');
+    }
+}
+function loadProject() {
+    try {
+        const raw = localStorage.getItem('cartoon-studio');
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!data.frames || !data.frames.length) return;
+        state.w = data.w; state.h = data.h; state.fps = data.fps || 12;
+        const loads = data.frames.map(src => new Promise(res => {
+            const img = new Image();
+            img.onload = () => {
+                const c = makeCanvas(state.w, state.h);
+                c.getContext('2d').drawImage(img, 0, 0);
+                res(c);
+            };
+            img.onerror = res;
+            img.src = src;
+        }));
+        Promise.all(loads).then(canvases => {
+            state.frames = canvases.filter(Boolean);
+            state.current = 0;
+            updateStageSize();
+            refreshTimeline();
+            fpsSlider.value = state.fps; fpsVal.textContent = state.fps;
+        });
+    } catch (e) { /* повреждённое сохранение — игнорируем */ }
+}
+
+/* ================= UI ================= */
+function setColor(c) {
+    state.color = c;
+    customColor.value = c;
+    colorLabel.textContent = c;
+    document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.color === c));
+}
+function setTool(t) {
+    state.tool = t;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+    stage.style.cursor = (t === 'brush' || t === 'eraser') ? 'crosshair' : (t === 'fill' ? 'cell' : 'crosshair');
+}
+let toastTimer = null;
+function toastMsg(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+/* ================= ИНИЦИАЛИЗАЦИЯ ================= */
+PALETTE.forEach(c => {
+    const s = document.createElement('div');
+    s.className = 'swatch' + (c === state.color ? ' active' : '');
+    s.style.background = c;
+    s.dataset.color = c;
+    s.onclick = () => setColor(c);
+    paletteEl.appendChild(s);
+});
+setColor(state.color);
+setTool('brush');
+
+document.querySelectorAll('.tool-btn').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+sizeSlider.oninput = () => { state.size = +sizeSlider.value; sizeVal.textContent = sizeSlider.value; };
+onionChk.onchange = () => { state.onion = onionChk.checked; composite(); };
+onionSlider.oninput = () => { state.onionAlpha = +onionSlider.value / 100; onionVal.textContent = onionSlider.value + '%'; composite(); };
+checkerChk.onchange = () => { state.transparentBg = checkerChk.checked; updateStageSize(); };
+fpsSlider.oninput = () => {
+    state.fps = +fpsSlider.value; fpsVal.textContent = fpsSlider.value;
+    if (state.playing) { stopPlay(); startPlay(); }
+    scheduleSave();
+};
+customColor.oninput = () => setColor(customColor.value);
+newBtn.onclick = () => {
+    if (state.frames.length > 1 || !emptyFrame(state.frames[0])) {
+        if (!confirm('Начать новый проект? Текущий проект будет очищен.')) return;
+    }
+    newProject();
+};
+clearBtn.onclick = clearCurrent;
+undoBtn.onclick = undo;
+redoBtn.onclick = redo;
+playBtn.onclick = () => state.playing ? stopPlay() : startPlay();
+addBtn.onclick = addFrame;
+dupBtn.onclick = duplicateFrame;
+delBtn.onclick = deleteFrame;
+mvLBtn.onclick = () => moveFrame(-1);
+mvRBtn.onclick = () => moveFrame(1);
+exportGifBtn.onclick = exportGif;
+helpBtn.onclick = () => els('helpModal').classList.add('show');
+els('helpModal').onclick = e => { if (e.target === els('helpModal')) els('helpModal').classList.remove('show'); };
+
+stage.addEventListener('pointerdown', onPointerDown);
+stage.addEventListener('pointermove', onPointerMove);
+stage.addEventListener('pointerup', onPointerUp);
+stage.addEventListener('pointerleave', () => { if (drawing.on) { drawing.on = false; updateBtnState(); } });
+
+function emptyFrame(c) {
+    const d = c.getContext('2d').getImageData(0,0,c.width,c.height).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 0) return false;
+    return true;
+}
+
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+    const k = e.key.toLowerCase();
+    if (e.ctrlKey || e.metaKey) {
+        if (k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+        else if (k === 'y') { e.preventDefault(); redo(); }
+        return;
+    }
+    switch (k) {
+        case 'b': setTool('brush'); break;
+        case 'e': setTool('eraser'); break;
+        case 'l': setTool('line'); break;
+        case 'f': setTool('fill'); break;
+        case 'i': setTool('picker'); break;
+        case '[': sizeSlider.value = Math.max(1, state.size - 1); sizeSlider.oninput(); break;
+        case ']': sizeSlider.value = Math.min(60, state.size + 1); sizeSlider.oninput(); break;
+        case ' ': e.preventDefault(); state.playing ? stopPlay() : startPlay(); break;
+        case 'n': addFrame(); break;
+        case 'd': duplicateFrame(); break;
+        case 'arrowleft': if (!state.playing) selectFrame(Math.max(0, state.current - 1)); break;
+        case 'arrowright': if (!state.playing) selectFrame(Math.min(state.frames.length - 1, state.current + 1)); break;
+    }
+});
+
+/* старт */
+state.frames = [newFrame()];
+state.w = W; state.h = H;
+updateStageSize();
+refreshTimeline();
+loadProject();
+</script>
+</body>
+</html>
