@@ -798,9 +798,53 @@ document.getElementById("qwen-base").value = getStore("qwen_base") ||
 document.getElementById("ollama-url").value = getStore("ollama_url") || "http://localhost:11434";
 document.getElementById("ollama-model").value = getStore("ollama_model") || "qwen2.5vl:3b";
 
+// проверка, запущена ли Ollama (нужна для выбора запасного провайдера)
+async function ollamaAlive(url, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms || 2500);
+  try {
+    const r = await fetch(String(url || "http://localhost:11434").replace(/\/+$/, "") + "/api/tags", { signal: ctrl.signal });
+    return !!r.ok;
+  } catch (e) { return false; }
+  finally { clearTimeout(timer); }
+}
+
+// ошибки, после которых текущего провайдера смысла больше не пробовать
+function providerDead(e) {
+  return /HTTP 401|HTTP 402|HTTP 403|MODEL_UNAVAILABLE/.test(e && e.message || "");
+}
+
+function providerDeadReason(e) {
+  const m = (e && e.message) || "";
+  if (/HTTP 401|HTTP 403/.test(m)) return "Ключ отклонён или аккаунт ограничен (401/403)";
+  if (/HTTP 402/.test(m)) return "Не хватает средств или квоты (402)";
+  if (/MODEL_UNAVAILABLE/.test(m)) return "Модель недоступна";
+  return "Провайдер не отвечает";
+}
+
+function providerLabel(c) {
+  if (c.provider === "ollama") return "Ollama " + c.model;
+  if (c.provider === "qwen") return "Qwen " + c.model;
+  return c.model;
+}
+
+// показывает в интерфейсе, на каком провайдере реально удалось ответить
+function showProviderSwitched(c) {
+  document.getElementById("ai-provider").value = c.provider;
+  applyProviderUI();
+  if (c.provider === "qwen" && c.model) {
+    document.getElementById("qwen-model").value = c.model;
+    setStore("qwen_model", c.model);
+  }
+  if (c.provider === "openrouter" && c.model) {
+    document.getElementById("or-model").value = c.model;
+    setStore(OR_MODEL_STORE, c.model);
+  }
+}
+
 // читает настройки выбранного провайдера и проверяет, всё ли заполнено
-function readCfg() {
-  const provider = document.getElementById("ai-provider").value;
+function readCfg(provider) {
+  provider = provider || document.getElementById("ai-provider").value;
   if (provider === "ollama") {
     const url = document.getElementById("ollama-url").value.trim() || "http://localhost:11434";
     const model = document.getElementById("ollama-model").value.trim() || "qwen2.5vl:3b";
@@ -825,6 +869,19 @@ function readCfg() {
   setStore(OR_KEY_STORE, key);
   setStore(OR_MODEL_STORE, model);
   return { ok: true, provider, key, model };
+}
+
+// цепочка запасных провайдеров, если выбранный облачный недоступен:
+// сначала бесплатная модель того же OpenRouter, затем Qwen (если есть ключ),
+// затем локальная Ollama (если сервер отвечает)
+async function fallbackChain(cfg) {
+  const out = [];
+  if (cfg.provider !== "openrouter") return out;
+  if (!/free/.test(cfg.model)) out.push({ ...cfg, model: "openrouter/free" });
+  const q = readCfg("qwen");
+  if (q.ok) out.push(q);
+  if (await ollamaAlive(readCfg("ollama").url)) out.push(readCfg("ollama"));
+  return out;
 }
 
 function applyProviderUI() {
@@ -1223,8 +1280,11 @@ async function aiForEntry(entry, cfg) {
 
 async function aiGenerate() {
   if (!currentFile || !currentEntry) return alert("Сначала выберите файл.");
-  const cfg = readCfg();
-  if (!cfg.ok) return alert(cfg.err);
+  const cfg0 = readCfg();
+  if (!cfg0.ok) return alert(cfg0.err);
+  const candidates = [cfg0, ...await fallbackChain(cfg0)];
+  let usedIdx = 0;
+  const cfg = candidates[0];
 
   const status = document.getElementById("ai-status");
   const btn = document.getElementById("ai-btn");
@@ -1247,22 +1307,27 @@ async function aiGenerate() {
 
   try {
     let result;
-    try {
-      result = await run(cfg);
-    } catch (e) {
-      // 402 = не хватает кредитов, MODEL_UNAVAILABLE = модель исчезла из каталога:
-      // один раз пробуем бесплатную модель
-      if (cfg.provider !== "openrouter") throw e;
-      if (!/HTTP 402|MODEL_UNAVAILABLE/.test(e.message) || /free/.test(cfg.model)) throw e;
-      const freeModel = "openrouter/free";
-      document.getElementById("or-model").value = freeModel;
-      setStore(OR_MODEL_STORE, freeModel);
-      status.textContent = /MODEL_UNAVAILABLE/.test(e.message)
-        ? "Модель недоступна → пробую openrouter/free..."
-        : "Кредиты кончились (402) → пробую бесплатную модель...";
-      result = await run({ ...cfg, model: freeModel });
+    let lastErr = null;
+    while (usedIdx < candidates.length) {
+      const c = candidates[usedIdx];
+      try {
+        result = await run(c);
+        if (usedIdx > 0) showProviderSwitched(c);
+        break;
+      } catch (e) {
+        lastErr = e;
+        // провайдер отпал (401/402/403/модель исчезла) — пробуем следующего в цепочке
+        if (!providerDead(e) || usedIdx === candidates.length - 1) throw e;
+        usedIdx++;
+        const next = candidates[usedIdx];
+        status.textContent = (providerDeadReason(e)) + " → пробую " + providerLabel(next);
+        status.style.color = "var(--yellow)";
+      }
     }
-    status.textContent = "Готово: " + result.keywords.length + " ключей (запись сохранена)";
+    if (!result) throw lastErr || new Error("не удалось получить ответ");
+    if (usedIdx > 0) setStore("ai_provider", candidates[usedIdx].provider);
+    status.textContent = "Готово: " + result.keywords.length + " ключей (запись сохранена" +
+      (usedIdx > 0 ? ", провайдер: " + providerLabel(candidates[usedIdx]) : "") + ")";
     status.style.color = "var(--green)";
   } catch (e) {
     status.textContent = "Ошибка: " + e.message;
@@ -1273,8 +1338,10 @@ async function aiGenerate() {
 
 async function aiBatch() {
   if (!fileEntries.length) return alert("Сначала добавьте файлы.");
-  const cfg = readCfg();
-  if (!cfg.ok) return alert(cfg.err);
+  const cfg0 = readCfg();
+  if (!cfg0.ok) return alert(cfg0.err);
+  const candidates = [cfg0, ...await fallbackChain(cfg0)];
+  const cfg = candidates[0];
 
   const status = document.getElementById("ai-status");
   const errBox = document.getElementById("ai-errors");
@@ -1295,9 +1362,9 @@ async function aiBatch() {
     if (r.title_ru) usedTitles.push(r.title_ru);
   }
 
-  // провайдер/модель могут быть заменены автоматически (402 → бесплатная),
+  // провайдер/модель могут быть заменены автоматически (401/402/403 → запасной),
   // состояние общее для всех проходов
-  const runState = { cfg: { ...cfg } };
+  const runState = { cfg: { ...cfg }, idx: 0, candidates };
   const processOne = async entry => {
     const attempt = async m => {
       const result = await aiForEntry(entry, m);
@@ -1308,29 +1375,40 @@ async function aiBatch() {
       ok++;
       return true;
     };
-    try {
-      return await attempt(runState.cfg);
-    } catch (e) {
-      // 402 = не хватает кредитов, MODEL_UNAVAILABLE = модель исчезла из каталога:
-      // один раз переключаемся на бесплатную и повторяем файл
-      if (runState.cfg.provider === "openrouter" && /HTTP 402|MODEL_UNAVAILABLE/.test(e.message) && !/free/.test(runState.cfg.model)) {
-        const wasModelGone = /MODEL_UNAVAILABLE/.test(e.message);
-        runState.cfg = { ...runState.cfg, model: "openrouter/free" };
-        document.getElementById("or-model").value = runState.cfg.model;
-        setStore(OR_MODEL_STORE, runState.cfg.model);
-        errors.push((wasModelGone ? "Модель недоступна" : "Кредитов не хватило (402)") +
-          " → переключились на бесплатную модель openrouter/free");
-        status.textContent = (wasModelGone ? "Модель недоступна" : "Кредиты кончились") +
-          " → переключаюсь на бесплатную модель openrouter/free";
-        try { return await attempt(runState.cfg); } catch (e2) { e = e2; }
+    let lastErr = null;
+    let switchNoted = false;
+    // пробуем каждого провайдера из цепочки, пока не ответит хоть один
+    while (runState.idx < runState.candidates.length) {
+      const c = runState.candidates[runState.idx];
+      runState.cfg = c;
+      try {
+        const done = await attempt(c);
+        if (runState.idx > 0) {
+          if (!switchNoted) {
+            errors.push("Провайдер переключён на " + providerLabel(c));
+            switchNoted = true;
+          }
+          showProviderSwitched(c);
+        }
+        return done;
+      } catch (e) {
+        lastErr = e;
+        if (!providerDead(e) || runState.idx === runState.candidates.length - 1) break;
+        runState.idx++;
+        const next = runState.candidates[runState.idx];
+        errors.push(entry.file.name + ": " + providerDeadReason(e) + " → пробую " + providerLabel(next));
+        status.textContent = providerDeadReason(e) + " → пробую " + providerLabel(next);
+        status.style.color = "var(--yellow)";
       }
-      errors.push(entry.file.name + ": " + e.message);
+    }
+    if (lastErr) {
+      errors.push(entry.file.name + ": " + lastErr.message);
       // fallback: save heuristic metadata so the file is not lost from CSV
       const fTitle = genTitle(entry.file.name, entry.exif, entry.colors);
       const fKw = genKeywords(entry.file.name, entry.exif, entry.colors, entry.ctype || "photo", noPeople, conc?.kw||[]);
       const fb = buildMeta(entry.file.name, fTitle, fKw, entry);
       fb.source = "heuristic";
-      fb.ai_error = e.message;
+      fb.ai_error = lastErr.message;
       saveRecord(JSON.parse(JSON.stringify(fb)));
       return false;
     }
@@ -1521,12 +1599,22 @@ document.getElementById("exp-csv").addEventListener("click",()=>{
   // по умолчанию выгружаем только реально атрибутированные записи (source=ai),
   // чтобы в CSV не попали заглушки, собранные из имени файла
   const aiRows = records.filter(r=>r.source==="ai" || r.generated);
-  const onlyAi = aiRows.length>0 && aiRows.length<records.length
-    ? confirm("Без ИИ-описания осталось записей: "+(records.length-aiRows.length)+".\n"+
-              "OK — выгрузить только ИИ-описания ("+aiRows.length+").\n"+
-              "Отмена — выгрузить все ("+records.length+"), включая заглушки из имени файла.")
-    : false;
-  const rows = onlyAi ? aiRows : records;
+  let rows;
+  if (!aiRows.length) {
+    // ни одной записи от ИИ — заглушки из имени файла выгружать нельзя по умолчанию
+    if (!confirm("ИИ-описаний нет ни для одной записи ("+records.length+").\n"+
+                 "Все они собраны из имени файла, а не из содержимого кадра.\n"+
+                 "OK — выгрузить только ИИ-описания (0 записей).\n"+
+                 "Отмена — выгрузить все ("+records.length+") заглушек.")) return;
+    rows = aiRows;
+  } else if (aiRows.length < records.length) {
+    rows = confirm("Без ИИ-описания осталось записей: "+(records.length-aiRows.length)+".\n"+
+                   "OK — выгрузить только ИИ-описания ("+aiRows.length+").\n"+
+                   "Отмена — выгрузить все ("+records.length+"), включая заглушки из имени файла.")
+      ? aiRows : records;
+  } else {
+    rows = records;
+  }
   if (!rows.length) return alert("Нет ИИ-описаний: сначала запустите генерацию.");
   const keys=[...new Set(rows.flatMap(r=>Object.keys(r)))];
   const esc=v=>{const s=String(v??"");return s.includes(",")||s.includes('"')||s.includes("\n")?'"'+s.replace(/"/g,'""')+'"':s;};

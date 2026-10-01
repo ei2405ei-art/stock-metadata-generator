@@ -18,8 +18,8 @@ description: Use when working on metadata-generator.html (Adobe Stock / Shutters
 |------|---------|
 | `metadata-generator.html` | Всё приложение: HTML + CSS + JS |
 | `.opencode/skills/stock-metadata-generator/SKILL.md` | Этот скилл |
-| `stock_video_requirements_2026.md` | Требования видео-платформ (справочно) |
-| `attributor.js` / `stock-attributor.html` / `metadata_generator.py` | Устаревшие версии, не используются |
+| `../stock-video-generator/stock_video_requirements_2026.md` | Требования видео-платформ (справочно) |
+| `../stock-metadata-legacy/` (`attributor.js` / `stock-attributor.html` / `metadata_generator.py`) | Устаревшие версии, не используются |
 
 ## Hard Rules (менять только по просьбе пользователя)
 
@@ -64,8 +64,8 @@ description: Use when working on metadata-generator.html (Adobe Stock / Shutters
 | `ollamaRequest(cfg, prompt, imgs)` | локальный провайдер: POST `{url}/api/chat`, `format:"json"`, `keep_alive:"30m"`, `num_ctx:8192`, таймаут 600 с, base64 **без** префикса `data:`; ответ нормализуется в `{choices:[{message:{content}}]}` |
 | `applyProviderUI()` | показывает/скрывает панели OpenRouter и Ollama, пишет подсказку; выбор провайдера хранится в `ai_provider` |
 | `openrouterRequest(model, key, prompt, imgs, base)` | OpenAI-совместимый POST; `base` не передан → OpenRouter, передан → Model Studio (`isOpenRouter=false`). Ретраи (429/5xx/сеть, 4 попытки), таймаут 90с, `max_tokens: 3000`; 401/403 → «ключ отклонён», 429 → «превышен лимит», 402 → понятный текст про кредиты/квоту |
-| `aiGenerate()` | одиночная генерация; при 402 или `MODEL_UNAVAILABLE` → авто-переключение на `openrouter/free` |
-| `aiBatch()` | батч: последовательный проход (1 воркер, задержка 2с — чтобы не ловить 429); до 3 повторных проходов по упавшим (пауза 8с, задержка 4с); 402/`MODEL_UNAVAILABLE` → `openrouter/free` |
+| `aiGenerate()` | Одиночная генерация. Обходит цепочку `candidates`, при `providerDead(e)` переходит к следующему; при успехе на запасном — `showProviderSwitched()` |
+| `aiBatch()` | Батч: последовательный проход (1 воркер, задержка 2с — чтобы не ловить 429); до 3 повторных проходов по упавшим (пауза 8с, задержка 4с). Цепочка провайдеров общая на прогон: `runState.idx` |
 | `parseAI(content)` | вытаскивает JSON: снимает ```-fences, обрезает от первого `{` до последнего `}`, чистит control chars, латает обрезанный ответ |
 | `cleanAIKeywords(kws, noPeople, used)` | 3 уникальные фразы → одиночные → дозаполнение до 40; `slice(0,49)` |
 | `fitTitle(s)` | обрезка ≤180 по границе слова (не <120) |
@@ -102,7 +102,7 @@ description: Use when working on metadata-generator.html (Adobe Stock / Shutters
 
 | Провайдер | Когда | Детали |
 |---|---|---|
-| `openrouter` | облако, быстрее | Нужен ключ. Авто-переход на `openrouter/free` при 402 / `MODEL_UNAVAILABLE` |
+| `openrouter` | облако, быстрее | Нужен ключ. Цепочка авто-отката: `openrouter/free` → Qwen → Ollama |
 | `qwen` | Alibaba Model Studio, быстро | Vision. Нужен ключ `sk-…`. Поля: ключ, модель, базовый адрес. Бесплатная квота новичкам. Автопереходов нет |
 | `ollama` | локально, бесплатно, без лимитов | Ключ не нужен. Требуется `setx OLLAMA_ORIGINS *` и перезапуск Ollama. На CPU без GPU ~2–4 мин на файл. Переходы на другие модели НЕ применяются |
 
@@ -114,6 +114,29 @@ Qwen в Model Studio работает через OpenAI-совместимый e
 
 **DeepSeek использовать нельзя:** его публичный API text-only, vision-моделей нет —
 описать изображение он не способен. Нужен именно Qwen (или любая другая VL-модель).
+
+### Цепочка запасных провайдеров
+
+Аккаунт OpenRouter у пользователя заблокирован, поэтому `aiGenerate()` и `aiBatch()`
+проверяют `candidates = [выбранный, ...await fallbackChain(выбранный)]`. `fallbackChain()`
+работает **только** для OpenRouter и собирает по порядку: `openrouter/free` → Qwen (если
+введён ключ) → Ollama (если `ollamaAlive()` видит `/api/tags`). Исчерпание цепочки = крайнему
+провайдеру, сработавшему один раз.
+
+| Функция | Роль |
+|---|---|
+| `providerDead(e)` | `401/402/403/MODEL_UNAVAILABLE` → провайдер отпал, переходим дальше. Сетевые ошибки и таймауты **не** считаются отказом — их надо ретраить на том же провайдере |
+| `providerDeadReason(e)` | Короткая причина для UI: 401/403 → «ключ отклонён или аккаунт ограничен», 402 → «средств/квоты», иначе → «модель недоступна» |
+| `providerLabel(c)` | `Qwen qwen3-vl-plus` / `Ollama qwen2.5vl:3b` / `openrouter/free` — для сообщений |
+| `showProviderSwitched(c)` | Синхронизирует select и поле модели с тем провайдером, который реально ответил |
+| `ollamaAlive(url, ms)` | `GET /api/tags` с таймаутом 2.5с; Ollama добавляется в цепочку только если сервер отвечает |
+
+В `aiBatch()` переключение **общее на весь прогон** (`runState.idx`), а не на файл: один
+отвалившийся провайдер не перебирается заново для каждого изображения. При переходе пишется
+одна запись `Провайдер переключён на …`, а не по разу на файл.
+
+Ошибки в батче всегда берутся из `lastErr`, а не из `e` из `catch`: переменная `e` там уже
+не входит в область видимости, и `fb.ai_error = e.message` роняло бы весь файл.
 
 Модели для 8 ГБ ОЗУ: `qwen2.5vl:3b` (рекомендуется), `qwen2.5vl:7b` (медленно),
 `moondream` (быстро, слабее). Скачивание: `ollama pull qwen2.5vl:3b`.
