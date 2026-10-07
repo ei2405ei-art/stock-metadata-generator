@@ -119,7 +119,7 @@ td{padding:7px 6px;border-bottom:1px solid var(--border);vertical-align:top}
   </div>
 
   <!-- ============ TAB 1 ============ -->
-  <div class="panel active" class="panel active" id="tab-main">
+  <div class="panel active" id="tab-main">
     <div class="card">
       <div class="dzone" id="dzone">
         <div><b>Перетащите файлы или папку сюда</b></div>
@@ -184,7 +184,7 @@ td{padding:7px 6px;border-bottom:1px solid var(--border);vertical-align:top}
   </div>
 
   <!-- ============ TAB 2 ============ -->
-  <div class="panel" class="panel" id="tab-result">
+  <div class="panel" id="tab-result">
     <div class="card">
       <div class="row" style="margin-bottom:10px">
         <button class="btn s" id="edit-btn" disabled>Редактировать выбранное</button>
@@ -236,7 +236,7 @@ td{padding:7px 6px;border-bottom:1px solid var(--border);vertical-align:top}
   </div>
 
   <!-- ============ TAB 3 ============ -->
-  <div class="panel" class="panel" id="tab-embed">
+  <div class="panel" id="tab-embed">
     <div class="card">
       <h2>Вшивка метаданных в сами файлы</h2>
       <div class="hint" style="margin-bottom:10px">
@@ -283,14 +283,14 @@ td{padding:7px 6px;border-bottom:1px solid var(--border);vertical-align:top}
   </div>
 
   <!-- ============ TAB 4 ============ -->
-  <div class="panel     <div class="panel" class="panel" id="tab-history">
+  <div class="panel" id="tab-history">
       <div class="card">
         <h2>История генерации</h2>
         <div class="row"><button class="btn" id="historyClear">Очистить историю</button></div>
         <div id="historyList" class="grid"></div>
       </div>
     </div>
-class="panel" class="panel" id="tab-guide">
+<div class="panel guide" id="tab-guide">
     <h3>Заголовок</h3>
     <ul>
       <li>До <b>70 символов</b>, одно предложение, без запятых и спецсимволов. Субъект + действие + окружение.</li>
@@ -360,10 +360,7 @@ const KW_MODELS = [
   {provider:"openrouter", model:"qwen/qwen3-vl-30b-a3b-instruct"},
   {provider:"openrouter", model:"qwen/qwen2.5-vl-72b-instruct"},
   {provider:"openrouter", model:"google/gemma-3-27b-it:free"},
-    {provider:"together",  model:"meta-llama/Llama-Vision-Free"},
-  {provider:"together",  model:"meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo"},
-  {provider:"together",  model:"google/gemma-3-27b-it"},
-{provider:"qwen",      model:"qwen3-vl-plus"},
+  {provider:"qwen",      model:"qwen3-vl-plus"},
   {provider:"qwen",      model:"qwen3-vl-flash"},
   {provider:"qwen",      model:"qwen2.5-vl-72b-instruct"},
   {provider:"ollama",    model:"qwen2.5vl:3b"},
@@ -493,6 +490,9 @@ function fillCommercial(rec, skip){
 
 let fileEntries = [];        // {id, file, name, ctype, topic, exif, colors, vmeta, thumb, status, error, record}
 let lastSessionResults = [];
+let historySessions = [];
+let batchStartedAt = 0;
+let batchStartIdx = 0;
   let records = [];            // метаданные всех работ серии
 let usedKeywords = new Set();
 let usedTitles = [];
@@ -1231,7 +1231,2150 @@ function readCfg(){
     const model = $("qwen-model").value.trim();
     let base = $("qwen-base").value.trim() || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
     base = base.replace(/\/+$/, "");
-    if(!key) return {ok:false, err:"Нужен ключ Alibaba Cloud Model Studio (DashScope) API key (sk-...). Бесплатная квота доступна новым аккаунтам.в. DeepSeek не подходит: нет vision-моделей в публичном API.",
+    if(!key) return {ok:false, err:"Нужен ключ Alibaba Cloud Model Studio (DashScope) API key (sk-...). Бесплатная квота доступна новым аккаунтам."};
+    if(!model) return {ok:false, err:"Укажите модель, например qwen3-vl-plus"};
+    store.set("qwen_key", key); store.set("qwen_model", model); store.set("qwen_base", base);
+    return {ok:true, provider, key, model, base};
+  }
+  const key = $("or-key").value.trim();
+  const model = $("or-model").value.trim() || "openrouter/free";
+  if(!key) return {ok:false, err:"Нужен ключ OpenRouter. Бесплатная альтернатива — вкладка «Ollama» (полностью локально, без ключа)."};
+  store.set("or_key", key); store.set("or_model", model);
+  return {ok:true, provider, key, model};
+}
+
+function providerDead(e){
+  const m = String(e && e.message || "");
+  return /HTTP (401|402|403)/.test(m) || /MODEL_UNAVAILABLE/.test(m);
+}
+function providerDeadReason(e){
+  const m = String(e && e.message || "");
+  if(/HTTP 40[13]/.test(m)) return "ключ отклонён или аккаунт ограничен";
+  if(/HTTP 402/.test(m)) return "нет средств или исчерпана квота";
+  if(/MODEL_UNAVAILABLE/.test(m)) return "модель недоступна";
+  return "провайдер не отвечает";
+}
+function providerLabel(c){
+  if(!c) return "—";
+  if(c.provider === "ollama") return "Ollama " + c.model;
+  if(c.provider === "qwen") return "Qwen " + c.model;
+  return c.model;
+}
+
+async function ollamaAlive(url, ms){
+  ms = ms || 2500;
+  try{
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), ms);
+    const res = await fetch(url + "/api/tags", {signal: ctl.signal});
+    clearTimeout(t);
+    return res.ok;
+  }catch(e){ return false; }
+}
+
+async function fallbackChain(cfg){
+  const chain = [cfg];
+  if(cfg.provider === "openrouter"){
+    if(!/:free$/.test(cfg.model) && cfg.model !== "openrouter/free"){
+      chain.push(Object.assign({}, cfg, {model:"openrouter/free"}));
+    }
+    const qk = $("qwen-key").value.trim();
+    if(qk) chain.push({provider:"qwen", key:qk, model:$("qwen-model").value.trim() || "qwen3-vl-plus", base:($("qwen-base").value.trim() || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1").replace(/\/+$/,"")});
+    const url = ($("oll-url").value.trim() || "http://localhost:11434").replace(/\/+$/,"");
+    if(await ollamaAlive(url)) chain.push({provider:"ollama", url, model:$("oll-model").value.trim() || "qwen2.5vl:3b"});
+  }
+  return chain;
+}
+
+async function ollamaRequest(cfg, prompt, imgs){
+  const content = imgs.map(u => ({type:"image_url", image_url:{url:u}}));
+  const body = {
+    model: cfg.model,
+    messages: [{role:"user", content: prompt}],
+    stream: false,
+    format: "json",
+    keep_alive: "30m",
+    options: {temperature:0.7, num_ctx:8192}
+  };
+  for(let attempt = 1; attempt <= 2; attempt++){
+    let ctl;
+    try{
+      ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 600000);
+      const res = await fetch(cfg.url + "/api/chat", {
+        method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body), signal:ctl.signal
+      });
+      clearTimeout(timer);
+      if(res.status === 404){
+        const t = await res.text();
+        if(/model/i.test(t)) throw new Error("MODEL_UNAVAILABLE: модель " + cfg.model + " не скачана. Выполните: ollama pull " + cfg.model);
+        throw new Error("Ollama HTTP 404: " + t.slice(0, 200));
+      }
+      if(!res.ok){
+        const t = await res.text();
+        throw new Error("Ollama HTTP " + res.status + ": " + t.slice(0, 200));
+      }
+      const data = await res.json();
+      return {choices:[{message:{content: data.message && data.message.content || ""}}]};
+    }catch(e){
+      if(e.message && /MODEL_UNAVAILABLE|HTTP \d/.test(e.message)) throw e;
+      if(attempt === 2) throw new Error("Ollama не ответила: " + (e.message || e));
+      log("Ollama: сетевая ошибка, повтор через 2 с", "сеть");
+      await sleep(2000);
+    }
+  }
+}
+
+async function openrouterRequest(cfg, prompt, imgs){
+  const base = cfg.base || "https://openrouter.ai/api/v1";
+  const content = [{type:"text", text:prompt}];
+  for(const u of imgs) content.push({type:"image_url", image_url:{url:u}});
+
+  const body = {
+    model: cfg.model,
+    messages: [{role:"user", content: prompt}],
+    max_tokens: MAX_TOKENS,
+    temperature: 0.75
+  };
+
+  for(let attempt = 1; attempt <= 4; attempt++){
+    let ctl, timer;
+    try{
+      ctl = new AbortController();
+      timer = setTimeout(() => ctl.abort(), 90000);
+      const res = await fetch(base + "/chat/completions", {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "Authorization":"Bearer " + cfg.key,
+          "HTTP-Referer":"https://localhost/batch-keyworder",
+          "X-Title":"batch-keyworder"
+        },
+        body:JSON.stringify(body),
+        signal:ctl.signal
+      });
+      clearTimeout(timer);
+      const text = await res.text();
+
+      if(res.status === 401 || res.status === 403) throw new Error("HTTP " + res.status + ": ключ отклонён или аккаунт ограничен");
+      if(res.status === 402) throw new Error("HTTP 402: недостаточно средств или квоты");
+      if(res.status === 429 || res.status >= 500){
+        if(attempt === 4) throw new Error("HTTP " + res.status + ": " + text.slice(0, 160));
+        log("HTTP " + res.status + ", повтор через " + (15 * attempt) + " с", "лимит");
+        await sleep(15000 * attempt);
+        continue;
+      }
+      if(res.status === 404){
+        const low = text.toLowerCase();
+        if(/no endpoints|model/.test(low)) throw new Error("MODEL_UNAVAILABLE: модель " + cfg.model + " недоступна");
+        throw new Error("HTTP 404: " + text.slice(0, 160));
+      }
+      if(!res.ok) throw new Error("HTTP " + res.status + ": " + text.slice(0, 200));
+
+      let data;
+      try{ data = JSON.parse(text); }
+      catch(e){ throw new Error("Модель вернула не-JSON ответ: " + text.slice(0, 200)); }
+      return data;
+    }catch(e){
+      const m = String(e.message || e);
+      if(/HTTP (401|402|403|404)/.test(m) || /MODEL_UNAVAILABLE/.test(m)) throw new Error(m);
+      if(attempt === 4) throw new Error(m);
+      const isTimeout = /abort/i.test(m);
+      log((isTimeout ? "Таймаут" : "Сетевая ошибка") + ", повтор " + attempt + "/4 через " + (5 * attempt) + " с", "сеть");
+      await sleep(isTimeout ? 5000 * attempt : 4000 * attempt);
+    }
+  }
+}
+
+function llmRequest(cfg, prompt, imgs){
+  if(cfg.provider === "ollama") return ollamaRequest(cfg, prompt, imgs);
+  return openrouterRequest(cfg, prompt, imgs);
+}
+
+/* ============================================================
+   10. ПРОМПТ
+   ============================================================ */
+
+const RU_FORBIDDEN_PHRASES = [
+  "универсальный дизайн","для маркетинга","подходит для любого","идеально подходит",
+  "высокое качество","профессиональный уровень","современный и стильный"
+];
+
+function prevNote(){
+  const kws = Array.from(usedKeywords).slice(-140);
+  const tis = usedTitles.slice(-6);
+  const parts = [];
+  if(kws.length){
+    parts.push("ЗАНЯТЫЕ КЛЮЧЕВЫЕ СЛОВА (не повторяй их):\n" + kws.join(", "));
+  }
+  if(tis.length){
+    parts.push("ЗАНЯТЫЕ ЗАГОЛОВКИ (не повторяй формулировки и не делай похожую структуру):\n" + tis.join("\n"));
+  }
+  return parts.join("\n\n");
+}
+
+function buildPrompt(entry, imgs, attempt, conflictNote){
+  const ex = entry.exif || {};
+  const ctx = [];
+  ctx.push("Имя файла: " + entry.name);
+  if(entry.topic) ctx.push("ТЕМА СЪЁМКИ (обязательно отразить в заголовке и в первых ключевых словах): " + entry.topic);
+  ctx.push("Тип: " + (entry.ctype === "video" ? "видеоклип" : "фотография"));
+  if(entry.ctype === "video"){
+    const vm = entry.vmeta || {};
+    if(vm.duration) ctx.push("Длительность: " + vm.duration.toFixed(1) + " с");
+    if(vm.vw && vm.vh) ctx.push("Размер кадра: " + vm.vw + "x" + vm.vh + (vm.vh > vm.vw ? " (вертикальное)" : ""));
+    ctx.push("Подано кадров: " + imgs.length);
+  }
+  if(ex.make || ex.model) ctx.push("Камера: " + [ex.make, ex.model].filter(Boolean).join(" "));
+  if(ex.date) ctx.push("Дата съёмки: " + ex.date);
+  if(ex.iso) ctx.push("ISO: " + ex.iso);
+  if(ex.fnumber) ctx.push("Диафрагма: f/" + ex.fnumber);
+  if(ex.focal) ctx.push("Фокусное: " + ex.focal + " мм");
+  if(ex.width && ex.height) ctx.push("Пиксели: " + ex.width + "x" + ex.height);
+  if(entry.colors && entry.colors.length) ctx.push("Цвета: " + entry.colors.join(", "));
+  if(ex.lat != null) ctx.push("GPS: " + ex.lat + ", " + ex.lon);
+
+  const topicLine = entry.topic
+    ? 'ТЕМА СЪЁМКИ — "' + entry.topic + '". Это главный субъект кадра. Заголовок обязан начинаться именно с этой темы, и минимум 2 ключевых слова из неё должны стоять в первой десятке ключей. Тема из имени файла важнее любых догадок о типе съёмки.'
+    : 'Имя файла не содержит темы. Определи главный субъект по самим кадрам.';
+
+  const videoBlock = entry.ctype === "video"
+    ? 'ЭТО ВИДЕО. Описывай только то, что видно в кадрах и происходит в клипе: движение, процесс, изменение состояния. В тебе ' +
+      (imgs.length > 1 ? "несколько кадров из одного клипа — описывай общий сюжет." : "один кадр — не выдумывай того, чего в нём нет.") +
+      ' Если в кадре нет людей — обязательно поставь ключи "no people" и "nobody". Если видео вертикальное — ключи "vertical" и "video" обязательны.'
+    : 'ЭТО ФОТОГРАФИЯ. Описывай только то, что реально видно в кадре. Ничего не дорисовывай и не предполагай.';
+
+  const noFrameBlock = imgs.length
+    ? ""
+    : '\n\nВНИМАНИЕ: КАДРА НЕТ. Изображение не декодировалось, ты видишь только имя файла и технические метаданные. ' +
+      'НЕ ВЫДУМЫВАЙ то, чего не знаешь: не называй объекты, людей, цвета и место съёмки наугад. ' +
+      'Опиши общий тип съёмки по теме из имени файла и дай нейтральные, но осмысленные ключи. ' +
+      'Если данных совсем мало — всё равно собери полный набор ключей из темы и типа материала.';
+
+  const conflictBlock = conflictNote
+    ? "\n\nВНИМАНИЕ: предыдущая попытка была отклонена проверкой уникальности.\nПричина: " + conflictNote + "\nСделай работу заново: смени формулировки, смени ракурс описания, первые 3 ключевых слова должны быть полностью новыми."
+    : "";
+
+  const attemptNote = attempt > 1
+    ? "\nЭто попытка " + attempt + " из 4. Предыдущие ответы не прошли проверку уникальности — нужны действительно другие слова."
+    : "";
+
+  return [
+    'Ты — профессиональный атрибутор для фотостока Adobe Stock. Твоя задача — придумать продающие метаданные для одной работы.',
+    '',
+    'СВЕДЕНИЯ О ФАЙЛЕ (справочные, главная истина — сами кадры):',
+    ctx.join("; "),
+    '',
+    videoBlock,
+    noFrameBlock,
+    '',
+    topicLine,
+    '',
+    'ЗАГЛАВОК (title_en):',
+    '- Ровно ОДНО предложение, максимум 70 символов. Это жёсткое ограничение.',
+    '- Структура: главный субъект + действие или состояние + окружение.',
+    '- Без запятых, без точек с запятой, без кавычек, без технических терминов.',
+    '- Только английский язык. Заголовок пишется так, как его напишет покупатель в поиске.',
+    '- Никаких брендов, названий техники, имён людей, реальных IP, художников.',
+    '- НЕ начинай со слов video, photo, image, footage, stock, background.',
+    '- Плохо: "Beautiful nature landscape with mountain view in forest".',
+    '- Хорошо: "Autumn waterfall over mossy rocks in autumn forest".',
+    '- Если заголовок получился длиннее 70 символов — сократи, не обрезай на полуслове.',
+    '',
+    'КЛЮЧЕВЫЕ СЛОВА (keywords_en):',
+    '- От 40 до 49 штук, цель — 45. Ровно один ключ — одно слово или одна устойчивая фраза.',
+    '- Первые 3 ключа обязательно двусловные фразы long-tail, дальше — одиночные слова.',
+    '- ПОРЯДОК = ПРИОРИТЕТ. Первые 10: главный субъект, действие, окружение, демография людей, свет и ракурс.',
+    '- В конце — узкие длиннохвостовые слова, которые набирают 3–10 запросов в месяц.',
+    '- Существительные — только в единственном числе. Глаголы — в инфинитиве.',
+    '- Есть люди — укажи количество (one person, two people), пол, возраст, роль или отношение, эмоцию, одежду.',
+    '- Нет людей — обязательно "no people" и "nobody".',
+    '- Обязательно 1–2 ключа про окружение (indoors/outdoors, day/night, season) и 1 про ракурс (close-up, top view, wide shot).',
+    '- Добавь 2–4 ключа-применения, которые реально покупают: landing page hero, website background, poster template, email newsletter, mobile app onboarding, product landing, editorial banner, social media ad creative, presentation slide, print advertisement, YouTube thumbnail, app store screenshot.',
+    '- ЗАПРЕЩЕНО: слова-гиганты (man, woman, hand, water, sky, nature, background, happy, beautiful), бренды, названия техники, параметры камеры, общие штампы (professional, modern, premium, high quality, versatile, dynamic, trendy, concept, lifestyle, business, marketing, success, innovation).',
+    '- Запрещённые смысловые штампы в ключах: mental health, work stress, life crisis, digital fatigue, burnout, stress relief, self care, well being, work life balance, mindfulness, productivity.',
+    '- НИКАКОЙ семантической воды в ключах. Смысл кадра живёт только в заголовке.',
+    '- Один ключ используется один раз. Никаких повторов и слов с общим корнем (falling / fall).',
+    '',
+    prevNote(),
+    '',
+    'ФОРМАТ ОТВЕТА — строго JSON, без markdown, без пояснений:',
+    '{"title":"...","keywords":["...","..."],"title_ru":"...","keywords_ru":["..."],"category":"...","no_people":true}',
+    'category — один из списка Adobe Stock: ' + CATS.join(", ") + '.',
+    'no_people — true, если людей в кадре нет, иначе false.',
+    'title_ru — тоже одно предложение до 70 символов, на русском.',
+    'keywords_ru — 40–49 слов на русском в том же порядке приоритета.',
+    conflictBlock + attemptNote
+  ].join("\n");
+}
+
+/* ============================================================
+   11. РАЗБОР И ОЧИСТКА ОТВЕТА
+   ============================================================ */
+
+function parseAI(content){
+  let s = String(content || "");
+  s = s.replace(/```json/gi, "").replace(/```/g, "");
+  const a = s.indexOf("{"), b = s.lastIndexOf("}");
+  if(a >= 0 && b > a) s = s.slice(a, b + 1);
+  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, " ");
+  let obj = null;
+  try{ obj = JSON.parse(s); }catch(e){}
+  if(!obj){
+    // ремонт обрезанного ответа
+    let t = s.trim();
+    t = t.replace(/,\s*$/, "");
+    t = t.replace(/:\s*$/, ': ""');
+    const opens = (t.match(/\{/g) || []).length - (t.match(/\}/g) || []).length;
+    const brokens = (t.match(/\[/g) || []).length - (t.match(/\]/g) || []).length;
+    const inStr = /"[^"]*$/.test(t);
+    if(inStr) t += '"';
+    t = "]".repeat(Math.max(0, brokens));
+    t = "}".repeat(Math.max(0, opens));
+    try{ obj = JSON.parse(t); }catch(e2){}
+  }
+  if(!obj) throw new Error("Модель вернула нечитаемый ответ");
+  const pick = (keys) => { for(const k of keys){ if(obj[k] != null) return obj[k]; } return null; };
+  return {
+    title: String(pick(["title","title_en","Title"]) || ""),
+    title_ru: String(pick(["title_ru","titleRus","title_ru_RU"]) || ""),
+    keywords: pick(["keywords","keywords_en","Keywords"]) || [],
+    keywords_ru: pick(["keywords_ru","keywordsRus","keywords_ru_RU"]) || [],
+    category: String(pick(["category","Category"]) || ""),
+    no_people: pick(["no_people","noPeople","people"]) === true || /true|yes/i.test(String(pick(["no_people","noPeople"]) || ""))
+  };
+}
+
+function toArray(v){
+  if(Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean);
+  if(typeof v === "string"){
+    return v.split(/[,;\n]+/).map(x => x.replace(/^[\-\*\d\.\s]+/, "").trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function fitTitle(s){
+  s = String(s || "").replace(/\s+/g, " ").trim();
+  // убираем технический мусор: хештеги, спецсимволы, повторы пробелов после них
+  s = s.replace(/[#@$%^&*_+=|\\/<>~`]+/g, " ");
+  s = s.replace(/!{2,}/g, "!").replace(/\.{3,}/g, ".").replace(/\?{2,}/g, "?");
+  s = s.replace(/\s*[,;|]\s*/g, " ");
+  s = s.replace(/^["'«„\-–—\s]+/, "").replace(/["'»“\s]+$/, "");
+  s = s.replace(/\s*([.!?:;])\s*$/, "");
+  s = s.replace(/[^\p{L}\p{N}\s'’-]/gu, " ").replace(/\s+/g, " ").trim();
+  if(!s) return "";
+  s = s.replace(/^[-'’\s]+|[-'’\s]+$/g, "");
+  if(!s) return "";
+  if(s.length <= TITLE_MAX) return s.charAt(0).toUpperCase() + s.slice(1);
+  let cut = s.slice(0, TITLE_MAX);
+  const sp = cut.lastIndexOf(" ");
+  if(sp > 25) cut = cut.slice(0, sp);
+  cut = cut.replace(/[\s,;:.\-–—'"’]+$/, "");
+  return cut.charAt(0).toUpperCase() + cut.slice(1);
+}
+
+function normKw(k){
+  return String(k).toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const JUNK_SINGLE = new Set(`
+pxl dsc dscn dji gopro mvi mov mp4 heic arw cr2 cr3 nef dng raw srw pef orf rw2 raf
+pxl20230101 100 101 2023 2024 2025 2026
+concept background foreground preview thumbnail still frame scene shot take cut
+`.trim().split(/\s+/));
+
+function kwAllowed(k, lang){
+  const n = normKw(k);
+  if(!n) return false;
+  if(n.length < 2 || n.length > 40) return false;
+  if(STOP_KW.has(n)) return false;
+  if(JUNK_SINGLE.has(n)) return false;
+  if(/^(a|an|the|и|в|на|с|не|об|от|для|no|yes|ok|ии|ai|vs|4k|8k|uhd|hdr)$/i.test(n)) return false;
+  if(/\d{4,}/.test(n) && !/\d{4}-\d{2}-\d{2}/.test(n)) return false;   // нет мусорных номеров кадров
+  if(/^\d+$/.test(n)) return false;
+  const cyr = /[а-яё]/i.test(n);
+  if(lang === "en" && cyr) return false;
+  if(lang === "ru" && !cyr) return false;
+  if(/^https?:|www\./.test(n)) return false;
+  if(/^\d+[a-z]{1,3}$/.test(n)) return false;                          // 10s, 4k, 30fps
+  return true;
+}
+
+const PEOPLE_SINGLES = new Set("person people man woman men women boy girl kid child adult guy lady human baby teenager elder crowd group family couple friend team player worker student".split(" "));
+
+function kwPhraseOk(p){
+  const parts = p.split(" ");
+  let generic = 0;
+  for(const w of parts){
+    if(STOP_KW.has(w)) return false;              // жёсткий запрет
+    if(PEOPLE_SINGLES.has(w)) return false;      // людей в фразах не держим
+    if(!kwAllowed(w, "any")) return false;
+    if(GENERIC_KW.has(w)) generic++;
+  }
+  // фраза из одних общих слов ничего не ищет
+  return !(generic === parts.length);
+}
+
+function cleanKeywords(raw, opts){
+  opts = opts || {};
+  const lang = opts.lang || "en";
+  const topic = opts.topic || [];
+  const noPeople = !!opts.noPeople;
+  const list = toArray(raw).map(normKw).filter(Boolean);
+
+  const phrases = [], solid = [], weak = [], rejected = [];
+  const seen = new Set();
+  const dupRoot = [];
+
+  for(const k of list){
+    if(!k || seen.has(k)) continue;
+    const parts = k.split(" ");
+
+    // фразы: 2–3 слова, каждое проходит проверку
+    if(parts.length >= 2 && parts.length <= 3){
+      if(!kwPhraseOk(k)){ rejected.push(k); continue; }
+      if(phrases.length < 16){ seen.add(k); phrases.push(k); }
+      continue;
+    }
+    if(parts.length !== 1){ rejected.push(k); continue; }
+
+    if(!kwAllowed(k, lang)){ rejected.push(k); continue; }
+    if(STOP_KW.has(k)){ rejected.push(k); continue; }
+    if(noPeople && PEOPLE_SINGLES.has(k)){ rejected.push(k); continue; }
+    if(k === "no people" || k === "nobody"){
+      if(noPeople){ seen.add(k); solid.push(k); }
+      else rejected.push(k);
+      continue;
+    }
+    seen.add(k);
+    // общее слово — в хвост, но не выкидываем
+    if(GENERIC_KW.has(k)) weak.push(k);
+    else solid.push(k);
+  }
+
+  // убираем одиночные ключи с общим корнем
+  const out = [];
+  for(const k of solid){
+    if(out.some(p => sameRoot(p, k))){ dupRoot.push(k); continue; }
+    out.push(k);
+  }
+  const tail = [];
+  for(const k of weak){
+    if(out.some(p => sameRoot(p, k)) || tail.some(p => sameRoot(p, k))){ dupRoot.push(k); continue; }
+    tail.push(k);
+  }
+
+  // ключи темы из имени файла — в приоритет
+  const topicFirst = [];
+  for(const t of topic){
+    const n = normKw(t);
+    if(!n || n.length < 3) continue;
+    if(STOP_KW.has(n) || GENERIC_KW.has(n) || PEOPLE_SINGLES.has(n)) continue;
+    if(!kwAllowed(n, lang)) continue;
+    if(seen.has(n) || phrases.indexOf(n) !== -1) continue;
+    if(out.some(p => sameRoot(p, n)) || topicFirst.some(p => sameRoot(p, n))) continue;
+    topicFirst.push(n);
+  }
+
+  const chosen = [];
+  const push = k => { if(k && chosen.indexOf(k) === -1) chosen.push(k); };
+
+  // 1. двусловные фразы long-tail — первые три места (правило Adobe)
+  for(const p of phrases){ if(p.split(" ").length === 2) push(p); if(chosen.length >= 3) break; }
+  // 2. остальные фразы
+  for(const p of phrases){ push(p); if(chosen.length >= 16) break; }
+  // 3. тема из имени файла
+  for(const k of topicFirst) push(k);
+  // 4. конкретные одиночные ключи
+  for(const k of out) push(k);
+  // 5. оставшиеся трёхсловные фразы
+  for(const p of phrases) push(p);
+  // 6. общие слова — только в хвост, чтобы не занимать первые 10
+  for(const k of tail) push(k);
+
+  let final = Array.from(new Set(chosen)).slice(0, KW_MAX);
+
+  // Adobe требует ключ video для видео — добавляем сами, если модель забыла
+  if(opts.ctype === "video" && final.indexOf("video") === -1){
+    final = final.slice(0, Math.max(KW_MIN, final.length)).concat("video");
+  }
+
+  if(noPeople){
+    final = ["no people", "nobody"].concat(final.filter(k => k !== "no people" && k !== "nobody"));
+  }else{
+    final = final.filter(k => k !== "no people" && k !== "nobody");
+  }
+
+  final = Array.from(new Set(final)).slice(0, KW_MAX);
+  return {keywords: final, rejected, dupRoot};
+}
+
+/* ============================================================
+   12. ПРОВЕРКА УНИКАЛЬНОСТЬИ
+   ============================================================ */
+
+const TITLE_SIM = 0.55;
+const KW_SIM = 0.5;
+
+function checkUnique(rec){
+  const problems = [];
+
+  // 1. Заголовок слишком похож на уже использованный
+  let worst = 0, worstTitle = "";
+  for(const t of usedTitles){
+    const s = jaccardTokens(rec.title, t);
+    if(s > worst){ worst = s; worstTitle = t; }
+  }
+  if(rec.title.toLowerCase() === worstTitle.toLowerCase()){
+    problems.push("заголовок дословно совпадает с «" + worstTitle + "»");
+  }else if(worst > TITLE_SIM){
+    problems.push("заголовок слишком похож на «" + worstTitle + "» (" + Math.round(worst * 100) + "% общих слов)");
+  }
+
+  // 2. Набор ключей слишком похож на прошлый
+  const mine = new Set(rec.keywords);
+  let kwWorst = 0, overlap = [], kwFile = "";
+  for(const r of records){
+    if(r.id === rec.id) continue;
+    const other = new Set(r.keywords || []);
+    let inter = 0;
+    const common = [];
+    for(const k of mine){ if(other.has(k)){ inter++; common.push(k); } }
+    const ratio = other.size ? inter / other.size : 0;
+    if(ratio > kwWorst){ kwWorst = ratio; overlap = common; kwFile = r.filename; }
+  }
+  if(kwWorst > KW_SIM){
+    problems.push("ключи повторяют прошлую работу " + kwFile + ": " + overlap.slice(0, 12).join(", "));
+  }
+
+  // 3. Первые 3 ключа должны быть уникальны
+  const sig = (rec.keywords || []).slice(0, 3).join("|");
+  for(const r of records){
+    if(r.id === rec.id) continue;
+    if(((r.keywords || []).slice(0, 3).join("|")) === sig && sig.length > 3){
+      problems.push("первые 3 ключа совпадают с " + r.filename);
+      break;
+    }
+  }
+
+  return {ok: problems.length === 0, problems};
+}
+
+function checkContent(rec){
+  const problems = [];
+  const kw = rec.keywords || [];
+  const noPeople = rec.no_people === true || rec.no_people === "yes";
+
+  if(!rec.title) problems.push("пустой заголовок");
+  else if(rec.title.length > TITLE_MAX) problems.push("заголовок длиннее 70 символов");
+  if(/[,;]/.test(rec.title)) problems.push("в заголовке есть запятая или точка с запятой");
+  if(kw.length < KW_MIN) problems.push("ключей меньше 40 (" + kw.length + ")");
+  if(kw.length > KW_MAX) problems.push("ключей больше 49 (" + kw.length + ")");
+
+  const s = new Set();
+  for(const k of kw){
+    if(s.has(k)) problems.push("дубль ключа: " + k);
+    s.add(k);
+  }
+  const low = kw.map(k => String(k).toLowerCase());
+  for(let i = 0; i < low.length; i++){
+    for(let j = i + 1; j < low.length; j++){
+      if(sameRoot(low[i], low[j])){ problems.push("общий корень: " + low[i] + " / " + low[j]); break; }
+    }
+  }
+  // первые три ключа по гайду — двусловные длиннохвостовые фразы
+  const head = kw.filter(k => !/^(no people|nobody)$/i.test(String(k))).slice(0, 3);
+  for(let i = 0; i < head.length; i++){
+    if(String(head[i]).split(" ").length !== 2) problems.push("ключ №" + (i + 1) + " не двусловная фраза: " + head[i]);
+  }
+  if(noPeople){
+    if(!low.includes("no people")) problems.push("людей нет, но отсутствует ключ no people");
+    if(!low.includes("nobody")) problems.push("людей нет, но отсутствует ключ nobody");
+    for(const k of low) if(PEOPLE_SINGLES.has(k)) problems.push("ключ про людей попал в набор без людей: " + k);
+  }else{
+    if(low.includes("no people") || low.includes("nobody")) problems.push("люди в кадре, но ключи no people/nobody запрещены");
+  }
+  if(rec.ctype === "video" && !low.includes("video")) problems.push("для видео нужен ключ video");
+  return problems;
+}
+
+/* ============================================================
+   13. СБОРКА ЗАПИСЕЙ
+   ============================================================ */
+
+function nextId(){
+  return "rec_" + Date.now().toString(36) + "_" + Math.floor(Math.random() * 1e6).toString(36);
+}
+
+function recordById(id){
+  return records.find(r => r.id === id) || null;
+}
+function recordByName(name){
+  return records.find(r => r.filename === name) || null;
+}
+
+function categoryIdByName(name){
+  const n = String(name || "").toLowerCase().replace(/^\s*\d+\.\s*/, "").trim();
+  const i = CATS.findIndex(c => c.toLowerCase() === n);
+  return i >= 0 ? String(i + 1) : "";
+}
+
+function buildRecord(entry, ai, source, error){
+  const ex = entry.exif || {};
+  const kw = ai.keywords || [];
+  return {
+    id: nextId(),
+    file_id: entry.id,
+    filename: entry.name,
+    title: ai.title || "",
+    title_ru: ai.title_ru || "",
+    keywords: kw,
+    keywords_ru: ai.keywords_ru || [],
+    keyword_count: kw.length,
+    keyword_count_ru: (ai.keywords_ru || []).length,
+    category: ai.category || "",
+    category_id: categoryIdByName(ai.category),
+    content_type: entry.ctype === "video" ? "video" : "photo",
+    no_people: ai.no_people ? "yes" : "no",
+    releases: "none",
+    topic: entry.topic || "",
+    camera: [ex.make, ex.model].filter(Boolean).join(" ").trim(),
+    iso: ex.iso || "",
+    date_taken: ex.date || "",
+    colors: entry.colors || [],
+    source: source || "ai",
+    duplicate_risk: "",
+    ai_error: error || ""
+  };
+}
+
+function saveRecord(rec){
+  const i = records.findIndex(r => r.id === rec.id);
+  if(i >= 0) records[i] = rec;
+  else records.push(rec); lastSessionResults.push(rec);
+  syncFromRecords();
+  saveHistory();
+  updateHistoryUI();
+}
+
+/* ============================================================
+   14. ГЕНЕРАЦИЯ ОДНОГО ФАЙЛА
+   ============================================================ */
+
+async function framesFor(entry){
+  const imgs = [];
+  if(entry.ctype === "video"){
+    const fr = await getVideoFrames(entry.file, 3);
+    for(const f of fr) imgs.push(f);
+    if(!imgs.length) log("Не удалось получить кадр из " + entry.name + " — пережмите в MP4/H.264", "кадры");
+  }else{
+    const d = await resizeToDataURL(entry.file, 1024);
+    if(d) imgs.push(d);
+  }
+  return imgs;
+}
+
+async function aiForEntry(entry, candidates, attempt, conflictNote){
+  const imgs = await framesFor(entry);
+  // Раньше здесь был throw, и любой файл без кадра (HEIC, TIFF, MOV без H.264)
+  // целиком уходил в fallbackRecord — то есть в эвристику. Теперь шлём запрос
+  // без изображения: модель всё равно получит имя файла, EXIF и метаданные.
+  if(!imgs.length) log("Кадр недоступен для " + entry.name + " — описание по имени файла и EXIF", "кадры");
+
+  const prompt = buildPrompt(entry, imgs, attempt, conflictNote);
+  let lastErr = null;
+
+  for(let ci = runState.idx; ci < candidates.length; ci++){
+    const cfg = candidates[ci];
+    try{
+      log("[" + entry.name + "] → " + providerLabel(cfg) + ", кадров: " + imgs.length, "запрос");
+      const data = await llmRequest(cfg, prompt, imgs);
+      const content = data.choices && data.choices[0] && (data.choices[0].message.content || data.choices[0].text);
+      const ai = parseAI(content);
+      runState.idx = ci;
+      return ai;
+    }catch(e){
+      lastErr = e;
+      if(providerDead(e)){
+        log("Провайдер " + providerLabel(cfg) + " отпал: " + providerDeadReason(e), "провайдер");
+        runState.idx = ci + 1;
+        continue;
+      }
+      throw e;                                        // сетевая ошибка / таймаут — ретрай на том же провайдере
+    }
+  }
+  throw lastErr || new Error("все провайдеры в цепочке исчерпаны");
+}
+
+async function generateEntry(entry, cfg0){
+  const candidates = [cfg0].concat((await fallbackChain(cfg0)).slice(1));
+
+  let conflictNote = "";
+  let lastRec = null;
+
+  for(let attempt = 1; attempt <= 4; attempt++){
+    const ai = await aiForEntry(entry, candidates, attempt, conflictNote);
+    const rec = buildRecord(entry, ai, "ai", "");
+
+    rec.title = fitTitle(rec.title);
+    rec.title_ru = fitTitle(rec.title_ru);
+
+    const topicKws = topicKeywords(entry.topic);
+    const isVideo = entry.ctype === "video";
+    const ck = cleanKeywords(rec.keywords, {lang:"en", topic:topicKws, noPeople:rec.no_people === "yes", ctype:isVideo ? "video" : ""});
+    rec.keywords = ck.keywords;
+    const ckRu = cleanKeywords(rec.keywords_ru, {lang:"ru", topic:[], noPeople:rec.no_people === "yes", ctype:isVideo ? "video" : ""});
+    rec.keywords_ru = ckRu.keywords;
+    rec.keyword_count = rec.keywords.length;
+    rec.keyword_count_ru = rec.keywords_ru.length;
+
+    // тема из имени файла обязана прозвучать
+    const t = normKw(rec.title);
+    const topicPresent = !topicKws.length ||
+      topicKws.some(k => t.includes(k)) ||
+      rec.keywords.slice(0, 10).some(k => topicKws.some(tk => k.includes(tk)));
+    if(!topicPresent && attempt < 4){
+      conflictNote = "тема «" + entry.topic + "» не прозвучала в заголовке и в первых 10 ключевых словах";
+      log("[" + entry.name + "] " + conflictNote, "уникальность");
+      continue;
+    }
+
+    // недобор ключей — сначала ещё одна попытка, затем добор коммерческой ценностью
+    if(rec.keywords.length < KW_MIN && attempt < 3){
+      conflictNote = "ключевых слов только " + rec.keywords.length + ", нужно минимум " + KW_MIN +
+        ". Добавь больше узких длиннохвостовых ключей, не повторяй уже использованные";
+      log("[" + entry.name + "] Попытка " + attempt + ": " + conflictNote, "ключи");
+      continue;
+    }
+    if(rec.keywords.length < KW_MIN){
+      // не берём коммерческие фразы, уже встречавшиеся в других файлах
+      const added = fillCommercial(rec, usedKeywords);
+      if(added.en.length)
+        log("[" + entry.name + "] Добавлено коммерческой ценностью: " + added.en.length + " (до " + rec.keywords.length + ")", "ключи");
+    }
+
+    // проверки считаем после добора, иначе они увидят недобор
+    const contentProblems = checkContent(rec);
+    const uniq = checkUnique(rec);
+
+    if(uniq.ok || attempt === 4){
+      if(!uniq.ok){
+        rec.duplicate_risk = uniq.problems.join("; ");
+        log("[" + entry.name + "] ПРИЗНАТО ПОХОЖИМ: " + rec.duplicate_risk, "уникальность");
+      }
+      if(contentProblems.length){
+        rec.ai_error = contentProblems.join("; ");
+        log("[" + entry.name + "] Замечания: " + contentProblems.join("; "), "проверка");
+      }
+      lastRec = rec;
+      return rec;
+    }
+
+    conflictNote = uniq.problems.join("; ");
+    log("[" + entry.name + "] Попытка " + attempt + " отклонена: " + conflictNote, "уникальность");
+  }
+  return lastRec;
+}
+
+function fallbackRecord(entry, err){
+  const ex = entry.exif || {};
+  const parts = parseFilename(entry.name);
+  const kw = [];
+  for(const p of parts) kw.push(p);
+  for(const c of entry.colors || []) kw.push(c + " tones");
+  if(entry.ctype === "video") kw.push("video");
+  if(ex.date){
+    const m = String(ex.date).match(/(\d{4}):(\d{2}):/);
+    if(m){
+      kw.push(m[1]);
+      kw.push(["january","february","march","april","may","june","july","august","september","october","november","december"][parseInt(m[2],10) - 1]);
+    }
+  }
+  kw.push("no people", "nobody");
+  const uniq = Array.from(new Set(kw)).slice(0, KW_MAX);
+  return {
+    id: nextId(), file_id: entry.id, filename: entry.name,
+    title: fitTitle(parts.join(" ") || "Untitled stock photograph"),
+    title_ru: "", keywords: uniq, keywords_ru: [],
+    keyword_count: uniq.length, keyword_count_ru: 0,
+    category: "", category_id: "", content_type: entry.ctype === "video" ? "video" : "photo",
+    no_people: "yes", releases: "none", topic: entry.topic || "",
+    camera: [ex.make, ex.model].filter(Boolean).join(" ").trim(),
+    iso: ex.iso || "", date_taken: ex.date || "", colors: entry.colors || [],
+    source: "heuristic", duplicate_risk: "",
+    ai_error: String(err && err.message || err || "").slice(0, 300)
+  };
+}
+
+/* ============================================================
+   15. ПАКЕТНЫЙ ПРОГОН
+   ============================================================ */
+
+function runResetRunUi(){
+  $("batch-btn").disabled = true;
+  $("stop-btn").disabled = false;
+  $("batch-count").textContent = "Готово: 0 / " + runState.total;
+  setBar(0);
+}
+
+async function runBatch(entries){
+  const cfg = readCfg();
+  if(!cfg.ok){ setStatus(cfg.err); log(cfg.err, "ошибка"); return; }
+  if(!entries.length) return;
+
+  batchAbort = false;
+  runState.busy = true;
+  runState.idx = 0;
+  runState.done = 0;
+  runState.total = entries.length;
+  runResetRunUi();
+  batchStartedAt = Date.now();
+  batchStartIdx = lastSessionResults.length;
+
+  const candidates = [cfg].concat((await fallbackChain(cfg)).slice(1));
+  log("===== Старт: " + entries.length + " файлов · цепочка: " +
+      candidates.map(providerLabel).join(" → ") + " =====", "батч");
+
+  for(const e of entries){
+    if(batchAbort){ log("Остановлено пользователем", "батч"); break; }
+    e.status = "busy"; renderFiles();
+    setStatus("[" + (runState.done + 1) + "/" + entries.length + "] " + e.name);
+    try{
+      const rec = await generateEntry(e, candidates[runState.idx] || candidates[0]);
+      if(rec){
+        saveRecord(rec);
+        e.recordId = rec.id;
+        e.status = "done";
+        e.error = "";
+        log("[" + e.name + "] готово: «" + rec.title + "» — " + rec.keywords.length + " ключей", "готово");
+      }else{
+        e.status = "err";
+        e.error = "пустой ответ модели";
+      }
+    }catch(err){
+      const fb = fallbackRecord(e, err);
+      saveRecord(fb);
+      e.recordId = fb.id;
+      e.status = "err";
+      e.error = String(err && err.message || err).slice(0, 120);
+      log("[" + e.name + "] ИИ не отработал, записана эвристика: " + e.error, "ошибка");
+    }
+    runState.done++;
+    setBar(runState.done / runState.total * 100);
+    $("batch-count").textContent = "Готово: " + runState.done + " / " + runState.total;
+    renderFiles();
+    await sleep(1800);
+  }
+
+  runState.busy = false;
+  $("stop-btn").disabled = true;
+  renderFiles();
+  updateResults();
+  setStatus(batchAbort ? "Остановлено" : ("Готово: " + runState.done + " / " + runState.total));
+  await saveHistory();
+  saveSession();
+}
+
+async function retryFailed(){
+  const failed = fileEntries.filter(e => e.status === "err");
+  if(!failed.length) return;
+  for(const e of failed) e.status = "wait";
+  renderFiles();
+  await runBatch(failed);
+}
+
+async function startBatch(){
+  const cfg = readCfg();
+  if(!cfg.ok){ log(cfg.err, "ошибка"); setStatus(cfg.err); switchTab("main"); return; }
+  const pending = fileEntries.filter(e => e.status !== "done");
+  if(!pending.length){ setStatus("Все файлы уже обработаны"); return; }
+  await runBatch(pending);
+}
+
+/* ============================================================
+   16. РЕЗУЛЬТАТЫ И РЕДАКТОР
+   ============================================================ */
+
+function switchTab(id){
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === id));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "tab-" + id));
+  if(id === "history") loadHistorySessions();
+}
+
+function updateResults(){ renderResults(); }
+
+function renderResults(){
+  const body = $("rt-body");
+  body.innerHTML = "";
+  for(const r of lastSessionResults){
+    const tr = document.createElement("tr");
+    const kw = r.keywords || [];
+    const cells = [
+      [r.filename, "num", r.filename],
+      [r.title, "", r.title],
+      [kw.length + " · " + kw.slice(0, 6).join(", ") + (kw.length > 6 ? " …" : ""), "cellw num", kw.join(", ")],
+      [r.category || "—", "num", r.category],
+      [r.title_ru || "—", "", r.title_ru]
+    ];
+    for(const c of cells){
+      const td = document.createElement("td");
+      if(c[1]) td.className = c[1];
+      td.textContent = c[0];
+      if(c[2]) td.title = c[2];
+      tr.appendChild(td);
+    }
+
+    const tdSrc = document.createElement("td");
+    const b = document.createElement("span");
+    b.className = "badge " + (r.source === "ai" ? "green" : "orange");
+    b.textContent = r.source === "ai" ? "ИИ" : "эвристика";
+    tdSrc.appendChild(b);
+    // Причину ухода в эвристику показываем прямо в таблице, а не только во всплывающей
+    // подсказке: по бейджу «эвристика» невозможно понять, что именно сломалось —
+    // нет ключа, неверная модель, отказ провайдера или не удалось прочитать файл.
+    if(r.ai_error){
+      b.title = "Причина: " + r.ai_error;
+      const why = document.createElement("div");
+      why.className = "why";
+      why.textContent = r.ai_error;
+      why.title = r.ai_error;
+      tdSrc.appendChild(why);
+    }
+    if(r.duplicate_risk){
+      const b2 = document.createElement("span");
+      b2.className = "badge red";
+      b2.style.marginLeft = "4px";
+      b2.textContent = "похоже";
+      b2.title = r.duplicate_risk;
+      tdSrc.appendChild(b2);
+    }
+    tr.appendChild(tdSrc);
+
+    const tdAct = document.createElement("td");
+    const btn = document.createElement("button");
+    btn.className = "btn s"; btn.textContent = "✎";
+    btn.onclick = () => { switchTab("result"); openEditor(r.id); };
+    tdAct.appendChild(btn);
+    tr.appendChild(tdAct);
+
+    body.appendChild(tr);
+  }
+  $("tabRc").textContent = records.length;
+  $("edit-btn").disabled = !records.length;
+  updateExportBtns();
+}
+
+function openEditor(recId){
+  if(recId == null){
+    if(records.length) openEditor(records[0].id);
+    return;
+  }
+  const r = recordById(recId);
+  if(!r) return;
+  currentEditId = r.id;
+  $("editor").hidden = false;
+  $("edit-name").textContent = r.filename;
+  $("e-title").value = r.title || "";
+  $("e-title-ru").value = r.title_ru || "";
+  $("e-cat").value = r.category || CATS[12];
+  $("e-people").value = r.no_people || "yes";
+  $("e-rel").value = r.releases || "none";
+  $("e-kw").value = (r.keywords || []).join("\n");
+  $("e-kw-ru").value = (r.keywords_ru || []).join("\n");
+  renderKwTags(r);
+  updTitleLen(); updKwCount();
+  renderFiles();
+  $("save-btn").disabled = false;
+}
+
+function clearEditor(){
+  currentEditId = null;
+  $("editor").hidden = true;
+  $("save-btn").disabled = true;
+  $("edit-name").textContent = "";
+}
+
+function renderKwTags(rec){
+  const box = $("e-kwbox");
+  box.innerHTML = "";
+  const list = (rec && rec.keywords) || [];
+  list.forEach((k, i) => {
+    const tag = document.createElement("span");
+    tag.className = "tag" + (i < 3 ? " p" : "");
+    const txt = document.createElement("span");
+    txt.textContent = k;
+    tag.appendChild(txt);
+    const rm = document.createElement("span");
+    rm.className = "rm"; rm.textContent = "×";
+    rm.onclick = () => {
+      rec.keywords.splice(i, 1);
+      rec.keyword_count = rec.keywords.length;
+      renderKwTags(rec);
+      $("e-kw").value = rec.keywords.join("\n");
+      updKwCount();
+    };
+    tag.appendChild(rm);
+    box.appendChild(tag);
+  });
+  if(!list.length) box.textContent = "Ключей нет";
+}
+
+function parseKwBox(str){
+  return String(str || "").split(/[\n,;]+/).map(s => normKw(s)).filter(Boolean);
+}
+
+function updTitleLen(){
+  const t = $("e-title").value.trim();
+  const el = $("e-tlen");
+  el.textContent = t.length + " / " + TITLE_MAX + " символов";
+  el.className = "hint " + (t.length === 0 ? "bad" : t.length > TITLE_MAX ? "bad" : t.length > 60 ? "" : "good");
+  const t2 = $("e-title-ru").value.trim();
+  const el2 = $("e-tlen-ru");
+  el2.textContent = t2.length + " / " + TITLE_MAX + " символов";
+  el2.className = "hint " + (t2.length > TITLE_MAX ? "bad" : t2.length ? "good" : "");
+}
+
+function updKwCount(){
+  const n = parseKwBox($("e-kw").value).length;
+  const el = $("e-kwc");
+  el.textContent = n + " / " + KW_MAX;
+  el.className = "badge " + (n < KW_MIN ? "orange" : n > KW_MAX ? "red" : "green");
+}
+
+async function saveEditor(){
+  if(currentEditId == null) return;
+  const r = recordById(currentEditId);
+  if(!r) return;
+
+  r.title = fitTitle($("e-title").value);
+  r.title_ru = fitTitle($("e-title-ru").value);
+  const noPeople = $("e-people").value === "yes";
+  r.keywords = cleanKeywords(parseKwBox($("e-kw").value), {lang:"en", topic:topicKeywords(r.topic), noPeople}).keywords;
+  r.keywords_ru = cleanKeywords(parseKwBox($("e-kw-ru").value), {lang:"ru", topic:[], noPeople}).keywords;
+  r.keyword_count = r.keywords.length;
+  r.keyword_count_ru = r.keywords_ru.length;
+  r.category = $("e-cat").value;
+  r.category_id = categoryIdByName($("e-cat").value);
+  r.no_people = $("e-people").value;
+  r.releases = $("e-rel").value;
+  r.duplicate_risk = "";
+
+  syncFromRecords();
+  await saveHistory();
+  openEditor(r.id);
+  updateResults();
+  renderFiles();
+  log("Правки сохранены: " + r.filename, "правка");
+}
+
+/* ============================================================
+   17. ВШИВКА В JPEG — XMP (APP1) + IPTC IIM (APP13)
+   Сегменты с изображением не трогаем: качество байт-в-байт.
+   ============================================================ */
+
+function xmlEsc(s){
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&apos;")
+    // убираем символы, запрещённые в XML 1.0
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+}
+
+function buildXMP(rec, withRu){
+  const kw = rec.keywords || [];
+  const kwRu = (withRu && rec.keywords_ru) ? rec.keywords_ru : [];
+  const t = rec.title || "";
+  const tr = rec.title_ru || t;
+  const desc = kw.join(", ");
+  const subject = kw.map(k => "          <rdf:li>" + xmlEsc(k) + "</rdf:li>").join("\n");
+  const subjectRu = kwRu.map(k => "          <rdf:li>" + xmlEsc(k) + "</rdf:li>").join("\n");
+  const extra = [];
+  if(rec.camera) extra.push("   <tiff:Model>" + xmlEsc(rec.camera) + "</tiff:Model>");
+  if(rec.date_taken){
+    extra.push("   <photoshop:DateCreated>" + xmlEsc(rec.date_taken) + "</photoshop:DateCreated>");
+    extra.push("   <exif:DateTimeOriginal>" + xmlEsc(rec.date_taken) + "</exif:DateTimeOriginal>");
+  }
+  if(rec.category) extra.push("   <Iptc4xmpCore:SubjectCode>" + xmlEsc(rec.category.toLowerCase().replace(/[^a-z]+/g, "")) + "</Iptc4xmpCore:SubjectCode>");
+
+  return '<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>\n' +
+'<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="batch-keyworder">\n' +
+' <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">\n' +
+'  <rdf:Description rdf:about=""\n' +
+'    xmlns:dc="http://purl.org/dc/elements/1.1/"\n' +
+'    xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/"\n' +
+'    xmlns:xmp="http://ns.adobe.com/xap/1.0/"\n' +
+'    xmlns:exif="http://ns.adobe.com/exif/1.0/"\n' +
+'    xmlns:tiff="http://ns.adobe.com/tiff/1.0/"\n' +
+'    xmlns:Iptc4xmpCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/">\n' +
+'   <dc:format>image/jpeg</dc:format>\n' +
+'   <dc:title>\n    <rdf:Alt><rdf:li xml:lang="x-default">' + xmlEsc(t) + '</rdf:li></rdf:Alt>\n   </dc:title>\n' +
+'   <dc:description>\n    <rdf:Alt><rdf:li xml:lang="x-default">' + xmlEsc(t) + '</rdf:li></rdf:Alt>\n   </dc:description>\n' +
+'   <dc:subject>\n    <rdf:Bag>\n' + subject + '\n    </rdf:Bag>\n   </dc:subject>\n' +
+'   <photoshop:Keywords>\n    <rdf:Bag>\n' + subject + '\n    </rdf:Bag>\n   </photoshop:Keywords>\n' +
+'   <photoshop:Caption>' + xmlEsc(t) + '</photoshop:Caption>\n' +
+'   <xmp:CreatorTool>batch-keyworder</xmp:CreatorTool>\n' +
+'   <xmp:Label>' + xmlEsc(kw.slice(0, 6).join(", ")) + '</xmp:Label>\n' +
+(extra.length ? extra.join("\n") + "\n" : "") +
+(subjectRu ? '   <dc:coverage>\n    <rdf:Bag>\n' + subjectRu + '\n    </rdf:Bag>\n   </dc:coverage>\n' : "") +
+'  </rdf:Description>\n' +
+' </rdf:RDF>\n' +
+'</x:xmpmeta>\n' +
+'<?xpacket end="w"?>';
+}
+
+function buildIPTC(rec, withRu){
+  const t = rec.title || "";
+  const kw = rec.keywords || [];
+  const kwRu = (withRu && rec.keywords_ru) ? rec.keywords_ru : [];
+
+  const datasets = [];
+  const addAscii = (rec2, ds, val) => {
+    if(!val) return;
+    const b = [];
+    for(let i = 0; i < val.length; i++){
+      let c = val.charCodeAt(i);
+      if(c > 127){
+        if(c >= 0x410 && c <= 0x44F) c -= 0x410, c += 0xC0;      // кириллица → CP1251
+        else if(c === 0x401) c = 0xA8;
+        else if(c === 0x451) c = 0xB8;
+        else c = 0x3F;
+      }
+      b.push(c & 0xFF);
+    }
+    datasets.push([rec2, ds, b]);
+  };
+  // 2:005 ObjectName (заголовок), 2:120 Caption, 2:025 Keywords, 2:116 Copyright, 2:015 Category
+  addAscii(2, 5, t);
+  addAscii(2, 120, t);
+  for(const k of kw) addAscii(2, 25, k);
+  if(kwRu.length) for(const k of kwRu) addAscii(2, 25, k);
+  if(rec.category) addAscii(2, 15, rec.category);
+
+  const parts = [];
+  for(const [r2, ds, bytes] of datasets){
+    const hdr = [0x1C, r2, ds, (bytes.length >> 8) & 0xFF, bytes.length & 0xFF];
+    for(const b of hdr) parts.push(b);
+    for(const b of bytes) parts.push(b);
+  }
+  while(parts.length % 2) parts.push(0);
+
+  // 8BIM блок с IPTC (0x0404)
+  const payload = parts;
+  const block = [];
+  for(const b of [0x38, 0x42, 0x49, 0x4D]) block.push(b);   // "8BIM"
+  block.push(0x04, 0x04);                                   // resource ID 0x0404 = IPTC
+  block.push(0x00, 0x00);                                   // пустое имя, дополненное до чётного
+  const len = payload.length;
+  block.push((len >>> 24) & 0xFF, (len >>> 16) & 0xFF, (len >>> 8) & 0xFF, len & 0xFF);
+  for(const b of payload) block.push(b);
+  if(block.length % 2) block.push(0);
+
+  // APP13: "Photoshop 3.0\0" + блок
+  const seg = [];
+  const sig = "Photoshop 3.0\0";
+  for(let i = 0; i < sig.length; i++) seg.push(sig.charCodeAt(i));
+  for(const b of block) seg.push(b);
+  return new Uint8Array(seg);
+}
+
+// Сегмент JPEG: маркер (2 байта) + длина (2 байта, включает саму длину) + полезная нагрузка
+function makeSegment(marker, payload){
+  const need = 4 + payload.length;
+  if(need > 65535) throw new Error("сегмент не помещается в JPEG (" + need + " байт, максимум 65535)");
+  const out = new Uint8Array(need);
+  out[0] = 0xFF; out[1] = marker;
+  const len = payload.length + 2;
+  out[2] = (len >> 8) & 0xFF; out[3] = len & 0xFF;
+  out.set(payload, 4);
+  return out;
+}
+
+function concatBytes(list){
+  let total = 0;
+  for(const a of list) total += a.length;
+  const out = new Uint8Array(total);
+  let p = 0;
+  for(const a of list){ out.set(a, p); p += a.length; }
+  return out;
+}
+
+// Возвращает новый JPEG с вшитыми XMP + IPTC. Исходные данные не меняются.
+// Тип APP1: "Exif\0\0" или XMP-пакет
+function app1Kind(bytes, off, len){
+  if(len < 8) return "other";
+  const s = latin(bytes.subarray(off + 4, Math.min(off + 4 + 32, off + 2 + len)));
+  if(s.indexOf("Exif\0\0") === 0) return "exif";
+  if(s.indexOf("http://ns.adobe.com/xap/1.0/") !== -1) return "xmp";
+  if(/^<\?xpacket/i.test(s)) return "xmp";
+  if(s.indexOf("adobe:ns:meta") !== -1) return "xmp";
+  return "other";
+}
+
+function latin(bytes){
+  let s = "";
+  for(let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return s;
+}
+
+// APP13 с ресурсами Photoshop (внутри лежит IPTC)
+function isPhotoshopApp13(bytes, off, len){
+  if(len < 14 + 14) return false;
+  return latin(bytes.subarray(off + 4, off + 18)).indexOf("Photoshop 3.0") === 0;
+}
+
+const PS_SIG = "Photoshop 3.0\0";
+
+// 8BIM ресурс: "8BIM" + ID(2) + имя Паскаля + размер(4) + данные, всё до чётной длины
+function make8BIM(id, data){
+  const block = [];
+  for(const b of [0x38, 0x42, 0x49, 0x4D]) block.push(b);   // "8BIM"
+  block.push((id >> 8) & 0xFF, id & 0xFF);
+  block.push(0x00, 0x00);                                   // пустое имя, дополненное до чётного
+  const n = data.length;
+  block.push((n >>> 24) & 0xFF, (n >>> 16) & 0xFF, (n >>> 8) & 0xFF, n & 0xFF);
+  for(const b of data) block.push(b);
+  if(block.length % 2) block.push(0);
+  return new Uint8Array(block);
+}
+
+// Разбирает APP13 Photoshop на список 8BIM ресурсов. Возвращает null, если формат не распознан.
+function parsePhotoshopBlocks(bytes, off, len){
+  const start = off + 4 + PS_SIG.length;
+  const end = off + 2 + len;
+  if(start >= end) return [];
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const blocks = [];
+  let p = start;
+  while(p + 12 <= end){
+    if(latin(bytes.subarray(p, p + 4)) !== "8BIM") return blocks.length ? blocks : null;
+    const id = dv.getUint16(p + 4);
+    let q = p + 6;
+    const nameLen = bytes[q];                               // длина имени Паскаля
+    q += 1 + nameLen;
+    if((q - p) % 2) q++;                                    // имя дополнено до чётного
+    if(q + 4 > end) return blocks.length ? blocks : null;
+    const size = dv.getUint32(q);
+    q += 4;
+    if(size < 0 || q + size > end) return blocks.length ? blocks : null;
+    blocks.push({id, bytes:bytes.subarray(p, q + size + ((size % 2) ? 1 : 0))});
+    p = q + size;
+    if(size % 2) p++;
+  }
+  return blocks;
+}
+
+// Пересобирает APP13 Photoshop: новый IPTC + все прочие 8BIM ресурсы из исходника
+function rebuildPhotoshopApp13(sourceBlocks, iptcBlock){
+  const kept = sourceBlocks.filter(b => b.id !== 0x0404 && b.id !== 0x2710);
+  const parts = [];
+  for(let i = 0; i < PS_SIG.length; i++) parts.push(PS_SIG.charCodeAt(i));
+  parts.push(...iptcBlock);
+  for(const b of kept) parts.push(...b.bytes);
+  return new Uint8Array(parts);
+}
+
+// Общий обход сегментов JPEG до SOS
+function scanJpeg(bytes, cb){
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if(bytes.length < 4 || dv.getUint16(0) !== 0xFFD8) throw new Error("не JPEG: нет маркера SOI");
+  let off = 2;
+  while(off + 2 <= bytes.length){
+    if(bytes[off] !== 0xFF) throw new Error("битый JPEG: ожидался маркер @ " + off);
+    const marker = bytes[off + 1];
+    if(marker === 0xFF){ off++; continue; }                 // заполняющий байт
+    if(marker === 0xD8 || marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)){ off += 2; continue; }
+    if(marker === 0xDA) return off;                        // SOS — дальше сами пиксели
+    if(marker === 0xD9) return bytes.length;               // без данных
+    if(off + 4 > bytes.length) throw new Error("обрезанный сегмент @ " + off);
+    const len = dv.getUint16(off + 2);
+    if(len < 2) throw new Error("неверная длина сегмента @ " + off);
+    const end = off + 2 + len;
+    if(end > bytes.length) throw new Error("сегмент выходит за границы файла @ " + off);
+    if(cb) cb(marker, off, len, end);
+    off = end;
+  }
+  return off;
+}
+
+function embedJPEG(bytes, rec, withRu){
+  const keep = [];
+  const psBlocks = [];                      // не-IPTC ресурсы Photoshop из исходника
+  let droppedApp1 = 0, droppedApp13 = 0, keptPsResources = 0;
+
+  const sosAt = scanJpeg(bytes, (marker, off, len, end) => {
+    if(marker === 0xE1){
+      const kind = app1Kind(bytes, off, len);
+      if(kind === "xmp"){ droppedApp1++; return; }          // старый XMP выбрасываем
+      keep.push(bytes.subarray(off, end));                   // EXIF и прочие APP1 не трогаем
+      return;
+    }
+    if(marker === 0xED){
+      if(isPhotoshopApp13(bytes, off, len)){
+        droppedApp13++;                                      // старый IPTC выбрасываем
+        const blocks = parsePhotoshopBlocks(bytes, off, len);
+        if(blocks){
+          for(const b of blocks){
+            if(b.id === 0x0404 || b.id === 0x2710) continue; // сам IPTC заменяем
+            psBlocks.push(b);
+            keptPsResources++;
+          }
+        }
+        return;
+      }
+      keep.push(bytes.subarray(off, end));
+      return;
+    }
+    keep.push(bytes.subarray(off, end));
+  });
+
+  const xmpBytes = new TextEncoder().encode(buildXMP(rec, withRu));
+  const iptcBytes = buildIPTC(rec, withRu);
+  const iptcBlock = iptcBytes.subarray(PS_SIG.length);       // 8BIM блок без подписи
+  const app13 = psBlocks.length ? rebuildPhotoshopApp13(psBlocks, iptcBlock) : iptcBytes;
+
+  const out = concatBytes([
+    bytes.subarray(0, 2),                                   // FFD8
+    ...keep,                                                // исходные сегменты, кроме XMP/IPTC
+    makeSegment(0xE1, xmpBytes),                            // APP1 XMP
+    makeSegment(0xED, app13),                               // APP13 IPTC + прочие ресурсы
+    bytes.subarray(sosAt)                                   // SOS + энтропийные данные
+  ]);
+
+  return {data:out, droppedApp1, droppedApp13, keptPsResources, sosAt, tailLen:bytes.length - sosAt};
+}
+
+// Самопроверка результата
+function verifyJPEG(bytes, rec, expectedTail, expectedPsIds){
+  const saw = {xmp:0, iptc:0, exif:0};
+  let psIds = null;
+  let sosAt = -1;
+  scanJpeg(bytes, (marker, off, len, end) => {
+    if(marker === 0xE1){
+      const kind = app1Kind(bytes, off, len);
+      if(kind === "xmp") saw.xmp++;
+      if(kind === "exif") saw.exif++;
+    }
+    if(marker === 0xED && isPhotoshopApp13(bytes, off, len)){
+      saw.iptc++;
+      const blocks = parsePhotoshopBlocks(bytes, off, len);
+      psIds = blocks ? blocks.map(b => b.id) : null;
+    }
+  });
+  sosAt = scanJpeg(bytes, null);
+
+  if(saw.xmp !== 1) throw new Error("XMP-сегментов в результате: " + saw.xmp + " (нужен ровно 1)");
+  if(saw.iptc !== 1) throw new Error("IPTC-сегментов в результате: " + saw.iptc + " (нужен ровно 1)");
+  if(sosAt < 0) throw new Error("не найден маркер SOS — изображение повреждено");
+
+  if(expectedTail != null){
+    const got = bytes.length - sosAt;
+    if(got !== expectedTail) throw new Error("размер данных изображения изменился: " + got + " вместо " + expectedTail);
+  }
+
+  if(expectedPsIds != null){
+    if(!psIds) throw new Error("не удалось разобрать ресурсы Photoshop в APP13");
+    for(const id of expectedPsIds)
+      if(psIds.indexOf(id) < 0) throw new Error("потерян ресурс Photoshop 0x" + id.toString(16));
+    if(psIds.filter(id => id === 0x0404).length !== 1) throw new Error("блоков IPTC в APP13 не ровно один");
+    for(const id of [0x0404, 0x2710]){
+      const n = psIds.filter(x => x === id).length;
+      if(n > 1) throw new Error("дубль IPTC-ресурса 0x" + id.toString(16));
+    }
+  }
+
+  const txt = new TextDecoder("utf-8", {fatal:false}).decode(bytes.subarray(0, Math.min(bytes.length, 131072)));
+  if(rec.title && rec.title.length >= 8 && txt.indexOf(rec.title.slice(0, 24)) < 0)
+    throw new Error("заголовок не читается из XMP");
+  const first = (rec.keywords || [])[0];
+  if(first && first.length >= 4 && txt.indexOf(first) < 0)
+    throw new Error("первый ключ не читается из XMP");
+
+  return {xmp:saw.xmp, iptc:saw.iptc, exif:saw.exif, psIds, sosAt, tailLen:bytes.length - sosAt};
+}
+
+/* ============================================================
+   18. ВШИВКА В MP4 / MOV — moov/udta/meta/ilst
+   Видеоданные не перекодируются, размеры боксов пересчитываются.
+   ============================================================ */
+
+function readBytes(file, start, end){
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(new Uint8Array(fr.result));
+    fr.onerror = () => rej(fr.error || new Error("чтение файла не удалось"));
+    fr.readAsArrayBuffer(file.slice(start, end));
+  });
+}
+
+function boxType(bytes, off){
+  return String.fromCharCode(bytes[off], bytes[off + 1], bytes[off + 2], bytes[off + 3]);
+}
+
+function iterBoxes(bytes, start, end){
+  const out = [];
+  let off = start;
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  while(off + 8 <= end){
+    let size = dv.getUint32(off);
+    const type = boxType(bytes, off + 4);
+    let hdr = 8;
+    if(size === 1){
+      // largesize
+      const hi = dv.getUint32(off + 8), lo = dv.getUint32(off + 12);
+      size = hi * 4294967296 + lo;
+      hdr = 16;
+    }else if(size === 0){
+      size = end - off;
+    }
+    if(size < hdr || off + size > end) break;
+    out.push({type, start:off, size, hdr});
+    off += size;
+  }
+  return out;
+}
+
+function makeBox(type, payloadList){
+  const inner = concatBytes(payloadList);
+  const out = new Uint8Array(8 + inner.length);
+  const dv = new DataView(out.buffer);
+  dv.setUint32(0, out.length);
+  for(let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+  out.set(inner, 8);
+  return out;
+}
+
+function makeFullBox(type, version, flags, payloadList){
+  const inner = concatBytes(payloadList);
+  const out = new Uint8Array(12 + inner.length);
+  const dv = new DataView(out.buffer);
+  dv.setUint32(0, out.length);
+  for(let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+  dv.setUint8(8, version);
+  dv.setUint8(9, (flags >> 16) & 0xFF);
+  dv.setUint8(10, (flags >> 8) & 0xFF);
+  dv.setUint8(11, flags & 0xFF);
+  out.set(inner, 12);
+  return out;
+}
+
+// iTunes-подобный бокс внутри ilst: size, type, затем "data"
+function makeIlstItem(type, value){
+  const v = new TextEncoder().encode(value);
+  const dataBox = new Uint8Array(16 + v.length);
+  const ddv = new DataView(dataBox.buffer);
+  ddv.setUint32(0, 16 + v.length);
+  for(let i = 0; i < 4; i++) dataBox[4 + i] = "data".charCodeAt(i);
+  ddv.setUint32(8, 1);            // version 0, flags 1 = UTF-8
+  ddv.setUint32(12, 0);           // locale
+  dataBox.set(v, 16);
+  return makeBox(type, [dataBox]);
+}
+
+// Свободный бокс "----" с mean/name для ключевых слов
+function makeFreeformItem(mean, name, value){
+  const v = new TextEncoder().encode(value);
+  const dataBox = new Uint8Array(16 + v.length);
+  const ddv = new DataView(dataBox.buffer);
+  ddv.setUint32(0, 16 + v.length);
+  for(let i = 0; i < 4; i++) dataBox[4 + i] = "data".charCodeAt(i);
+  ddv.setUint32(8, 1);
+  ddv.setUint32(12, 0);
+  dataBox.set(v, 16);
+
+  const m = new TextEncoder().encode(mean);
+  const meanBox = new Uint8Array(12 + m.length);
+  const mdv = new DataView(meanBox.buffer);
+  mdv.setUint32(0, 12 + m.length);
+  for(let i = 0; i < 4; i++) meanBox[4 + i] = "mean".charCodeAt(i);
+  mdv.setUint32(8, 0);
+  meanBox.set(m, 12);
+
+  const n = new TextEncoder().encode(name);
+  const nameBox = new Uint8Array(12 + n.length);
+  const ndv = new DataView(nameBox.buffer);
+  ndv.setUint32(0, 12 + n.length);
+  for(let i = 0; i < 4; i++) nameBox[4 + i] = "name".charCodeAt(i);
+  ndv.setUint32(8, 0);
+  nameBox.set(n, 12);
+
+  return makeBox("----", [meanBox, nameBox, dataBox]);
+}
+
+// Пересчитывает смещения в stco/co64.
+// shift применяется ТОЛЬКО если mdat стоит после moov; если mdat перед moov —
+// файл не сдвигается и смещения верны как есть.
+function bumpChunkOffsets(bytes, shift){
+  if(!shift) return {changed:0, tables:0};
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let changed = 0, tables = 0;
+
+  function walk(start, end){
+    const bl = iterBoxes(bytes, start, end);
+    for(const b of bl){
+      if(b.type === "stco"){
+        const p = b.start + b.hdr;
+        const count = dv.getUint32(p);
+        for(let i = 0; i < count; i++){
+          const v = dv.getUint32(p + 4 + i * 4) + shift;
+          if(v < 0) throw new Error("смещение stco ушло в минус после сдвига");
+          dv.setUint32(p + 4 + i * 4, v >>> 0);
+          changed++;
+        }
+        tables++;
+      }else if(b.type === "co64"){
+        const p = b.start + b.hdr;
+        const count = dv.getUint32(p);
+        for(let i = 0; i < count; i++){
+          const q = p + 4 + i * 8;
+          const v = dv.getUint32(q) * 4294967296 + dv.getUint32(q + 4) + shift;
+          if(v < 0) throw new Error("смещение co64 ушло в минус после сдвига");
+          dv.setUint32(q, Math.floor(v / 4294967296));
+          dv.setUint32(q + 4, v >>> 0);
+          changed++;
+        }
+        tables++;
+      }else{
+        // рекурсия только в заведомо контейнерные боксы
+        if(VIDEO_CONTAINERS.has(b.type)){
+          walk(b.start + b.hdr, b.start + b.size);
+        }
+      }
+    }
+  }
+  walk(0, bytes.length);
+  return {changed, tables};
+}
+
+// Боксы, внутри которых лежат дочерние боксы (для безопасной рекурсии)
+const VIDEO_CONTAINERS = new Set([
+  "moov","trak","mdia","minf","stbl","edts","udta","mvex","moof","traf",
+  "mfra","skip","meta","ilst","dinf","gmhd","wave","schi","sinf","ipro"
+]);
+
+// Заголовок первого бокса: 8 байт, либо 16 при largesize
+function boxHeaderLen(bytes, off){
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return dv.getUint32(off) === 1 ? 16 : 8;
+}
+
+// Собирает новый moov: заменяет ilst, сохраняет все прочие боксы
+function rebuildMoov(moovBytes, rec){
+  const hdr = boxHeaderLen(moovBytes, 0);
+  const boxes = iterBoxes(moovBytes, hdr, moovBytes.length);
+  const parts = [];
+
+  for(const b of boxes){
+    if(b.type === "udta")      parts.push(rebuildUdta(moovBytes, b, rec));
+    else if(b.type === "meta") parts.push(rebuildMeta(moovBytes, b, rec));
+    else                        parts.push(moovBytes.subarray(b.start, b.start + b.size));
+  }
+  return makeBox("moov", parts);
+}
+
+// meta бывает FullBox (4 байта версия/флаги) и без них — определяем по тому,
+// что даёт больше осмысленных дочерних боксов
+function metaIsFullBox(bytes, metaBox){
+  const full = iterBoxes(bytes, metaBox.start + metaBox.hdr + 4, metaBox.start + metaBox.size);
+  const plain = iterBoxes(bytes, metaBox.start + metaBox.hdr, metaBox.start + metaBox.size);
+  return full.length > plain.length;
+}
+
+function metaChildren(bytes, metaBox){
+  const skip = metaIsFullBox(bytes, metaBox) ? 4 : 0;
+  return iterBoxes(bytes, metaBox.start + metaBox.hdr + skip, metaBox.start + metaBox.size);
+}
+
+// Пересобирает содержимое meta: hdlr + ilst, остальные дочерние боксы сохраняются
+function rebuildMeta(parentBytes, metaBox, rec){
+  const kw = (rec.keywords || []).join(", ");
+  const kwRu = (rec.keywords_ru || []).join(", ");
+  const t = rec.title || "";
+  const tr = rec.title_ru || t;
+
+  // hdlr обязателен, иначе часть плееров не показывает метаданные.
+  // Структура: pre_defined(4) + handler_type(4) + reserved(12)
+  const hdlrPayload = concatBytes([
+    new Uint8Array(4),          // pre_defined
+    textBytes("mdir"),          // handler_type
+    new Uint8Array(12)          // reserved
+  ]);
+  const children = [makeFullBox("hdlr", 0, 0, [hdlrPayload])];
+
+  const items = [
+    ["©nam", t],
+    ["©cmt", kw],
+    ["©day", (rec.date_taken || "").replace(" ", "T")],
+    ["©ART", rec.camera || ""],
+    ["©alb", rec.category || ""]
+  ].filter(x => x[1]);
+
+  const ilstItems = items.map(x => makeIlstItem(x[0], x[1]));
+  ilstItems.push(makeFreeformItem("com.apple.iTunes", "Keywords", kw));
+  ilstItems.push(makeFreeformItem("com.apple.iTunes", "Description", t));
+  if(kwRu) ilstItems.push(makeFreeformItem("com.apple.iTunes", "KeywordsRU", kwRu));
+  if(tr && tr !== t) ilstItems.push(makeFreeformItem("com.apple.iTunes", "TitleRU", tr));
+
+  children.push(makeBox("ilst", ilstItems));
+
+  for(const b of metaChildren(parentBytes, metaBox)){
+    if(b.type === "hdlr" || b.type === "ilst") continue;
+    children.push(parentBytes.subarray(b.start, b.start + b.size));
+  }
+
+  return metaIsFullBox(parentBytes, metaBox)
+    ? makeFullBox("meta", 0, 0, children)
+    : makeBox("meta", children);
+}
+
+function rebuildUdta(parentBytes, udta, rec){
+  const inner = iterBoxes(parentBytes, udta.start + udta.hdr, udta.start + udta.size);
+  const parts = [];
+  for(const b of inner){
+    if(b.type === "meta"){ parts.push(rebuildMeta(parentBytes, b, rec)); continue; }
+    parts.push(parentBytes.subarray(b.start, b.start + b.size));
+  }
+  return makeBox("udta", parts);
+}
+
+function textBytes(s){
+  const b = new TextEncoder().encode(s || "");
+  return b;
+}
+
+// Читает только заголовки верхнеуровневых боксов — без загрузки файла целиком.
+// Так находится moov и в начале (faststart), и в конце файла.
+async function scanTopBoxes(file, size){
+  const out = [];
+  let off = 0;
+  while(off + 8 <= size){
+    const head = new Uint8Array(await readBytes(file, off, Math.min(off + 16, size)));
+    if(head.length < 8) break;
+    const dv = new DataView(head.buffer);
+    let bsize = dv.getUint32(0);
+    const type = boxType(head, 4);
+    let hdr = 8;
+    if(bsize === 1){
+      if(head.length < 16) throw new Error("обрезан largesize бокса " + type);
+      bsize = dv.getUint32(8) * 4294967296 + dv.getUint32(12);
+      hdr = 16;
+    }else if(bsize === 0){
+      bsize = size - off;                       // «до конца файла»
+    }
+    if(bsize < hdr) throw new Error("битый размер бокса " + type);
+    out.push({type, start:off, size:bsize, hdr});
+    off += bsize;
+  }
+  return out;
+}
+
+// CRC32 потоком по диапазону файла — для сверки, что видеоданные не изменились
+async function crc32Range(file, start, end){
+  let c = 0xFFFFFFFF;
+  const STEP = 4 * 1024 * 1024;
+  for(let p = start; p < end; p += STEP){
+    const chunk = new Uint8Array(await readBytes(file, p, Math.min(p + STEP, end)));
+    for(let i = 0; i < chunk.length; i++) c = CRC_TABLE[(c ^ chunk[i]) & 0xFF] ^ (c >>> 8);
+  }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+// Ищет ilst и читает его теги прямо из собранного moov
+function readIlst(moovBytes, rec){
+  const hdr = boxHeaderLen(moovBytes, 0);
+  const top = iterBoxes(moovBytes, hdr, moovBytes.length);
+
+  const found = [];
+  const metas = [];
+  for(const b of top){
+    if(b.type === "meta") metas.push(b);
+    if(b.type !== "udta") continue;
+    for(const c of iterBoxes(moovBytes, b.start + b.hdr, b.start + b.size)){
+      if(c.type === "meta") metas.push(c);
+    }
+  }
+  for(const m of metas){
+    for(const c of metaChildren(moovBytes, m)){
+      if(c.type !== "ilst") continue;
+      let title = null, kw = null, kwRu = null, ru = null, count = 0;
+      for(const it of iterBoxes(moovBytes, c.start + c.hdr, c.start + c.size)){
+        count++;
+        // тип лежит в заголовке бокса: size(4) + type(4)
+        const key = boxType(moovBytes, it.start + 4);
+        const d = iterBoxes(moovBytes, it.start + it.hdr, it.start + it.size);
+        const data = d.find(x => boxType(moovBytes, x.start + 4) === "data");
+        if(!data) continue;
+        // data: version+flags(4) + locale(4), затем значение
+        const val = new TextDecoder().decode(moovBytes.subarray(data.start + data.hdr + 8, data.start + data.size));
+        if(key === "©nam") title = val;
+        if(key === "©cmt") kw = val;
+        if(key === "----"){
+          const inner = iterBoxes(moovBytes, it.start + it.hdr, it.start + it.size);
+          let name = null, dv2 = null;
+          for(const x of inner){
+            const xt = boxType(moovBytes, x.start + 4);
+            // name/mean: version+flags(4), затем строка
+            if(xt === "name" || xt === "mean")
+              name = new TextDecoder().decode(moovBytes.subarray(x.start + x.hdr + 4, x.start + x.size));
+            // data: version+flags(4), locale(4), затем строка
+            if(xt === "data")
+              dv2 = new TextDecoder().decode(moovBytes.subarray(x.start + x.hdr + 8, x.start + x.size));
+          }
+          if(name === "Keywords") kw = dv2;
+          if(name === "KeywordsRU") kwRu = dv2;
+          if(name === "TitleRU") ru = dv2;
+        }
+      }
+      found.push({count, title, kw, kwRu, ru});
+    }
+  }
+  if(!found.length) throw new Error("ilst не найден в новом moov");
+  const f = found[0];
+  if(f.count < 3) throw new Error("в ilst всего " + f.count + " тегов");
+  if(f.title == null) throw new Error("в ilst нет тега ©nam");
+  if(!f.kw) throw new Error("в ilst нет ключевых слов");
+  if(rec && rec.title && f.title !== rec.title) throw new Error("©nam в ilst не совпадает с заголовком");
+  if(rec && rec.keywords && rec.keywords.length){
+    const want = rec.keywords.join(", ");
+    if(f.kw !== want) throw new Error("ключевые слова в ilst не совпадают с записью");
+  }
+  if(rec && rec.keywords_ru && rec.keywords_ru.length){
+    const wantRu = rec.keywords_ru.join(", ");
+    if(f.kwRu !== wantRu) throw new Error("русские ключи в ilst не совпадают с записью");
+    if(rec.title_ru && f.ru !== rec.title_ru) throw new Error("русский заголовок в ilst не совпадает с записью");
+  }
+  return found[0];
+}
+
+// Самопроверка нового moov: структура цела, ilst на месте, смещения в границах
+function verifyMP4(moovNew, oldMoovSize, fileSize, rec){
+  const dv = new DataView(moovNew.buffer, moovNew.byteOffset, moovNew.byteLength);
+  if(moovNew.length < 8) throw new Error("moov слишком мал");
+  if(dv.getUint32(0) !== moovNew.length) throw new Error("размер moov не совпадает с заголовком");
+  if(boxType(moovNew, 4) !== "moov") throw new Error("это не moov");
+
+  const hdr = boxHeaderLen(moovNew, 0);
+  const top = iterBoxes(moovNew, hdr, moovNew.length);
+  if(!top.length) throw new Error("в moov нет ни одного дочернего бокса");
+  const covered = top.reduce((s, b) => s + b.size, hdr);
+  if(covered !== moovNew.length)
+    throw new Error("дочерние боксы moov не покрывают файл целиком (" + covered + " из " + moovNew.length + ")");
+
+  const ilst = readIlst(moovNew, rec);
+
+  function check(start, end){
+    for(const b of iterBoxes(moovNew, start, end)){
+      if(b.type === "stco"){
+        const p = b.start + b.hdr, count = dv.getUint32(p);
+        for(let i = 0; i < count; i++){
+          const v = dv.getUint32(p + 4 + i * 4);
+          if(v >= fileSize) throw new Error("смещение stco " + v + " выходит за размер файла " + fileSize);
+        }
+      }else if(b.type === "co64"){
+        const p = b.start + b.hdr, count = dv.getUint32(p);
+        for(let i = 0; i < count; i++){
+          const q = p + 4 + i * 8;
+          const v = dv.getUint32(q) * 4294967296 + dv.getUint32(q + 4);
+          if(v >= fileSize) throw new Error("смещение co64 " + v + " выходит за размер файла " + fileSize);
+        }
+      }else if(VIDEO_CONTAINERS.has(b.type)){
+        check(b.start + b.hdr, b.start + b.size);
+      }
+    }
+  }
+  check(hdr, moovNew.length);
+  return {ilst:true, tags:ilst.count, title:ilst.title, oldMoovSize, newMoovSize:moovNew.length};
+}
+
+/* ============================================================
+   19. ЗАПИСЬ ФАЙЛОВ НА ДИСК
+   ============================================================ */
+
+function embedName(rec){
+  return stem(rec.filename) + "_meta" + (rec.filename.match(/\.[^.]+$/) || [""])[0].toLowerCase();
+}
+
+// Видео вшиваем потоком на диск: память не тратится на файл целиком.
+// Возвращает null в data — результат уже записан.
+async function embedVideoStream(file, rec, sub, outName, onProgress){
+  const size = file.size;
+  const top = await scanTopBoxes(file, size);
+  if(!top.length) throw new Error("не удалось разобрать структуру MP4/MOV");
+
+  const moovBox = top.find(b => b.type === "moov");
+  if(!moovBox) throw new Error("в файле нет бокса moov — метаданные вшить некуда");
+  if(!top.some(b => b.type === "ftyp")) throw new Error("нет бокса ftyp — это не MP4/MOV");
+
+  // mdat после moov? тогда файл сдвинется и смещения надо пересчитать
+  const mdatAfterMoov = top.some(b => b.type === "mdat" && b.start > moovBox.start);
+  const oldMoovSize = moovBox.size;
+
+  // сам moov в памяти — он небольшой (единицы МБ), в отличие от видеоданных
+  const moovOld = new Uint8Array(await readBytes(file, moovBox.start, moovBox.start + oldMoovSize));
+  let moovNew = rebuildMoov(moovOld, rec);
+  const delta = moovNew.length - oldMoovSize;
+  const shift = mdatAfterMoov ? delta : 0;
+
+  const bumped = bumpChunkOffsets(moovNew, shift);
+  const checked = verifyMP4(moovNew, oldMoovSize, size + delta, rec);
+
+  // контрольные суммы: [до moov] + [после moov] должны совпасть в результате
+  const crcHead = await crc32Range(file, 0, moovBox.start);
+  const crcTail = await crc32Range(file, moovBox.start + oldMoovSize, size);
+
+  const fh = await sub.getFileHandle(outName, {create:true});
+  const w = await fh.createWritable();
+
+  const STEP = 4 * 1024 * 1024;
+  let written = 0;
+  const total = size + delta;
+
+  async function copyRange(from, to){
+    for(let p = from; p < to; p += STEP){
+      const chunk = new Uint8Array(await readBytes(file, p, Math.min(p + STEP, to)));
+      await w.write(chunk);
+      written += chunk.length;
+      if(onProgress) onProgress(written / total);
+    }
+  }
+
+  await copyRange(0, moovBox.start);
+  await w.write(moovNew);
+  written += moovNew.length;
+  await copyRange(moovBox.start + oldMoovSize, size);
+  await w.close();
+
+  if(written !== total) throw new Error("записано " + written + " байт вместо " + total);
+
+  // проверяем, что на диске лежит то, что ожидали
+  const checkFh = await sub.getFileHandle(outName);
+  const checkFile = await checkFh.getFile();
+  if(checkFile.size !== total) throw new Error("размер файла на диске не совпал: " + checkFile.size + " вместо " + total);
+
+  const moovPos = moovBox.start;
+  const crcHead2 = await crc32Range(checkFile, 0, moovPos);
+  const crcTail2 = await crc32Range(checkFile, moovPos + moovNew.length, total);
+  if(crcHead2 !== crcHead) throw new Error("данные до moov изменились при записи");
+  if(crcTail2 !== crcTail) throw new Error("данные после moov изменились при записи");
+
+  return {
+    streamed:true,
+    note:"moov " + oldMoovSize + " → " + moovNew.length + " байт, тегов: " + checked.tags +
+         ", смещений обновлено: " + bumped.changed + (mdatAfterMoov ? "" : " (mdat перед moov — сдвиг не нужен)") +
+         ", видеоданные сверены по CRC"
+  };
+}
+
+async function embedOne(entry, rec, withRu){
+  const file = entry.file;
+  if(entry.ctype === "video" || /\.(mp4|mov|m4v|mpeg|mpg)$/i.test(file.name)) return embedVideo(file, rec);
+  if(/\.(jpe?g)$/i.test(file.name)) return embedPhoto(file, rec, withRu);
+
+  // HEIC/WebP/PNG не поддерживаем без потерь — отдаём как есть с предупреждением
+  return {data:null, warn:"Формат " + (file.name.split(".").pop()).toUpperCase() + " не поддерживается для вшивки без потери качества. Только JPEG, MP4, MOV."};
+}
+
+async function embedPhoto(file, rec, withRu){
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const res = embedJPEG(bytes, rec, withRu);
+  const originalPs = [];
+  scanJpeg(bytes, (marker, off, len) => {
+    if(marker !== 0xED || !isPhotoshopApp13(bytes, off, len)) return;
+    const blocks = parsePhotoshopBlocks(bytes, off, len);
+    if(blocks) for(const b of blocks) if(b.id !== 0x0404 && b.id !== 0x2710) originalPs.push(b.id);
+  });
+  verifyJPEG(res.data, rec, res.tailLen, originalPs);
+  return {
+    data:res.data,
+    note:"XMP заменён: " + res.droppedApp1 + ", IPTC заменён: " + res.droppedApp13 +
+         (res.keptPsResources ? ", ресурсы Photoshop сохранены: " + res.keptPsResources : "") +
+         ", данные кадра не тронуты (" + res.tailLen + " байт)"
+  };
+}
+
+// Заглушка: видео всегда идёт потоком, см. embedVideoStream
+async function embedVideo(file, rec){
+  throw new Error("внутренняя ошибка: видео обрабатывается потоковым методом");
+}
+
+async function writeToDir(dir, name, bytes){
+  const fh = await dir.getFileHandle(name, {create:true});
+  const w = await fh.createWritable();
+  await w.write(bytes);
+  await w.close();
+}
+
+async function runEmbed(){
+  const entries = fileEntries.filter(e => e.recordId != null);
+  if(!entries.length){ elog("Нет записей для вшивки. Сначала сгенерируйте метаданные."); return; }
+
+  const withRu = $("embed-ru").checked;
+  const isVideo = e => e.ctype === "video" || /\.(mp4|mov|m4v|mpeg|mpg)$/i.test(e.name);
+  const videos = entries.filter(isVideo);
+  if(videos.length && !dirHandle){
+    elog("Для видео нужна выбранная папка — ZIP не подходит, файл слишком большой. Нажмите «Выбрать папку».");
+    $("embed-status").textContent = "Видео требует выбранную папку";
+    return;
+  }
+
+  elog("===== Вшивка " + entries.length + " файлов =====");
+  const photos = [];      // пишем в память, для ZIP
+  let n = 0;
+  $("embed-btn").disabled = true;
+
+  let sub = null;
+  if(dirHandle){
+    const base = dirHandle.name || "output";
+    sub = await dirHandle.getDirectoryHandle(base + "_metadata", {create:true});
+  }
+
+  try{
+    for(const e of entries){
+      const rec = recordById(e.recordId);
+      if(!rec){ elog("Нет записи для " + e.name); continue; }
+      n++;
+      const pct = n / entries.length * 100;
+      $("embed-status").textContent = "[" + n + "/" + entries.length + "] " + e.name;
+      $("embed-bar").style.width = pct + "%";
+      const outName = embedName(rec);
+
+      try{
+        if(isVideo(e)){
+          const res = await embedVideoStream(e.file, rec, sub, outName, f => {
+            $("embed-status").textContent = "[" + n + "/" + entries.length + "] " + e.name + " — " + Math.round(f * 100) + "%";
+            $("embed-bar").style.width = (n - 1 + f) / entries.length * 100 + "%";
+          });
+          elog("✓ " + e.name + " (" + res.note + ")");
+        }else{
+          const res = await embedOne(e, rec, withRu);
+          if(res.warn){
+            elog("⚠ " + e.name + ": " + res.warn);
+            continue;
+          }
+          elog("✓ " + e.name + " (" + res.note + ")");
+          photos.push({name:outName, bytes:res.data});
+        }
+      }catch(err){
+        elog("✗ " + e.name + ": " + (err.message || err));
+      }
+    }
+
+    // фотографии — сразу на диск, иначе в ZIP
+    if(photos.length){
+      if(sub){
+        for(const p of photos){
+          await writeToDir(sub, p.name, p.bytes);
+          elog("→ записано: " + sub.name + "/" + p.name);
+        }
+      }else{
+        await makeZip(photos);
+      }
+    }
+
+    $("embed-status").textContent = "Готово: видео и фото записаны в " + (sub ? sub.name : "ZIP");
+    elog("===== Окончание вшивки =====");
+    elog("Оригиналы не изменены.");
+  }finally{
+    $("embed-btn").disabled = false;
+  }
+}
+
+/* ============================================================
+   20. ZIP (без сжатия) — запасной путь без File System Access API
+   ============================================================ */
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for(let n = 0; n < 256; n++){
+    let c = n;
+    for(let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes){
+  let c = 0xFFFFFFFF;
+  for(let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+async function makeZip(items){
+  const enc = new TextEncoder();
+  const parts = [];
+  const central = [];
+  let offset = 0;
+
+  const u16 = n => [n & 0xFF, (n >> 8) & 0xFF];
+  const u32 = n => [n & 0xFF, (n >> 8) & 0xFF, (n >> 16) & 0xFF, (n >>> 24) & 0xFF];
+
+  for(const it of items){
+    const nameBytes = enc.encode(it.name);
+    const crc = crc32(it.bytes);
+    const local = concatBytes([
+      new Uint8Array([0x50, 0x4B, 0x03, 0x04]),
+      new Uint8Array([...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0)]),
+      new Uint8Array([...u32(crc), ...u32(it.bytes.length), ...u32(it.bytes.length)]),
+      new Uint8Array([...u16(nameBytes.length), ...u16(0)]),
+      nameBytes
+    ]);
+    parts.push(local);
+    parts.push(it.bytes);
+
+    central.push({
+      nameBytes, crc, size: it.bytes.length, offset
+    });
+    offset += local.length + it.bytes.length;
+  }
+
+  const cdStart = offset;
+  for(const c of central){
+    const head = concatBytes([
+      new Uint8Array([0x50, 0x4B, 0x01, 0x02]),
+      new Uint8Array([...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0)]),
+      new Uint8Array([...u32(c.crc), ...u32(c.size), ...u32(c.size)]),
+      new Uint8Array([...u16(c.nameBytes.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(c.offset)]),
+      c.nameBytes
+    ]);
+    parts.push(head);
+    offset += head.length;
+  }
+  const cdSize = offset - cdStart;
+  const end = new Uint8Array([
+    0x50, 0x4B, 0x05, 0x06,
+    ...u16(0), ...u16(0),
+    ...u16(central.length), ...u16(central.length),
+    ...u32(cdSize), ...u32(cdStart),
+    ...u16(0)
+  ]);
+  parts.push(end);
+
+  downloadFile("metadata_" + new Date().toISOString().slice(0, 10) + ".zip", new Blob(parts, {type:"application/zip"}));
+}
+
+/* ============================================================
+   21. ЭКСПОРТ ТАБЛИЦ
+   ============================================================ */
+
+function updateExportBtns(){
+  const has = records.length > 0;
+  for(const id of ["exp-csv","exp-csv-full","exp-json","exp-txt","exp-keys"]) $(id).disabled = !has;
+}
+
+function stamp(){
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+
+function exportCsv(full){
+  if(!records.length) return;
+  const head = full
+    ? ["Filename","Title","Title_RU","Keywords","Keywords_RU","Category","Category ID","Releases","Content type","No people","Camera","ISO","Date taken","Source"]
+    : ["Filename","Title","Keywords","Category","Releases"];
+  const rows = [csvRow(head)];
+  for(const r of records){
+    const kw = (r.keywords || []).join(", ");
+    const kwRu = (r.keywords_ru || []).join(", ");
+    const cat = r.category_id ? (r.category_id + ". " + r.category) : r.category;
+    if(full){
+      rows.push(csvRow([r.filename, r.title, r.title_ru, kw, kwRu, cat, r.category_id, r.releases || "none",
+        r.content_type, r.no_people, r.camera, r.iso, r.date_taken, r.source]));
+    }else{
+      rows.push(csvRow([r.filename, r.title, kw, cat, r.releases || "none"]));
+    }
+  }
+  const csv = "﻿" + rows.join("\r\n") + "\r\n";
+  downloadFile("adobe_stock_" + stamp() + (full ? "_full" : "") + ".csv", csv, "text/csv;charset=utf-8");
+}
+
+function exportJson(){
+  if(!records.length) return;
+  const payload = {
+    version: 1,
+    exported_at: new Date().toISOString(),
+    generator: "batch-keyworder",
+    used_keywords: Array.from(usedKeywords),
+    used_titles: usedTitles,
+    records
+  };
+  downloadFile("stock_metadata_" + stamp() + ".json", JSON.stringify(payload, null, 2), "application/json");
+}
+
+function exportTxt(){
+  if(!records.length) return;
+  const out = [];
+  for(const r of records){
+    out.push("=".repeat(60));
+    out.push("FILE: " + r.filename);
+    out.push("TITLE: " + r.title);
+    if(r.title_ru) out.push("TITLE_RU: " + r.title_ru);
+    out.push("KEYWORDS (" + (r.keywords || []).length + "): " + (r.keywords || []).join(", "));
+    if((r.keywords_ru || []).length) out.push("KEYWORDS_RU: " + r.keywords_ru.join(", "));
+    out.push("CATEGORY: " + (r.category_id ? r.category_id + ". " + r.category : r.category));
+    out.push("RELEASES: " + (r.releases || "none"));
+    out.push("CONTENT TYPE: " + r.content_type + " | NO PEOPLE: " + r.no_people);
+    if(r.camera || r.iso || r.date_taken) out.push("EXIF: " + [r.camera, r.iso, r.date_taken].filter(Boolean).join(" | "));
+    out.push("SOURCE: " + r.source);
+    if(r.duplicate_risk) out.push("ВНИМАНИЕ: " + r.duplicate_risk);
+    out.push("");
+  }
+  downloadFile("stock_metadata_" + stamp() + ".txt", out.join("\n"), "text/plain;charset=utf-8");
+}
+
+async function copyAllKeys(){
+  const lines = records.map(r => r.filename + "\n" + (r.keywords || []).join(", "));
+  try{
+    await navigator.clipboard.writeText(lines.join("\n\n"));
+    log("Все ключи скопированы в буфер", "экспорт");
+  }catch(e){
+    const ta = document.createElement("textarea");
+    ta.value = lines.join("\n\n");
+    document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); ta.remove();
+    log("Все ключи скопированы (fallback)", "экспорт");
+  }
+}
+
+async function importHistory(file){
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const incoming = Array.isArray(data) ? data : (data.records || []);
+    if(!Array.isArray(incoming)) throw new Error("в файле нет списка records");
+    for(const r of incoming){
+      const norm = Object.assign({}, r);
+      norm.keywords = Array.isArray(r.keywords) ? r.keywords : parseKwBox(r.keywords);
+      norm.keywords_ru = Array.isArray(r.keywords_ru) ? r.keywords_ru : parseKwBox(r.keywords_ru);
+      norm.id = norm.id || nextId();
+      records.push(norm);
+    }
+    syncFromRecords();
+    await saveHistory();
+    updateHistoryUI();
+    log("Импортировано записей: " + incoming.length, "история");
+  }catch(e){
+    log("Ошибка импорта: " + e.message, "ошибка");
+  }
+}
+
+/* ============================================================
+   22. ИНИЦИАЛИЗАЦИЯ И СОБЫТИЯ
+   ============================================================ */
+
+function applyProviderUI(){
+  const p = $("ai-provider").value;
+  $("or-panel").hidden = p !== "openrouter";
+  $("qwen-panel").hidden = p !== "qwen";
+  $("ollama-panel").hidden = p !== "ollama";
+  store.set("ai_provider", p);
+  updateProviderBtns();
+
+  const hints = {
+    openrouter: "Нужен ключ OpenRouter. OpenRouter блокирует аккаунты за анонимную массовую генерацию — используйте openrouter/free или локальную Ollama.",
+    qwen: "Vision-модель Alibaba. Бесплатная квота для новых аккаунтов. DeepSeek не подходит: нет vision-моделей в публичном API.",
     ollama: "Локально и бесплатно. Нужна переменная OLLAMA_ORIGINS=* и перезапуск Ollama. На CPU один файл 2–4 минуты."
   };
   $("prov-hint").textContent = hints[p] || "";
@@ -1257,7 +3400,7 @@ function initDropzone(){
   // и по клику переводит на список файлов.
   const cnt = $("fileCount");
   if(cnt) cnt.onclick = () => {
-    switchTab("files");
+    switchTab("main");
     const grid = $("files-grid");
     if(grid && grid.scrollIntoView) grid.scrollIntoView({behavior:"smooth", block:"center"});
   };
@@ -1409,6 +3552,13 @@ function initEvents(){
   $("retry-btn").onclick = retryFailed;
   $("stop-btn").onclick = () => { batchAbort = true; $("stop-btn").disabled = true; };
 
+  $("historyClear").onclick = () => {
+    if(!confirm("Очистить сохранённые сессии истории?")) return;
+    historySessions = [];
+    try{ localStorage.removeItem("bk_history_sessions"); }catch(e){}
+    renderHistory();
+  };
+
   $("ai-provider").onchange = applyProviderUI;
   $("edit-btn").onclick = () => openEditor(records.length ? records[0].id : null);
   $("save-btn").onclick = saveEditor;
@@ -1518,10 +3668,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   })();
 });
-</script>
-</body>
-</html>
 
+/* ==== History tab (restored from dead code after </html>) ==== */
+function escapeHtml(s){ return esc(s); }
 function renderHistory(){
   const list = document.getElementById('historyList');
   if(!list) return;
@@ -1552,3 +3701,17 @@ function loadHistorySessions(){
   try{ historySessions = JSON.parse(localStorage.getItem('bk_history_sessions')||'[]'); }catch(e){ historySessions=[]; }
   renderHistory();
 }
+
+function saveSession(){
+  const items = lastSessionResults.slice(batchStartIdx).map(r => ({ filename: r.filename, title: r.title, keywords: (r.keywords || []).slice(), source: r.source }));
+  if(!items.length) return;
+  try{ historySessions = JSON.parse(localStorage.getItem("bk_history_sessions") || "[]"); }catch(e){ historySessions = []; }
+  historySessions.push({ startedAt: batchStartedAt || Date.now(), endedAt: Date.now(), count: items.length, items: items });
+  if(historySessions.length > 50) historySessions = historySessions.slice(-50);
+  try{ localStorage.setItem("bk_history_sessions", JSON.stringify(historySessions)); }catch(e){}
+  if(document.querySelector('.tab[data-tab="history"].active')) renderHistory();
+}
+
+</script>
+</body>
+</html>
