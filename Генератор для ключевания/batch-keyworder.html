@@ -140,6 +140,7 @@ td{padding:7px 6px;border-bottom:1px solid var(--border);vertical-align:top}
         <select id="ai-provider" style="width:auto">
           <option value="openrouter">OpenRouter (облако)</option>
           <option value="qwen">Qwen / Model Studio</option>
+          <option value="together">Together AI (облако)</option>
           <option value="ollama">Ollama (локально, бесплатно)</option>
         </select>
       </div>
@@ -154,6 +155,10 @@ td{padding:7px 6px;border-bottom:1px solid var(--border);vertical-align:top}
           <input type="text" id="qwen-base" placeholder="https://dashscope-intl.aliyuncs.com/compatible-mode/v1" style="margin-top:6px">
         </div>
       </div>
+      <div id="tg-panel" class="grid2" hidden>
+        <div><label class="f">API-ключ Together</label><input type="password" id="tg-key" placeholder="sk-…" autocomplete="off"></div>
+        <div><label class="f">Модель</label><input type="text" id="tg-model" list="tg-models" placeholder="meta-llama/Llama-Vision-Free"></div>
+      </div>
       <div id="ollama-panel" class="grid2" hidden>
         <div><label class="f">Адрес Ollama</label><input type="text" id="oll-url" placeholder="http://localhost:11434"></div>
         <div><label class="f">Модель</label><input type="text" id="oll-model" list="ollama-models" placeholder="qwen2.5vl:3b"></div>
@@ -164,6 +169,10 @@ td{padding:7px 6px;border-bottom:1px solid var(--border);vertical-align:top}
       </datalist>
       <datalist id="qwen-models">
         <option value="qwen3-vl-plus"><option value="qwen3-vl-flash"><option value="qwen-vl-max"><option value="qwen2.5-vl-72b-instruct">
+      </datalist>
+      <datalist id="tg-models">
+        <option value="meta-llama/Llama-Vision-Free"><option value="meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo">
+        <option value="google/gemma-3-27b-it"><option value="Qwen/Qwen2.5-VL-72B-Instruct">
       </datalist>
       <datalist id="ollama-models">
         <option value="qwen2.5vl:3b"><option value="qwen2.5vl:7b"><option value="qwen3-vl:8b"><option value="moondream">
@@ -246,6 +255,7 @@ td{padding:7px 6px;border-bottom:1px solid var(--border);vertical-align:top}
       <div class="row">
         <button class="btn" id="pick-dir">Выбрать папку для записи</button>
         <span class="stat" id="dir-name">Папка не выбрана — будет использован ZIP</span>
+        <button class="btn" id="dir-grant" hidden>Разрешить запись в папку</button>
       </div>
       <div class="row" style="margin-top:10px">
         <button class="btn g" id="embed-btn">Вшить метаданные</button>
@@ -366,7 +376,10 @@ const KW_MODELS = [
   {provider:"ollama",    model:"qwen2.5vl:3b"},
   {provider:"ollama",    model:"qwen2.5vl:7b"},
   {provider:"ollama",    model:"qwen3-vl:8b"},
-  {provider:"ollama",    model:"moondream"}
+  {provider:"ollama",    model:"moondream"},
+  {provider:"together",  model:"meta-llama/Llama-Vision-Free"},
+  {provider:"together",  model:"meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo"},
+  {provider:"together",  model:"google/gemma-3-27b-it"}
 ];
 
 // ЖЁСТКИЙ ЗАПРЕТ: бренды, техника, стоковые штампы, смысловые заготовки
@@ -1236,6 +1249,14 @@ function readCfg(){
     store.set("qwen_key", key); store.set("qwen_model", model); store.set("qwen_base", base);
     return {ok:true, provider, key, model, base};
   }
+  if(provider === "together"){
+    const key = $("tg-key").value.trim();
+    const model = $("tg-model").value.trim();
+    if(!key) return {ok:false, err:"Нужен API-ключ Together AI (Together AI → API Keys, начинается с sk-)."};
+    if(!model) return {ok:false, err:"Укажите модель Together, например meta-llama/Llama-Vision-Free"};
+    store.set("tg_key", key); store.set("tg_model", model);
+    return {ok:true, provider, key, model, base:"https://api.together.xyz/v1"};
+  }
   const key = $("or-key").value.trim();
   const model = $("or-model").value.trim() || "openrouter/free";
   if(!key) return {ok:false, err:"Нужен ключ OpenRouter. Бесплатная альтернатива — вкладка «Ollama» (полностью локально, без ключа)."};
@@ -1258,6 +1279,7 @@ function providerLabel(c){
   if(!c) return "—";
   if(c.provider === "ollama") return "Ollama " + c.model;
   if(c.provider === "qwen") return "Qwen " + c.model;
+  if(c.provider === "together") return "Together " + c.model;
   return c.model;
 }
 
@@ -1282,6 +1304,12 @@ async function fallbackChain(cfg){
     if(qk) chain.push({provider:"qwen", key:qk, model:$("qwen-model").value.trim() || "qwen3-vl-plus", base:($("qwen-base").value.trim() || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1").replace(/\/+$/,"")});
     const url = ($("oll-url").value.trim() || "http://localhost:11434").replace(/\/+$/,"");
     if(await ollamaAlive(url)) chain.push({provider:"ollama", url, model:$("oll-model").value.trim() || "qwen2.5vl:3b"});
+    const tk = $("tg-key").value.trim();
+    if(tk) chain.push({provider:"together", key:tk, model:$("tg-model").value.trim() || "meta-llama/Llama-Vision-Free", base:"https://api.together.xyz/v1"});
+  }
+  if(cfg.provider === "together"){
+    const ok = $("or-key").value.trim();
+    if(ok) chain.push({provider:"openrouter", key:ok, model:$("or-model").value.trim() || "openrouter/free"});
   }
   return chain;
 }
@@ -3368,6 +3396,7 @@ function applyProviderUI(){
   const p = $("ai-provider").value;
   $("or-panel").hidden = p !== "openrouter";
   $("qwen-panel").hidden = p !== "qwen";
+  $("tg-panel").hidden = p !== "together";
   $("ollama-panel").hidden = p !== "ollama";
   store.set("ai_provider", p);
   updateProviderBtns();
@@ -3375,6 +3404,7 @@ function applyProviderUI(){
   const hints = {
     openrouter: "Нужен ключ OpenRouter. OpenRouter блокирует аккаунты за анонимную массовую генерацию — используйте openrouter/free или локальную Ollama.",
     qwen: "Vision-модель Alibaba. Бесплатная квота для новых аккаунтов. DeepSeek не подходит: нет vision-моделей в публичном API.",
+    together: "Облачный Together AI. Нужен ключ sk-... из Together AI → API Keys. Есть бесплатная vision-модель Llama-Vision-Free.",
     ollama: "Локально и бесплатно. Нужна переменная OLLAMA_ORIGINS=* и перезапуск Ollama. На CPU один файл 2–4 минуты."
   };
   $("prov-hint").textContent = hints[p] || "";
@@ -3538,9 +3568,39 @@ async function pickDir(){
   try{
     dirHandle = await window.showDirectoryPicker({mode:"readwrite"});
     $("dir-name").textContent = "Папка: " + dirHandle.name + " → подпапка " + dirHandle.name + "_metadata";
+    $("dir-grant").hidden = true;
+    try{ await idbSet("dirHandle", dirHandle); }catch(e){}
   }catch(e){
     dirHandle = null;
     $("dir-name").textContent = "Папка не выбрана — будет использован ZIP";
+  }
+}
+
+async function restoreDir(){
+  if(!window.showDirectoryPicker) return;
+  let h = null;
+  try{ h = await idbGet("dirHandle"); }catch(e){}
+  if(!h) return;
+  let perm = "prompt";
+  try{ perm = await h.queryPermission({mode:"readwrite"}); }catch(e){}
+  if(perm === "granted"){
+    dirHandle = h;
+    $("dir-name").textContent = "Папка: " + h.name + " → подпапка " + h.name + "_metadata";
+    return;
+  }
+  if(perm === "prompt"){
+    $("dir-name").textContent = "Папка: " + h.name + " — разрешите запись, чтобы сохранять файлы";
+    $("dir-grant").hidden = false;
+    $("dir-grant").onclick = async () => {
+      try{
+        const p = await h.requestPermission({mode:"readwrite"});
+        if(p === "granted"){
+          dirHandle = h;
+          $("dir-name").textContent = "Папка: " + h.name + " → подпапка " + h.name + "_metadata";
+          $("dir-grant").hidden = true;
+        }
+      }catch(e){}
+    };
   }
 }
 
@@ -3580,6 +3640,7 @@ function initEvents(){
   };
 
   $("pick-dir").onclick = pickDir;
+  restoreDir();
   $("embed-btn").onclick = runEmbed;
   $("exp-csv").onclick = () => exportCsv(false);
   $("exp-csv-full").onclick = () => exportCsv(true);
@@ -3621,6 +3682,8 @@ function initEvents(){
   $("qwen-base").value = store.get("qwen_base", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1");
   $("oll-url").value = store.get("oll_url", "http://localhost:11434");
   $("oll-model").value = store.get("oll_model", "qwen2.5vl:3b");
+  $("tg-key").value = store.get("tg_key", "");
+  $("tg-model").value = store.get("tg_model", "meta-llama/Llama-Vision-Free");
 
   CATS.forEach(c => {
     const o = document.createElement("option");
