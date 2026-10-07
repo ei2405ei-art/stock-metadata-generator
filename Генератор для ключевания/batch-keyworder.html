@@ -2104,6 +2104,7 @@ async function runBatch(entries){
   setStatus(batchAbort ? "Остановлено" : ("Готово: " + runState.done + " / " + runState.total));
   await saveHistory();
   saveSession();
+  await writeMetaIndex();
 }
 
 async function retryFailed(){
@@ -2296,6 +2297,7 @@ async function saveEditor(){
   updateResults();
   renderFiles();
   log("Правки сохранены: " + r.filename, "правка");
+  await writeMetaIndex();
 }
 
 /* ============================================================
@@ -3134,6 +3136,36 @@ async function writeToDir(dir, name, bytes){
   await w.close();
 }
 
+// Индекс для локального helper-сервера: имя файла → заголовок и ключи.
+// По нему userscript заполняет форму на Adobe Stock после загрузки файла.
+async function writeMetaIndex(){
+  if(!dirHandle) return;
+  try{
+    const base = dirHandle.name || "output";
+    const sub = await dirHandle.getDirectoryHandle(base + "_metadata", {create:true});
+    const files = {};
+    for(const r of records){
+      if(!r.filename || !r.title) continue;
+      const v = {
+        title:r.title,
+        keywords:Array.isArray(r.keywords) ? r.keywords : [],
+        category:r.category || "",
+        title_ru:r.title_ru || "",
+        keywords_ru:Array.isArray(r.keywords_ru) ? r.keywords_ru : [],
+        content_type:r.content_type || "photo"
+      };
+      files[r.filename] = v;
+      const ext = (String(r.filename).match(/\.[^.]+$/) || [""])[0].toLowerCase();
+      files[stem(r.filename) + "_meta" + ext] = v;
+    }
+    const json = JSON.stringify({updated:new Date().toISOString(), count:Object.keys(files).length, files}, null, 1);
+    await writeToDir(sub, "metadata-index.json", json);
+    log("Индекс метаданных: " + sub.name + "/metadata-index.json (" + Object.keys(files).length + " файлов)", "батч");
+  }catch(e){
+    log("Не удалось записать metadata-index.json: " + (e && e.message || e), "ошибка");
+  }
+}
+
 async function runEmbed(){
   const entries = fileEntries.filter(e => e.recordId != null);
   if(!entries.length){ elog("Нет записей для вшивки. Сначала сгенерируйте метаданные."); return; }
@@ -3202,6 +3234,7 @@ async function runEmbed(){
     }
 
     $("embed-status").textContent = "Готово: видео и фото записаны в " + (sub ? sub.name : "ZIP");
+    if(sub) await writeMetaIndex();
     elog("===== Окончание вшивки =====");
     elog("Оригиналы не изменены.");
   }finally{

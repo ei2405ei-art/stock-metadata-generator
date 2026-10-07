@@ -21,6 +21,10 @@ OllamaSetup.exe
 # резервные копии восстановления (страховочные слепки файла приложения)
 *.broken-*.html
 
+# runtime-конфиг helper-сервера (путь к рабочей папке пользователя)
+helper/server-config.json
+Генератор для ключевания/helper/server-config.json
+
 # --- остальные приложения из рабочей папки (не публикуются) ---
 cartoon-studio/
 generators-app/
