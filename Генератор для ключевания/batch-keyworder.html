@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Батч-ключеватор — Adobe Stock</title>
+<style>
+:root{
+  --bg:#0a0a0f; --surface:#12121a; --surface2:#1a1a25; --border:#2a2a3a;
+  --text:#e8e8f0; --text2:#8888a0; --accent:#6c5ce7; --accent2:#a29bfe;
+  --green:#00b894; --red:#e17055; --yellow:#fdcb6e; --radius:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.5}
+.app{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:20px;font-weight:700;letter-spacing:-.3px;background:linear-gradient(135deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sub{color:var(--text2);font-size:12px;margin-bottom:16px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:10px}
+code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+::selection{background:var(--accent);color:#fff}
+
+.tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border)}
+.tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit}
+.tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.panel{display:none}
+.panel.active{display:block}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:760px){.grid2,.grid3{grid-template-columns:1fr}}
+
+.btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.g{background:var(--green);border-color:var(--green);color:#04231c;font-weight:600}
+.btn.r{background:var(--red);border-color:var(--red);color:#fff}
+.btn.s{padding:4px 8px;font-size:11px}
+/* Причина ухода в эвристику — прямо под бейджем источника */
+.why{margin-top:4px;font-size:10px;line-height:1.35;color:#e8a33d;
+  max-width:260px;word-break:break-word}
+
+label.f{display:block;font-size:11px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+input[type=text],input[type=password],input[type=number],select,textarea{
+  width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:7px 9px;font-size:12px;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+textarea{resize:vertical;min-height:70px;line-height:1.6}
+.hint{color:var(--text2);font-size:11px;margin-top:5px}
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.badge.green{color:var(--green);border-color:var(--green)}
+.badge.orange{color:var(--yellow);border-color:var(--yellow)}
+.badge.red{color:var(--red);border-color:var(--red)}
+.stat{color:var(--text2);font-size:12px}
+.good{color:var(--green)}
+.bad{color:var(--red)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+.dzone{border:2px dashed var(--border);border-radius:var(--radius);padding:36px 20px;text-align:center;color:var(--text2);cursor:pointer;transition:.15s}
+.dzone:hover,.dzone.dragover{border-color:var(--accent);color:var(--text)}
+.dzone b{color:var(--text)}
+/* Файлы можно бросить в любое место страницы — подсвечиваем окно целиком */
+body.drop-hot::after{content:"Отпустите, чтобы добавить файлы";position:fixed;inset:0;z-index:9999;
+  display:flex;align-items:center;justify-content:center;pointer-events:none;
+  background:rgba(0,0,0,.45);border:3px dashed var(--accent);
+  color:var(--text);font-size:20px;font-weight:600;text-align:center;padding:20px}
+
+.files{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:10px}
+.fcard{background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;gap:8px;padding:8px}
+.fcard.sel{border-color:var(--accent)}
+.fcard.done{border-left:3px solid var(--green)}
+.fcard.err{border-left:3px solid var(--red)}
+.fcard.busy{border-left:3px solid var(--yellow)}
+.fcard .th{width:46px;height:46px;object-fit:cover;border-radius:6px;background:#000;flex:0 0 46px}
+.fcard .meta{min-width:0;flex:1}
+.fcard .nm{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.fcard .tp{font-size:10px;color:var(--accent2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fcard .st{font-size:10px;color:var(--text2)}
+
+.bar{height:6px;background:var(--surface2);border-radius:20px;overflow:hidden;margin:8px 0 4px}
+.bar>i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;padding:7px 6px;color:var(--text2);text-transform:uppercase;font-size:10px;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:7px 6px;border-bottom:1px solid var(--border);vertical-align:top}
+.tw{overflow-x:auto}
+.cellw{max-width:260px;max-height:64px;overflow:auto;white-space:normal;word-break:break-word}
+.num{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;color:var(--text2)}
+
+.log{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:11px;max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--text2)}
+.log b{color:var(--yellow)}
+
+.kwc{display:flex;align-items:center;gap:8px}
+.tag{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;font-size:10px;margin:2px}
+.tag.p{background:rgba(108,92,231,.2);border-color:var(--accent)}
+.tag .rm{cursor:pointer;color:var(--text2);font-size:12px;line-height:1}
+.tag .rm:hover{color:var(--red)}
+.kwbox{max-height:150px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:7px;background:var(--bg)}
+
+.guide{color:var(--text2);font-size:12px}
+.guide h3{color:var(--text);font-size:13px;margin:14px 0 6px}
+.guide ul{margin:0 0 8px 18px}
+.guide li{margin-bottom:4px}
+.guide b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Батч-ключеватор — Adobe Stock</h1>
+  <div class="sub">Пакетная атрибуция до 30 файлов · низкочастотные заголовки и ключи · вшивка метаданных в JPEG / MP4 / MOV без потери качества</div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="main">1 · Файлы и генерация</button>
+    <button class="tab" data-tab="result">2 · Результаты <span id="tabRc" class="badge">0</span></button>
+    <button class="tab" data-tab="embed">3 · Вшивка и экспорт</button>
+    <button class="tab" data-tab="history">История</button>
+<button class="tab" data-tab="guide">Требования</button>
+  </div>
+
+  <!-- ============ TAB 1 ============ -->
+  <div class="panel active" class="panel active" id="tab-main">
+    <div class="card">
+      <div class="dzone" id="dzone">
+        <div><b>Перетащите файлы или папку сюда</b></div>
+        <div style="margin-top:6px">JPG · PNG · WEBP · HEIC · MP4 · MOV — до 30 штук за одну серию</div>
+      </div>
+      <input type="file" id="files" multiple accept="image/*,video/*,.jpg,.jpeg,.png,.webp,.heic,.mp4,.mov,.m4v" hidden>
+      <div class="row" style="margin-top:10px">
+        <button class="btn s" id="add-files">Выбрать файлы</button>
+        <button class="btn s" id="clear-files">Очистить список</button>
+        <button type="button" class="btn s" id="fileCount" title="Показать список загруженных файлов">Файлов: 0 / 30</button>
+      </div>
+      <div class="files" id="files-grid"></div>
+    </div>
+
+    <div class="card">
+      <h2>Провайдер описания кадра</h2>
+      <div class="row" style="margin-bottom:10px">
+        <select id="ai-provider" style="width:auto">
+          <option value="openrouter">OpenRouter (облако)</option>
+          <option value="qwen">Qwen / Model Studio</option>
+          <option value="ollama">Ollama (локально, бесплатно)</option>
+        </select>
+      </div>
+      <div id="or-panel" class="grid2">
+        <div><label class="f">API-ключ OpenRouter</label><input type="password" id="or-key" placeholder="sk-or-v1-…" autocomplete="off"></div>
+        <div><label class="f">Модель</label><input type="text" id="or-model" list="or-models" placeholder="openrouter/free"></div>
+      </div>
+      <div id="qwen-panel" class="grid2" hidden>
+        <div><label class="f">API-ключ Alibaba</label><input type="password" id="qwen-key" placeholder="sk-…" autocomplete="off"></div>
+        <div><label class="f">Модель / базовый адрес</label>
+          <input type="text" id="qwen-model" list="qwen-models" placeholder="qwen3-vl-plus">
+          <input type="text" id="qwen-base" placeholder="https://dashscope-intl.aliyuncs.com/compatible-mode/v1" style="margin-top:6px">
+        </div>
+      </div>
+      <div id="ollama-panel" class="grid2" hidden>
+        <div><label class="f">Адрес Ollama</label><input type="text" id="oll-url" placeholder="http://localhost:11434"></div>
+        <div><label class="f">Модель</label><input type="text" id="oll-model" list="ollama-models" placeholder="qwen2.5vl:3b"></div>
+      </div>
+      <datalist id="or-models">
+        <option value="openrouter/free"><option value="google/gemini-2.5-flash"><option value="qwen/qwen3-vl-30b-a3b-instruct">
+        <option value="qwen/qwen2.5-vl-72b-instruct"><option value="google/gemma-3-27b-it:free">
+      </datalist>
+      <datalist id="qwen-models">
+        <option value="qwen3-vl-plus"><option value="qwen3-vl-flash"><option value="qwen-vl-max"><option value="qwen2.5-vl-72b-instruct">
+      </datalist>
+      <datalist id="ollama-models">
+        <option value="qwen2.5vl:3b"><option value="qwen2.5vl:7b"><option value="qwen3-vl:8b"><option value="moondream">
+      </datalist>
+      <div class="hint" id="prov-hint"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn p" id="batch-btn">Сгенерировать всё</button>
+        <button class="btn s" id="retry-btn" disabled>Повторить упавшие</button>
+        <button class="btn s" id="stop-btn" disabled>Остановить</button>
+      </div>
+      <div class="bar"><i id="bar-fill"></i></div>
+      <div class="row">
+        <span class="stat" id="batch-status">Готов</span>
+        <span class="stat" id="batch-count"></span>
+      </div>
+      <div class="log" id="log" style="margin-top:8px">Лог пуст.</div>
+    </div>
+  </div>
+
+  <!-- ============ TAB 2 ============ -->
+  <div class="panel" class="panel" id="tab-result">
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn s" id="edit-btn" disabled>Редактировать выбранное</button>
+        <button class="btn s" id="save-btn" disabled>Сохранить правки</button>
+        <span class="stat" id="edit-name"></span>
+      </div>
+      <div class="tw">
+        <table id="rt">
+          <thead><tr>
+            <th>Файл</th><th>Title (EN)</th><th>Ключи</th><th>Категория</th><th>RU</th><th>Источник</th><th></th>
+          </tr></thead>
+          <tbody id="rt-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" id="editor" hidden>
+      <h2>Редактор записи</h2>
+      <div class="grid2">
+        <div>
+          <label class="f">Title (EN) — до 70 символов</label>
+          <input type="text" id="e-title" maxlength="120">
+          <div class="hint" id="e-tlen"></div>
+        </div>
+        <div>
+          <label class="f">Title (RU) — до 70 символов</label>
+          <input type="text" id="e-title-ru" maxlength="120">
+          <div class="hint" id="e-tlen-ru"></div>
+        </div>
+      </div>
+      <div class="grid3" style="margin-top:10px">
+        <div><label class="f">Категория Adobe</label><select id="e-cat"></select></div>
+        <div><label class="f">Людей в кадре</label><select id="e-people"><option value="yes">есть</option><option value="no">нет</option></select></div>
+        <div><label class="f">Releases (CSV)</label><select id="e-rel">
+          <option value="none">none</option><option value="model">model</option><option value="property">property</option><option value="model, property">model, property</option>
+        </select></div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="kwc"><label class="f" style="margin:0">Ключевые слова (EN) — порядок = приоритет</label><span class="badge" id="e-kwc">0 / 49</span></div>
+        <div class="kwbox" id="e-kwbox"></div>
+        <textarea id="e-kw" placeholder="по одному ключу в строке или через запятую" style="margin-top:6px"></textarea>
+      </div>
+      <div style="margin-top:10px">
+        <label class="f">Ключевые слова (RU)</label>
+        <textarea id="e-kw-ru" placeholder="по одному ключу в строке или через запятую"></textarea>
+      </div>
+      <div class="hint" id="e-warn"></div>
+    </div>
+  </div>
+
+  <!-- ============ TAB 3 ============ -->
+  <div class="panel" class="panel" id="tab-embed">
+    <div class="card">
+      <h2>Вшивка метаданных в сами файлы</h2>
+      <div class="hint" style="margin-bottom:10px">
+        JPEG: XMP (APP1) + IPTC IIM (APP13) — сегменты данных не трогаются, качество изображения байт-в-байт.<br>
+        MP4/MOV: теги пишутся в moov/udta/meta/ilst — видео не перекодируется. Перед выдачей каждый файл проверяется обратным разбором.
+      </div>
+      <div class="row">
+        <button class="btn" id="pick-dir">Выбрать папку для записи</button>
+        <span class="stat" id="dir-name">Папка не выбрана — будет использован ZIP</span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn g" id="embed-btn">Вшить метаданные</button>
+        <label class="f" style="margin:0;display:flex;align-items:center;gap:6px"><input type="checkbox" id="embed-ru" checked style="width:auto"> вшивать и русские поля</label>
+      </div>
+      <div class="bar"><i id="embed-bar"></i></div>
+      <div class="stat" id="embed-status">Готов</div>
+      <div class="log" id="embed-log" style="margin-top:8px">Лог вшивки пуст.</div>
+    </div>
+
+    <div class="card">
+      <h2>Выгрузка таблиц</h2>
+      <div class="row">
+        <button class="btn s" id="exp-csv">CSV Adobe Stock</button>
+        <button class="btn s" id="exp-csv-full">CSV расширенный (EN+RU)</button>
+        <button class="btn s" id="exp-json">JSON</button>
+        <button class="btn s" id="exp-txt">TXT</button>
+        <button class="btn s" id="exp-keys">Скопировать все ключи</button>
+        <button class="btn s" id="exp-import">Импорт истории из JSON</button>
+        <input type="file" id="import-json" accept=".json" hidden>
+      </div>
+      <div class="hint" style="margin-top:8px">
+        CSV: UTF-8 с BOM, точный заголовок колонок Adobe. JSON хранит историю — импортируйте его в начало новой серии, чтобы ключи не повторялись.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>История серии</h2>
+      <div class="row">
+        <span class="stat" id="hist-stat"></span>
+        <button class="btn s" id="new-series">Новая серия (сбросить историю)</button>
+        <button class="btn s" id="clear-records">Удалить записи (историю оставить)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB 4 ============ -->
+  <div class="panel     <div class="panel" class="panel" id="tab-history">
+      <div class="card">
+        <h2>История генерации</h2>
+        <div class="row"><button class="btn" id="historyClear">Очистить историю</button></div>
+        <div id="historyList" class="grid"></div>
+      </div>
+    </div>
+class="panel" class="panel" id="tab-guide">
+    <h3>Заголовок</h3>
+    <ul>
+      <li>До <b>70 символов</b>, одно предложение, без запятых и спецсимволов. Субъект + действие + окружение.</li>
+      <li>Без брендов, названий техники, имён людей и реальных IP.</li>
+      <li>Каждое значимое слово заголовка дублируется в ключах.</li>
+      <li>Тема из имени файла — обязательная: должна прозвучать в заголовке.</li>
+    </ul>
+    <h3>Ключевые слова</h3>
+    <ul>
+      <li><b>40–49</b> штук (лимит Adobe — 49). Первые 3 — двусловные фразы long-tail, остальные одиночные.</li>
+      <li>Первые 10 — главный субъект, действие, окружение, демография людей.</li>
+      <li>Существительные в единственном числе, глаголы — в инфинитиве.</li>
+      <li>Нет людей → <code>no people</code> + <code>nobody</code>. Есть люди → количество, возраст, пол, роль, эмоция.</li>
+      <li>Никаких брендов, техпараметров камеры и «водяных» слов.</li>
+      <li>Один язык. Один ключ — один раз, без общих корней.</li>
+    </ul>
+    <h3>Запрещено (риск отказа)</h3>
+    <ul>
+      <li>Keyword spam, нерелевантные ключи, повтор ключа дважды.</li>
+      <li>Логотипы, водяные знаки, таймкоды, титры, текст-оверлеи.</li>
+      <li>Имена художников, реальных и вымышленных персонажей, госорганы, новостные события.</li>
+      <li>Апскейл, не-нативное разрешение, log без цветокоррекции.</li>
+      <li>Серии из 10+ похожих кадров — оставляйте 3–5 лучших.</li>
+    </ul>
+    <h3>CSV</h3>
+    <ul>
+      <li>Первая строка строго: <code class="mono">Filename,Title,Keywords,Category,Releases</code></li>
+      <li>UTF-8 (в русском Excel — «CSV UTF-8»), ключи в кавычках, порядок ключей = порядок важности.</li>
+      <li>Отправлять в той же сессии загрузки, что и файлы.</li>
+    </ul>
+    <h3>Видео</h3>
+    <ul>
+      <li>Формат MOV/MP4, 5–60 сек, ProRes или H.264, разрешение нативное.</li>
+      <li>Вертикальное видео → ключи <code>vertical</code> и <code>video</code>.</li>
+      <li>В кадре не должно быть текста, титров, переходов.</li>
+    </ul>
+    <h3>Источник</h3>
+    <ul><li>Сводка из файлов <code>Adobe_Stock_ключевание_гайд.md</code> и <code>Adobe_Stock_чек-лист_перед_загрузкой.md</code>.</li></ul>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   0. КОНСТАНТЫ И СПРАВОЧНИКИ
+   ============================================================ */
+
+const MAX_FILES = 30;
+const TITLE_MAX = 70;
+const KW_MIN = 40;
+const KW_TARGET = 45;
+const KW_MAX = 49;
+const MAX_TOKENS = 3000;
+
+const CATS = [
+  "Animals","Backgrounds","Buildings and architecture","Business","Drinks",
+  "The environment","States of mind","Food","Graphic resources","Hobbies and leisure",
+  "Industry","Landscape","Lifestyle","People","Plants and flowers",
+  "Culture and religion","Science","Social issues","Sports","Technology",
+  "Transport","Travel"
+];
+
+const KW_MODELS = [
+  {provider:"openrouter", model:"openrouter/free"},
+  {provider:"openrouter", model:"google/gemini-2.5-flash"},
+  {provider:"openrouter", model:"qwen/qwen3-vl-30b-a3b-instruct"},
+  {provider:"openrouter", model:"qwen/qwen2.5-vl-72b-instruct"},
+  {provider:"openrouter", model:"google/gemma-3-27b-it:free"},
+    {provider:"together",  model:"meta-llama/Llama-Vision-Free"},
+  {provider:"together",  model:"meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo"},
+  {provider:"together",  model:"google/gemma-3-27b-it"},
+{provider:"qwen",      model:"qwen3-vl-plus"},
+  {provider:"qwen",      model:"qwen3-vl-flash"},
+  {provider:"qwen",      model:"qwen2.5-vl-72b-instruct"},
+  {provider:"ollama",    model:"qwen2.5vl:3b"},
+  {provider:"ollama",    model:"qwen2.5vl:7b"},
+  {provider:"ollama",    model:"qwen3-vl:8b"},
+  {provider:"ollama",    model:"moondream"}
+];
+
+// ЖЁСТКИЙ ЗАПРЕТ: бренды, техника, стоковые штампы, смысловые заготовки
+const STOP_KW = new Set(`
+nikon canon sony fujifilm panasonic olympus pentax hasselblad leica sigma tamron zeiss
+camera lens dslr mirrorless tripod gimbal drone sensor megapixel
+photoshop lightroom capture one illustrator after effects premiere
+iphone android macbook laptop desktop monitor keyboard mouse
+adobe shutterstock getty istock freepik pixabay unsplash pexels alamy depositphotos dreamstime
+stock photo stock image stock footage stock picture stock photography
+lorem ipsum placeholder watermark mockup
+color colour background texture marketing advertising business template banner
+mental health work stress life crisis digital fatigue burnout stress relief self care
+well being work life balance mindfulness productivity success growth innovation synergy
+corporate presentation call to action versatile flexible dynamic
+clip footage render animation motion graphics timelapse slowmo
+portrait vertical horizontal orientation aspect ratio format resolution
+hd fullhd uhd 4k 8k fps frame frames shutter iso aperture exposure tripod
+idea concept emotion feeling slogan message meaning purpose value
+смартфон телефон компьютер ноутбук камера объектив штатив стоковый
+фото фотография изображение картинка видео клип ролик фон текстура
+бизнес маркетинг реклама успех развитие инновация
+природа красота отдых путешествие
+`
+.trim().split(/\s+/));
+
+// ПОНИЖЕННЫЙ ПРИОРИТЕТ: слова огромного объёма. Не выкидываем — ставим в хвост,
+// чтобы первые 10 оставались продающими, но ключ не потерялся совсем.
+const GENERIC_KW = new Set(`
+man woman men women person people boy girl kid child adult guy lady human
+hand hands arm shoulder head face eye hair skin body leg foot finger
+water sky cloud sun moon light dark night day morning evening dusk dawn
+white black red blue green yellow orange purple pink gray grey brown beige
+room street home house city town country landscape air
+food drink fruit vegetable bread cake
+music sound voice noise
+old young happy sad serious calm
+alone together group crowd team family
+love happiness freedom future past
+photo photograph videography cinematography content media
+pattern surface material view scene shot image frame
+quality modern premium professional good bad best top first new
+useful important popular common simple easy
+mood atmosphere vibe aesthetic ambience style energy inspiration story moment
+season winter spring summer autumn fall
+weather rain snow storm wind fog
+`
+.trim().split(/\s+/));
+
+// Слова, которые обязаны быть в ключах по назначению
+const ALWAYS_NO_PEOPLE = ["no people", "nobody"];
+
+// Коммерческая ценность: где и как снимок можно использовать.
+// Добавляются в конец списка, когда модель не добрала до 40 ключей.
+const COMMERCIAL_KW = [
+  "commercial use","advertising material","marketing campaign","web design","website banner",
+  "landing page","hero section","social media post","presentation slide","print advertisement",
+  "poster design","brochure layout","editorial content","blog article","news media",
+  "brand promotion","sales promotion","template design","copy space","text overlay space",
+  "creative project","digital marketing","event promotion","product advertising","visual identity",
+  "content marketing","visual content","campaign creative","advertising background",
+  "website hero","email newsletter","flyer design","packaging design","label design",
+  "annual report","business brochure","trade show","corporate design","stock illustration",
+  "background material","scenic backdrop","promo material","image bank","royalty free"
+];
+const COMMERCIAL_KW_RU = [
+  "коммерческое использование","рекламный материал","маркетинговая кампания","веб-дизайн",
+  "баннер для сайта","первый экран сайта","пост в соцсетях","слайд презентации","печатная реклама",
+  "дизайн плаката","макет буклета","редакционный контент","статья в блог","новостной материал",
+  "продвижение бренда","стимулирование продаж","дизайн шаблона","свободное место",
+  "место для текста","креативный проект","интернет-маркетинг","продвижение события",
+  "реклама товара","визуальный стиль","контент-маркетинг","визуальный контент",
+  "рекламный фон","материал для рассылки","дизайн флаера","дизайн упаковки","дизайн этикетки",
+  "годовой отчёт","корпоративный буклет","выставочный материал","фон для сайта",
+  "иллюстрация для бизнеса","фоновый материал","промо-материал","банк изображений",
+  "свободная лицензия","материал для сайта","дизайн рассылки","презентационный материал"
+];
+
+// Добирает ключи до 40 за счёт коммерческого применения.
+// skip — множество уже использованных в других файлах ключей (lower case),
+// чтобы коммерческие фразы не повторялись от картинки к картинке.
+// Возвращает, что именно добавили.
+function fillCommercial(rec, skip){
+  const used = skip instanceof Set ? skip : new Set();
+  const added = {en:[], ru:[]};
+  const kw = rec.keywords || (rec.keywords = []);
+  if(kw.length < KW_MIN){
+    for(const k of COMMERCIAL_KW){
+      if(kw.length >= KW_MIN) break;
+      if(kw.indexOf(k) === -1 && !used.has(k.toLowerCase())){ kw.push(k); added.en.push(k); }
+    }
+    // если весь пул уже в истории — берём по второму кругу, лучше повтор чем недобор
+    if(kw.length < KW_MIN){
+      for(const k of COMMERCIAL_KW){
+        if(kw.length >= KW_MIN) break;
+        if(kw.indexOf(k) === -1){ kw.push(k); added.en.push(k); }
+      }
+    }
+  }
+  const kr = rec.keywords_ru || (rec.keywords_ru = []);
+  if(kr.length < KW_MIN){
+    for(const k of COMMERCIAL_KW_RU){
+      if(kr.length >= KW_MIN) break;
+      if(kr.indexOf(k) === -1 && !used.has(k.toLowerCase())){ kr.push(k); added.ru.push(k); }
+    }
+    if(kr.length < KW_MIN){
+      for(const k of COMMERCIAL_KW_RU){
+        if(kr.length >= KW_MIN) break;
+        if(kr.indexOf(k) === -1){ kr.push(k); added.ru.push(k); }
+      }
+    }
+  }
+  rec.keyword_count = kw.length;
+  rec.keyword_count_ru = kr.length;
+  return added;
+}
+
+/* ============================================================
+   1. СОСТОЯНИЕ
+   ============================================================ */
+
+let fileEntries = [];        // {id, file, name, ctype, topic, exif, colors, vmeta, thumb, status, error, record}
+let lastSessionResults = [];
+  let records = [];            // метаданные всех работ серии
+let usedKeywords = new Set();
+let usedTitles = [];
+let currentEditId = null;
+let dirHandle = null;
+let batchAbort = false;
+
+const runState = { busy:false, idx:0, done:0, total:0 };
+
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ============================================================
+   2. ХРАНИЛИЩЕ (IndexedDB) — история живет между вкладками
+   ============================================================ */
+
+const DB_NAME = "batch-keyworder";
+const DB_STORE = "kv";
+
+function idbOpen(){
+  return new Promise((res, rej) => {
+    const rq = indexedDB.open(DB_NAME, 1);
+    rq.onupgradeneeded = () => { if(!rq.result.objectStoreNames.contains(DB_STORE)) rq.result.createObjectStore(DB_STORE); };
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+}
+
+async function idbSet(key, val){
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).put(val, key);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+async function idbGet(key){
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const rq = db.transaction(DB_STORE, "readonly").objectStore(DB_STORE).get(key);
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+}
+
+async function idbDel(key){
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).delete(key);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+async function saveHistory(){
+  try{
+    await idbSet("records", records);
+    await idbSet("usedKeywords", Array.from(usedKeywords));
+    await idbSet("usedTitles", usedTitles);
+  }catch(e){ log("Не удалось сохранить историю: " + e.message); }
+}
+
+async function loadHistory(){
+  try{
+    const [rec, kw, ti] = await Promise.all([idbGet("records"), idbGet("usedKeywords"), idbGet("usedTitles")]);
+    records  = Array.isArray(rec) ? rec : [];
+    usedKeywords = new Set(Array.isArray(kw) ? kw : []);
+    usedTitles   = Array.isArray(ti) ? ti : [];
+  }catch(e){ log("История не загружена: " + e.message); }
+  syncFromRecords();
+  updateHistoryUI();
+}
+
+// Приводим used-множества в соответствие с записями (после импорта/загрузки).
+// Историю из IndexedDB не затираем — дополняем её, иначе после перезагрузки
+// страницы ранее использованные ключи и заголовки забываются.
+function syncFromRecords(){
+  const seenKw = new Set(usedKeywords);
+  const seenTi = new Set(usedTitles);
+  for(const r of records){
+    for(const k of (r.keywords||[])) seenKw.add(k.toLowerCase());
+    for(const k of (r.keywords_ru||[])) seenKw.add(k.toLowerCase());
+    if(r.title) seenTi.add(r.title);
+    if(r.title_ru) seenTi.add(r.title_ru);
+  }
+  usedKeywords = seenKw;
+  usedTitles = Array.from(seenTi);
+}
+
+function updateHistoryUI(){
+  $("tabRc").textContent = records.length;
+  $("hist-stat").textContent =
+    "Записей: " + records.length + " · уникальных ключей: " + usedKeywords.size + " · заголовков: " + usedTitles.length;
+  renderResults();
+}
+
+/* ============================================================
+   3. ЛОГ И УТИЛИТЫ
+   ============================================================ */
+
+let logLines = [];
+function log(msg, kind){
+  const stamp = new Date().toLocaleTimeString("ru-RU");
+  const line = "[" + stamp + "] " + (kind ? "[" + kind + "] " : "") + msg;
+  logLines.push(line);
+  if(logLines.length > 400) logLines = logLines.slice(-300);
+  $("log").textContent = logLines.slice(-120).join("\n");
+  $("log").scrollTop = $("log").scrollHeight;
+}
+function logReset(){ logLines = []; $("log").textContent = ""; }
+function elog(msg){ $("embed-log").textContent = ($("embed-log").textContent + msg + "\n").slice(-20000); $("embed-log").scrollTop = $("embed-log").scrollHeight; }
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function debounce(fn, ms){
+  let t;
+  return function(){ const a = arguments; clearTimeout(t); t = setTimeout(() => fn.apply(null, a), ms); };
+}
+
+function stem(name){ return String(name).replace(/\.[^.]+$/, ""); }
+
+function downloadFile(name, content, type){
+  const blob = content instanceof Blob ? content : new Blob([content], {type: type || "text/plain;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
+function csvEscape(v){
+  v = v == null ? "" : String(v);
+  return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+function csvRow(cells){ return cells.map(csvEscape).join(","); }
+
+function shuffle(arr, seed){
+  let a = arr.slice();
+  let s = seed || 12345;
+  const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+  for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+function rootOf(w){
+  return String(w).toLowerCase().length >= 4 ? String(w).toLowerCase().replace(/(ing|ed|es|s)$/, "") : String(w).toLowerCase();
+}
+function sameRoot(a, b){
+  const x = rootOf(a), y = rootOf(b);
+  if(x.length < 4 || y.length < 4) return false;
+  return x === y || x.startsWith(y) || y.startsWith(x);
+}
+
+function normWords(s){
+  return String(s).toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .split(/\s+/)
+    .filter(w => w.length >= 3);
+}
+
+function jaccardTokens(a, b){
+  const A = new Set(normWords(a)), B = new Set(normWords(b));
+  if(!A.size || !B.size) return 0;
+  let inter = 0;
+  for(const w of A) if(B.has(w)) inter++;
+  return inter / (A.size + B.size - inter);
+}
+
+/* ============================================================
+   4. EXIF (только JPEG) — с корректным чтением offset-типов
+   ============================================================ */
+
+function readEXIF(file){
+  return new Promise(resolve => {
+    const done = () => resolve(out);
+    let out = {};
+    const reader = new FileReader();
+    reader.onerror = done;
+    reader.onload = () => {
+      try{ parseEXIF(new DataView(reader.result), out); }catch(e){}
+      done();
+    };
+    if(!file || !/jpe?g$/i.test(file.type || file.name)){
+      if(file && /\.jpe?g$/i.test(file.name)) reader.readAsArrayBuffer(file);
+      else done();
+      return;
+    }
+    reader.readAsArrayBuffer(file.slice(0, 512 * 1024));
+  });
+}
+
+function parseEXIF(dv, out){
+  if(dv.byteLength < 4 || dv.getUint16(0) !== 0xFFD8) return;
+  let off = 2, exifStart = -1;
+  while(off + 4 <= dv.byteLength){
+    if(dv.getUint8(off) !== 0xFF) break;
+    const marker = dv.getUint8(off + 1);
+    if(marker === 0xD8 || marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)){ off += 2; continue; }
+    if(marker === 0xDA || marker === 0xD9) break;
+    const len = dv.getUint16(off + 2);
+    if(len < 2) break;
+    if(marker === 0xE1 && off + 10 <= dv.byteLength){
+      if(dv.getUint32(off + 4) === 0x45786966) exifStart = off + 10;
+    }
+    off += 2 + len;
+  }
+  if(exifStart < 0 || exifStart + 8 > dv.byteLength) return;
+
+  const le = dv.getUint16(exifStart) === 0x4949;
+  const U16 = p => dv.getUint16(p, le);
+  const U32 = p => dv.getUint32(p, le);
+  const tiff = exifStart + (U32(exifStart + 4) & 0xFFFFFFFF);
+  if(tiff + 2 > dv.byteLength) return;
+
+  const TYPE_SIZE = {1:1, 2:1, 3:2, 4:4, 5:8, 6:1, 7:1, 8:2, 9:4, 10:8, 11:4, 12:8};
+
+  function readVal(entryOff, type, count){
+    const size = TYPE_SIZE[type] || 1;
+    const bytes = count * size;
+    let dataOff = entryOff + 8;
+    if(bytes > 4) dataOff = tiff + U32(entryOff + 8);           // ← корректный offset
+    if(dataOff < 0 || dataOff + bytes > dv.byteLength) return null;
+    if(type === 2) return readAscii(dataOff, count);
+    if(type === 3) return Array.from({length: Math.min(count, 4)}, (_, i) => U16(dataOff + i * 2));
+    if(type === 4) return U32(dataOff);
+    if(type === 5 || type === 10){
+      const n = Math.min(count, 3);
+      const num = [], den = [];
+      for(let i = 0; i < n; i++){ num.push(U32(dataOff + i * 8)); den.push(U32(dataOff + i * 8 + 4)); }
+      return {num, den};
+    }
+    if(type === 9 || type === 11) return U32(dataOff);
+    if(type === 1 || type === 6 || type === 7) return dv.getUint8(dataOff);
+    return null;
+  }
+
+  function readAscii(p, count){
+    let s = "";
+    for(let i = 0; i < count; i++){
+      const c = dv.getUint8(p + i);
+      if(c === 0) break;
+      s += String.fromCharCode(c);
+    }
+    return s.trim();
+  }
+
+  function fmtRat(v){
+    if(!v) return null;
+    const n = v.num[0], d = v.den[0];
+    if(!d) return null;
+    const r = n / d;
+    if(r >= 1000) return null;
+    return Math.round(r * 100) / 100;
+  }
+
+  function readIFD(ifdOff, tagMap, depth){
+    if(depth > 3 || ifdOff + 2 > dv.byteLength) return;
+    const n = U16(ifdOff);
+    for(let i = 0; i < n; i++){
+      const e = ifdOff + 2 + i * 12;
+      if(e + 12 > dv.byteLength) return;
+      const tag = U16(e), type = U16(e + 2), count = U32(e + 4);
+      if(tag === 0x8769 && type === 4){ readIFD(tiff + U32(e + 8), tagMap, depth + 1); continue; }
+      if(tag === 0x8825 && type === 4){ readIFD(tiff + U32(e + 8), tagMap, depth + 1); continue; }
+      const name = tagMap[tag];
+      if(!name || out[name] != null) continue;
+      const v = readVal(e, type, count);
+      if(v == null || v === "") continue;
+      out[name] = v;
+    }
+  }
+
+  const IFD0 = {0x010F:"make", 0x0110:"model", 0x9003:"dateTimeOriginal", 0x9004:"dateTimeDigitized", 0x0132:"dateTime",
+                0x8827:"iso", 0x829D:"fnumber", 0x829A:"exposure", 0x920A:"focalLength",
+                0xA002:"pixelX", 0xA003:"pixelY", 0x0100:"width", 0x0101:"height", 0x0112:"orientation"};
+  const SUB = {0x9003:"dateTimeOriginal", 0x9004:"dateTimeDigitized", 0x0132:"dateTime", 0x8827:"iso", 0x829D:"fnumber",
+               0x829A:"exposure", 0x920A:"focalLength", 0xA002:"pixelX", 0xA003:"pixelY"};
+  const GPS = {0x0001:"latRef", 0x0002:"latVal", 0x0003:"lonRef", 0x0004:"lonVal"};
+
+  readIFD(tiff, IFD0, 0);
+  // GPS отдельно
+  const n0 = U16(tiff);
+  for(let i = 0; i < n0; i++){
+    const e = tiff + 2 + i * 12;
+    if(e + 12 > dv.byteLength) break;
+    if(U16(e) === 0x8825 && U16(e + 2) === 4){ readIFD(tiff + U32(e + 8), GPS, 1); break; }
+  }
+  readIFD(tiff, SUB, 0);
+
+  const clean = s => String(s || "").replace(/\0/g, "").trim();
+  const res = {};
+  res.make = clean(out.make); res.model = clean(out.model);
+  res.date = clean(out.dateTimeOriginal || out.dateTimeDigitized || out.dateTime);
+  res.iso = out.iso || null;
+  res.fnumber = typeof out.fnumber === "number" ? out.fnumber : fmtRat(out.fnumber);
+  res.exposure = typeof out.exposure === "number" ? out.exposure : fmtRat(out.exposure);
+  res.focal = typeof out.focalLength === "number" ? out.focalLength : fmtRat(out.focalLength);
+  res.width = out.pixelX || out.width || null;
+  res.height = out.pixelY || out.height || null;
+  res.orientation = out.orientation || 1;
+  if(out.latVal && out.lonVal){
+    const lat = (out.latVal.num[0] / out.latVal.den[0]) + (out.latVal.num[1] / out.latVal.den[1] / 60) + (out.latVal.num[2] / out.latVal.den[2] / 3600);
+    const lon = (out.lonVal.num[0] / out.lonVal.den[0]) + (out.lonVal.num[1] / out.lonVal.den[1] / 60) + (out.lonVal.num[2] / out.lonVal.den[2] / 3600);
+    if(isFinite(lat) && isFinite(lon)){
+      res.lat = Math.round((out.latRef === "S" ? -lat : lat) * 1e6) / 1e6;
+      res.lon = Math.round((out.lonRef === "W" ? -lon : lon) * 1e6) / 1e6;
+    }
+  }
+  for(const k of ["make","model","date"]){ if(res[k] && /[\ufffd]/.test(res[k])) res[k] = ""; }
+  Object.assign(out, res);
+  return out;
+}
+
+/* ============================================================
+   5. ЦВЕТА И МЕТАДАННЫЕ ВИДЕО
+   ============================================================ */
+
+const COLOR_NAMES = [
+  ["black","#0b0b0d"],["charcoal","#3a3a40"],["grey","#8b8b93"],["silver","#c9ccd1"],["white","#f4f5f2"],
+  ["cream","#f2e8d5"],["beige","#e2d3b7"],["tan","#c8a26a"],["brown","#6d4a2f"],["chocolate","#4a2f1e"],
+  ["red","#c0272d"],["burgundy","#6b1f2a"],["maroon","#7b2233"],["pink","#e39ab0"],["rose","#d98a92"],
+  ["coral","#ef7f6d"],["orange","#e8873a"],["peach","#f2b48c"],["yellow","#e8c33a"],["gold","#d4a83c"],
+  ["olive","#7a7c33"],["green","#3f8f52"],["emerald","#1f8f6b"],["teal","#2b7f80"],["turquoise","#3fbfc4"],
+  ["cyan","#63c9d6"],["blue","#2f5fa8"],["navy","#1c2f52"],["azure","#5b8fd6"],["indigo","#3a3a8c"],
+  ["violet","#7a5cb8"],["purple","#6b3f9e"],["lavender","#b3a4dd"],["magenta","#c33f9e"]
+];
+
+function getColors(file){
+  return new Promise(resolve => {
+    if(!/^image\//.test(file.type || "")) return resolve([]);
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    let settled = false;
+    const finish = v => { if(settled) return; settled = true; URL.revokeObjectURL(url); resolve(v); };
+    img.onload = () => {
+      try{
+        const S = 80;
+        const cv = document.createElement("canvas");
+        cv.width = S; cv.height = S;
+        const ctx = cv.getContext("2d", {willReadFrequently:true});
+        ctx.drawImage(img, 0, 0, S, S);
+        const px = ctx.getImageData(0, 0, S, S).data;
+        const buckets = new Map();
+        for(let i = 0; i < px.length; i += 4){
+          if(px[i + 3] < 125) continue;
+          const r = px[i], g = px[i + 1], b = px[i + 2];
+          const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+          if(mx > 244 && mn > 236) continue;           // белый фон — не цвет сюжета
+          const key = (Math.round(r / 40) * 40) + "," + (Math.round(g / 40) * 40) + "," + (Math.round(b / 40) * 40);
+          buckets.set(key, (buckets.get(key) || 0) + 1);
+        }
+        const top = Array.from(buckets.entries()).sort((a, b) => b[1] - a[1]).slice(0, 4);
+        const names = [];
+        for(const [key] of top){
+          const [r, g, b] = key.split(",").map(Number);
+          let best = null, bd = Infinity;
+          for(const [name, hex] of COLOR_NAMES){
+            const h = hex.replace("#", "");
+            const rr = parseInt(h.slice(0,2),16), gg = parseInt(h.slice(2,4),16), bb = parseInt(h.slice(4,6),16);
+            const d = (r-rr)**2 + (g-gg)**2 + (b-bb)**2;
+            if(d < bd){ bd = d; best = name; }
+          }
+          if(best && !names.includes(best)) names.push(best);
+          if(names.length >= 3) break;
+        }
+        finish(names);
+      }catch(e){ finish([]); }
+    };
+    img.onerror = () => finish([]);
+    setTimeout(() => finish([]), 12000);
+    img.src = url;
+  });
+}
+
+function getVideoMeta(file){
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    let settled = false;
+    const finish = o => { if(settled) return; settled = true; URL.revokeObjectURL(url); v.removeAttribute("src"); resolve(o); };
+    v.preload = "metadata"; v.muted = true;
+    v.onloadedmetadata = () => finish({duration: isFinite(v.duration) ? v.duration : null, vw: v.videoWidth, vh: v.videoHeight});
+    v.onerror = () => finish({});
+    setTimeout(() => finish({}), 12000);
+    v.src = url;
+  });
+}
+
+/* ============================================================
+   6. КАДРЫ ИЗ ВИДЕО
+   ============================================================ */
+
+function getVideoFrames(file, n){
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    v.preload = "auto"; v.muted = true; v.playsInline = true;
+    const frames = [];
+    let idx = 0, done = false;
+    const total = Math.max(45000, 20000);
+
+    const cleanup = () => { try{ v.pause(); }catch(e){} v.removeAttribute("src"); URL.revokeObjectURL(url); };
+
+    function shot(){
+      try{
+        const cv = document.createElement("canvas");
+        const scale = Math.min(1, 1024 / Math.max(v.videoWidth, v.videoHeight));
+        cv.width = Math.max(1, Math.round(v.videoWidth * scale));
+        cv.height = Math.max(1, Math.round(v.videoHeight * scale));
+        cv.getContext("2d").drawImage(v, 0, 0, cv.width, cv.height);
+        frames.push(cv.toDataURL("image/jpeg", 0.8));
+      }catch(e){}
+    }
+
+    function next(){
+      if(done) return;
+      if(idx >= n){ done = true; cleanup(); return resolve(frames); }
+      idx++;
+      if(idx === 1) return shot();                              // первый кадр без перемотки
+      const dur = isFinite(v.duration) && v.duration > 0 ? v.duration : 60;
+      v.currentTime = dur * (idx === 2 ? 0.25 : 0.75);
+    }
+
+    v.onseeked = () => { shot(); next(); };
+    v.onloadeddata = () => {
+      let tries = 0;
+      const retry = () => {
+        if(done) return;
+        if(v.videoWidth > 0){ shot(); next(); return; }
+        if(++tries > 30){ done = true; cleanup(); return resolve(frames); }
+        setTimeout(retry, 200);
+      };
+      retry();
+    };
+    v.onerror = () => { done = true; cleanup(); resolve(frames); };
+    setTimeout(() => { if(!done){ done = true; cleanup(); resolve(frames); } }, total);
+    v.src = url;
+  });
+}
+
+function resizeToDataURL(file, maxSize){
+  return new Promise(resolve => {
+    // Отсекаем только явное «не изображение». HEIC/TIFF часто приходят с пустым
+    // mime-типом — раньше такой файл молча уходил в эвристику без кадра.
+    if(isVideoFile(file)) return resolve(null);
+    if(file.type && !/^image\//.test(file.type)) return resolve(null);
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    let settled = false;
+    const finish = v => { if(settled) return; settled = true; URL.revokeObjectURL(url); resolve(v); };
+    img.onload = () => {
+      try{
+        const scale = Math.min(1, maxSize / Math.max(img.naturalWidth, img.naturalHeight));
+        const cv = document.createElement("canvas");
+        cv.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        cv.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+        finish(cv.toDataURL("image/jpeg", 0.85));
+      }catch(e){ finish(null); }
+    };
+    img.onerror = () => finish(null);
+    setTimeout(() => finish(null), 20000);
+    img.src = url;
+  });
+}
+
+function makeThumb(file){
+  return new Promise(resolve => {
+    // По расширению, а не по mime: перетащенный MOV/HEIC часто приходит без типа.
+    if(isVideoFile(file)){
+      const url = URL.createObjectURL(file);
+      const v = document.createElement("video");
+      v.preload = "metadata"; v.muted = true;
+      let settled = false;
+      const finish = d => { if(settled) return; settled = true; URL.revokeObjectURL(url); v.removeAttribute("src"); resolve(d); };
+      v.onloadeddata = () => {
+        try{
+          const cv = document.createElement("canvas");
+          const scale = 92 / Math.max(v.videoWidth, v.videoHeight);
+          cv.width = Math.max(1, Math.round(v.videoWidth * scale));
+          cv.height = Math.max(1, Math.round(v.videoHeight * scale));
+          cv.getContext("2d").drawImage(v, 0, 0, cv.width, cv.height);
+          finish(cv.toDataURL("image/jpeg", 0.6));
+        }catch(e){ finish(null); }
+      };
+      v.onerror = () => finish(null);
+      setTimeout(() => finish(null), 8000);
+      v.src = url;
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    let settled = false;
+    const finish = d => { if(settled) return; settled = true; URL.revokeObjectURL(url); resolve(d); };
+    img.onload = () => {
+      try{
+        const cv = document.createElement("canvas");
+        const scale = 92 / Math.max(img.naturalWidth, img.naturalHeight);
+        cv.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        cv.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+        finish(cv.toDataURL("image/jpeg", 0.6));
+      }catch(e){ finish(null); }
+    };
+    img.onerror = () => finish(null);
+    setTimeout(() => finish(null), 10000);
+    img.src = url;
+  });
+}
+
+/* ============================================================
+   7. ТЕМА ИЗ ИМЕНИ ФАЙЛА
+   ============================================================ */
+
+// Технический мусор, который встречается в именах съёмки
+const JUNK_PARTS = new Set(`
+dsc dscn dsck img image images pic pics photo photos foto fot final finals render renders
+raw dng cr2 cr3 nef arw orf rw2 raf srw pef heic heif jpg jpeg png webp mp4 mov m4v mkv
+v1 v2 v3 v01 v02 version edit edited export exports copy copy1 new old temp tmp untitled
+hdr pjpeg preview thumb a0001 e0001 dji gimbal cam gopro drone osmo
+pxl pxl2023 vid vid1 vid2 clip1 tak1 roll
+x264 h264 4k 8k uhd hd fhd 4k25 30fps 60fps 10s 15s 20s 30s
+plus color corrected graded final2 finalcopy a b c untitled1 test tests
+`
+.trim().split(/\s+/));
+
+function parseFilename(name){
+  const st = stem(name).toLowerCase().replace(/\s+/g, "-");
+  const raw = st.split(/[-_.+\s]+/).filter(Boolean);
+  const words = [];
+  for(const p of raw){
+    if(p.length <= 1) continue;
+    if(/^\d+$/.test(p)) continue;
+    if(JUNK_PARTS.has(p)) continue;
+    if(/^\d{4,}$/.test(p)) continue;
+    if(/^[a-z]\d+$/.test(p)) continue;
+    words.push(p);
+  }
+  return words;
+}
+
+// Основная тема: первые 2-3 значимых слова имени файла
+function topicFromName(name){
+  const words = parseFilename(name);
+  if(!words.length) return "";
+  return words.slice(0, 3).join(" ");
+}
+
+function topicKeywords(topic){
+  if(!topic) return [];
+  return String(topic).toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+}
+
+/* ============================================================
+   8. ИМПОРТ ФАЙЛОВ
+   ============================================================ */
+
+const IMAGE_EXT = /\.(jpe?g|png|webp|heic|heif|avif|tiff?|bmp|gif)$/i;
+const VIDEO_EXT = /\.(mp4|mov|m4v|mpe?g|webm)$/i;
+
+function isVideoFile(f){ return /^video\//.test(f.type || "") || VIDEO_EXT.test(f.name || ""); }
+function isImageFile(f){ return /^image\//.test(f.type || "") || IMAGE_EXT.test(f.name || ""); }
+function isMediaFile(f){
+  if(!f || typeof f.name !== "string") return false;
+  return isImageFile(f) || isVideoFile(f);
+}
+
+let uid = 1;
+
+async function handleFiles(fileList){
+  const incoming = Array.from(fileList || []);
+  if(!incoming.length) return;
+
+  const free = MAX_FILES - fileEntries.length;
+  if(free <= 0){
+    log("Достигнут лимит " + MAX_FILES + " файлов. Очистите список или начните новую серию.", "лимит");
+    alert("Максимум " + MAX_FILES + " файлов за серию. Очистите список, чтобы добавить новые.");
+    return;
+  }
+  const usable = incoming.filter(isMediaFile);
+  const skipped = incoming.length - usable.length;
+  if(skipped > 0) log("Пропущено неподдерживаемых файлов: " + skipped, "файлы");
+  if(!usable.length) return;
+
+  let batch = usable;
+  if(batch.length > free){
+    const dropped = batch.length - free;
+    batch = batch.slice(0, free);
+    log("Добавлены первые " + free + " файлов, " + dropped + " отброшено (лимит " + MAX_FILES + ").", "лимит");
+  }
+
+  let failed = 0;
+  for(const f of batch){
+    const entry = {
+      id: uid++,
+      file: f,
+      name: f.name,
+      size: f.size,
+      ctype: isVideoFile(f) ? "video" : "photo",
+      topic: topicFromName(f.name),
+      exif: null, colors: [], vmeta: null, thumb: null,
+      status: "wait",   // wait | busy | done | err
+      error: "",
+      recordId: null
+    };
+    fileEntries.push(entry);
+    renderFiles();
+    setStatus("Анализ: " + f.name);
+    // один битый файл не должен обрывать всю загрузку
+    try{
+      entry.exif = await readEXIF(f);
+      entry.colors = await getColors(f);
+      if(entry.ctype === "video") entry.vmeta = await getVideoMeta(f);
+      entry.thumb = await makeThumb(f);
+    }catch(err){
+      failed++;
+      entry.error = "не удалось прочитать метаданные: " + (err && err.message ? err.message : err);
+      log("[" + f.name + "] " + entry.error + " — файл оставлен в списке", "файлы");
+    }
+    renderFiles();
+  }
+  renderFiles();
+  setStatus("Готов к генерации");
+  log("Файлов в списке: " + fileEntries.length + " / " + MAX_FILES +
+      (failed ? ", с ошибками чтения: " + failed : ""), "файлы");
+}
+
+function removeFile(id){
+  fileEntries = fileEntries.filter(e => e.id !== id);
+  if(currentEditId != null && !fileEntries.some(e => e.id === currentEditId)) clearEditor();
+  renderFiles();
+}
+
+function clearFiles(){
+  fileEntries = [];
+  clearEditor();
+  renderFiles();
+  setStatus("Готов");
+}
+
+function entryStatusClass(e){
+  if(e.status === "done") return "done";
+  if(e.status === "err") return "err";
+  if(e.status === "busy") return "busy";
+  return "";
+}
+
+function renderFiles(){
+  const grid = $("files-grid");
+  grid.innerHTML = "";
+  for(const e of fileEntries){
+    const card = document.createElement("div");
+    card.className = "fcard " + entryStatusClass(e) + (currentEditId === e.id ? " sel" : "");
+    card.dataset.id = e.id;
+
+    if(e.thumb){
+      const img = document.createElement("img");
+      img.className = "th"; img.src = e.thumb; img.alt = e.name;
+      card.appendChild(img);
+    }else{
+      const ph = document.createElement("div");
+      ph.className = "th"; ph.style.display = "flex"; ph.style.alignItems = "center";
+      ph.style.justifyContent = "center"; ph.style.color = "var(--text2)";
+      ph.textContent = e.ctype === "video" ? "▶" : "…";
+      card.appendChild(ph);
+    }
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+
+    const nm = document.createElement("div");
+    nm.className = "nm"; nm.textContent = e.name; nm.title = e.name;
+    nm.onclick = () => { switchTab("result"); openEditor(e.recordId != null ? e.recordId : null); };
+    meta.appendChild(nm);
+
+    if(e.topic){
+      const tp = document.createElement("div");
+      tp.className = "tp"; tp.textContent = "тема: " + e.topic; tp.title = "Тема из имени файла";
+      meta.appendChild(tp);
+    }
+
+    const st = document.createElement("div");
+    st.className = "st";
+    st.textContent =
+      (e.status === "wait") ? (e.ctype === "video" ? "видео · ждёт" : "фото · ждёт") :
+      (e.status === "busy") ? "описание кадра…" :
+      (e.status === "done") ? "готово" :
+      ("ошибка: " + e.error);
+    if(e.status === "done" && e.recordId != null){
+      const r = recordById(e.recordId);
+      if(r) st.textContent = "готово · " + (r.keywords || []).length + " ключей";
+    }
+    meta.appendChild(st);
+
+    const rm = document.createElement("button");
+    rm.className = "btn s"; rm.textContent = "×"; rm.style.padding = "1px 6px";
+    rm.onclick = ev => { ev.stopPropagation(); removeFile(e.id); };
+    meta.appendChild(rm);
+
+    card.appendChild(meta);
+    grid.appendChild(card);
+  }
+  $("fileCount").textContent = "Файлов: " + fileEntries.length + " / " + MAX_FILES;
+  const has = fileEntries.length > 0;
+  $("batch-btn").disabled = !has || runState.busy;
+  $("retry-btn").disabled = !fileEntries.some(e => e.status === "err") || runState.busy;
+  updateProviderBtns();
+}
+
+function setStatus(t){ $("batch-status").textContent = t; }
+function setBar(p){ $("bar-fill").style.width = Math.max(0, Math.min(100, p)) + "%"; }
+
+/* ============================================================
+   9. ПРОВАЙДЕРЫ
+   ============================================================ */
+
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? (d || "") : v; }catch(e){ return d || ""; } },
+  set(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+};
+
+function readCfg(){
+  const provider = $("ai-provider").value;
+  if(provider === "ollama"){
+    const url = $("oll-url").value.trim().replace(/\/+$/, "") || "http://localhost:11434";
+    const model = $("oll-model").value.trim();
+    if(!model) return {ok:false, err:"Укажите модель Ollama, например qwen2.5vl:3b (ollama pull qwen2.5vl:3b)"};
+    store.set("oll_url", url); store.set("oll_model", model);
+    return {ok:true, provider, url, model};
+  }
+  if(provider === "qwen"){
+    const key = $("qwen-key").value.trim();
+    const model = $("qwen-model").value.trim();
+    let base = $("qwen-base").value.trim() || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
+    base = base.replace(/\/+$/, "");
+    if(!key) return {ok:false, err:"Нужен ключ Alibaba Cloud Model Studio (DashScope) API key (sk-...). Бесплатная квота доступна новым аккаунтам.в. DeepSeek не подходит: нет vision-моделей в публичном API.",
+    ollama: "Локально и бесплатно. Нужна переменная OLLAMA_ORIGINS=* и перезапуск Ollama. На CPU один файл 2–4 минуты."
+  };
+  $("prov-hint").textContent = hints[p] || "";
+}
+
+function updateProviderBtns(){
+  const hasFiles = fileEntries.some(e => e.status !== "done");
+  $("batch-btn").disabled = runState.busy || !fileEntries.length;
+  $("batch-btn").textContent = runState.busy ? "Идёт генерация…" :
+    (fileEntries.length === MAX_FILES ? "Сгенерировать 30 файлов" : "Сгенерировать всё");
+  $("add-files").disabled = fileEntries.length >= MAX_FILES;
+  if(!runState.busy && !hasFiles && fileEntries.length) $("batch-btn").disabled = true;
+}
+
+function initDropzone(){
+  const dz = $("dzone"), fi = $("files");
+  if(!dz || !fi) return;
+  dz.onclick = () => fi.click();
+  $("add-files").onclick = () => fi.click();
+  fi.onchange = () => { handleFiles(fi.files); fi.value = ""; };
+
+  // Кнопка-счётчик не декоративная: показывает, сколько файлов в списке,
+  // и по клику переводит на список файлов.
+  const cnt = $("fileCount");
+  if(cnt) cnt.onclick = () => {
+    switchTab("files");
+    const grid = $("files-grid");
+    if(grid && grid.scrollIntoView) grid.scrollIntoView({behavior:"smooth", block:"center"});
+  };
+
+  // Без preventDefault браузер открывает перетащенный файл вместо страницы.
+  // Обработчик вешаем на window, а не только на #dzone: сброс в любое другое
+  // место страницы тоже должен грузить файлы, иначе он просто молча пропадает.
+  let depth = 0;
+  const hot = on => {
+    depth = on ? depth + 1 : depth - 1;
+    if(depth < 0) depth = 0;
+    dz.classList.toggle("dragover", depth > 0);
+    document.body.classList.toggle("drop-hot", depth > 0);
+  };
+
+  window.addEventListener("dragenter", e => {
+    if(!hasFiles(e)) return;
+    e.preventDefault();
+    hot(true);
+  });
+  window.addEventListener("dragover", e => {
+    if(!hasFiles(e)) return;
+    e.preventDefault();
+    if(e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    if(depth <= 0) hot(true);
+  });
+  window.addEventListener("dragleave", e => {
+    if(e.relatedTarget) return;                 // курсор ещё внутри окна
+    hot(false); depth = 0;
+    dz.classList.remove("dragover");
+    document.body.classList.remove("drop-hot");
+  });
+  window.addEventListener("dragend", () => {
+    depth = 0;
+    dz.classList.remove("dragover");
+    document.body.classList.remove("drop-hot");
+  });
+  window.addEventListener("drop", async e => {
+    if(!hasFiles(e)) return;                    // перетаскивали текст — не мешаем
+    e.preventDefault();
+    depth = 0;
+    dz.classList.remove("dragover");
+    document.body.classList.remove("drop-hot");
+    const dt = e.dataTransfer;
+    if(!dt) return;
+    const media = await filesFromDrop(dt);
+    if(!media.length){
+      log("В перетаскивании не нашлось подходящих файлов. Поддерживаются JPG, PNG, WEBP, HEIC, TIFF, MP4, MOV, WEBM.", "файлы");
+      setStatus("Подходящих файлов не найдено");
+      return;
+    }
+    handleFiles(media);
+  });
+
+  // Подсветка самой зоны — тот же счётчик, но без повторной загрузки:
+  // drop перехватывается на window, событие всплывает сюда же.
+  dz.addEventListener("dragenter", e => { if(hasFiles(e)) e.preventDefault(); });
+  dz.addEventListener("dragover", e => { if(hasFiles(e)) e.preventDefault(); });
+}
+
+// В DragEvent с данными перетаскивания types содержит "Files".
+// В синтетических событиях types может отсутствовать — тогда считаем,
+// что файлы есть, иначе тест-окружение и старые браузеры молча ничего не грузят.
+function hasFiles(e){
+  const t = e && e.dataTransfer && e.dataTransfer.types;
+  if(!t) return true;
+  const list = Array.from(t);
+  if(!list.length) return true;
+  return list.some(x => /^(Files|file)$/i.test(x));
+}
+
+// Файлы из drop-события. Сначала пробуем entry API — он нужен для папок.
+// Если он недоступен или ничего не вернул, берём прямой список files.
+async function filesFromDrop(dt){
+  // Список перетаскивания «обнуляется», как только обработчик drop отдаст управление
+  // в await: и items, и files после этого отдают пустоту. Поэтому записи запрашиваем
+  // синхронно, целиком, а обходить уже полученные записи можно позже.
+  // Раньше getAsEntry() вызывался по одной записи после await, и из пачки файлов
+  // доходил только первый — остальные молча терялись.
+  const rawFiles = Array.from(dt.files || []);
+  const entries = [];
+  for(const it of Array.from(dt.items || [])){
+    if(it.kind && it.kind !== "file") continue;
+    try{
+      const get = it.getAsEntry || it.webkitGetAsEntry;
+      const en = get ? get.call(it) : null;
+      if(en) entries.push(en);
+    }catch(e){
+      log("Запись из перетаскивания пропущена: " + (e && e.message ? e.message : e), "файлы");
+    }
+  }
+  const list = [];
+  for(const en of entries){
+    try{ await collectEntry(en, list); }      // битая запись не должна сбрасывать остальные
+    catch(e){ log("Запись из перетаскивания пропущена: " + (e && e.message ? e.message : e), "файлы"); }
+  }
+  if(!list.length){
+    // перетащенная папка без поддержки entry API приходит одним File без расширения — отсечём
+    return rawFiles.filter(isMediaFile);
+  }
+  return list;
+}
+
+function collectEntry(entry, out){
+  return new Promise(resolve => {
+    let done = false;
+    const finish = () => { if(!done){ done = true; resolve(); } };
+    if(!entry){ finish(); return; }
+    if(entry.isFile){
+      entry.file(f => { if(f) out.push(f); finish(); }, finish);
+      return;
+    }
+    if(entry.isDirectory){
+      const reader = entry.createReader();
+      const readAll = () => reader.readEntries(async batch => {
+        if(!batch.length){ finish(); return; }
+        for(const e of batch){
+          try{ await collectEntry(e, out); }
+          catch(err){ log("Файл внутри папки пропущен: " + err.message, "файлы"); }
+        }
+        readAll();
+      }, finish);
+      readAll();
+      return;
+    }
+    finish();
+  });
+}
+
+async function pickDir(){
+  if(!window.showDirectoryPicker){
+    $("dir-name").textContent = "Браузер не поддерживает запись в папку — будет использован ZIP";
+    return;
+  }
+  try{
+    dirHandle = await window.showDirectoryPicker({mode:"readwrite"});
+    $("dir-name").textContent = "Папка: " + dirHandle.name + " → подпапка " + dirHandle.name + "_metadata";
+  }catch(e){
+    dirHandle = null;
+    $("dir-name").textContent = "Папка не выбрана — будет использован ZIP";
+  }
+}
+
+function initEvents(){
+  document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+
+  $("clear-files").onclick = () => { if(confirm("Очистить список файлов? Записи метаданных сохранятся.")) clearFiles(); };
+  $("batch-btn").onclick = startBatch;
+  $("retry-btn").onclick = retryFailed;
+  $("stop-btn").onclick = () => { batchAbort = true; $("stop-btn").disabled = true; };
+
+  $("ai-provider").onchange = applyProviderUI;
+  $("edit-btn").onclick = () => openEditor(records.length ? records[0].id : null);
+  $("save-btn").onclick = saveEditor;
+
+  $("e-title").oninput = () => { updTitleLen(); const r = recordById(currentEditId); if(r){ r.title = $("e-title").value; } };
+  $("e-title-ru").oninput = () => { updTitleLen(); const r = recordById(currentEditId); if(r){ r.title_ru = $("e-title-ru").value; } };
+  $("e-kw").oninput = () => {
+    updKwCount();
+    const r = recordById(currentEditId);
+    if(r){
+      r.keywords = parseKwBox($("e-kw").value);
+      r.keyword_count = r.keywords.length;
+      renderKwTags(r);
+    }
+  };
+  $("e-kw-ru").oninput = () => {
+    const r = recordById(currentEditId);
+    if(r){ r.keywords_ru = parseKwBox($("e-kw-ru").value); r.keyword_count_ru = r.keywords_ru.length; }
+  };
+
+  $("pick-dir").onclick = pickDir;
+  $("embed-btn").onclick = runEmbed;
+  $("exp-csv").onclick = () => exportCsv(false);
+  $("exp-csv-full").onclick = () => exportCsv(true);
+  $("exp-json").onclick = exportJson;
+  $("exp-txt").onclick = exportTxt;
+  $("exp-keys").onclick = copyAllKeys;
+  $("exp-import").onclick = () => $("import-json").click();
+  $("import-json").onchange = e => { if(e.target.files[0]) importHistory(e.target.files[0]); e.target.value = ""; };
+
+  $("new-series").onclick = async () => {
+    if(!confirm("Начать новую серию? История ключей и заголовков будет сброшена, записи останутся.")) return;
+    usedKeywords = new Set();
+    usedTitles = [];
+    records = [];
+    fileEntries = [];
+    renderFiles();
+    clearEditor();
+    await Promise.all([idbDel("usedKeywords"), idbDel("usedTitles"), idbDel("records")]);
+    await saveHistory();
+    updateHistoryUI();
+    log("Новая серия — история очищена", "серия");
+  };
+  $("clear-records").onclick = async () => {
+    if(!confirm("Удалить все записи метаданных? История ключей останется.")) return;
+    records = [];
+    clearEditor();
+    fileEntries.forEach(e => { e.recordId = null; e.status = "wait"; });
+    renderFiles();
+    await saveHistory();
+    updateHistoryUI();
+  };
+
+  // восстановление настроек
+  $("ai-provider").value = store.get("ai_provider", "openrouter");
+  $("or-key").value = store.get("or_key", "");
+  $("or-model").value = store.get("or_model", "openrouter/free");
+  $("qwen-key").value = store.get("qwen_key", "");
+  $("qwen-model").value = store.get("qwen_model", "qwen3-vl-plus");
+  $("qwen-base").value = store.get("qwen_base", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1");
+  $("oll-url").value = store.get("oll_url", "http://localhost:11434");
+  $("oll-model").value = store.get("oll_model", "qwen2.5vl:3b");
+
+  CATS.forEach(c => {
+    const o = document.createElement("option");
+    o.value = c; o.textContent = c;
+    $("e-cat").appendChild(o);
+  });
+
+  applyProviderUI();
+  renderFiles();
+  updateResults();
+  updateExportBtns();
+  setStatus("Готов");
+}
+
+function withTimeout(promise, ms, what){
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_, rej) => setTimeout(
+      () => rej(new Error(what + ": превышено время ожидания " + ms + " мс")), ms))
+  ]);
+}
+
+// Зону загрузки поднимаем сразу, не дожидаясь истории из IndexedDB:
+// иначе при ошибке или зависании базы перетаскивание не сработает вовсе.
+initDropzone();
+
+document.addEventListener("DOMContentLoaded", () => {
+  // Интерфейс поднимаем первым и независимо от истории. Раньше initEvents() стоял
+  // после await loadHistory(), и на file:// (где IndexedDB недоступна) ожидание базы
+  // не давало запуститься ни кнопке генерации, ни счётчику файлов — весь интерфейс
+  // выглядел «сломанным».
+  initEvents();
+
+  // История — необязательный шаг: подгружаем её отдельно и ограничиваем по времени,
+  // чтобы медленная база не блокировала работу.
+  (async () => {
+    try{
+      await withTimeout(loadHistory(), 5000, "загрузка истории");
+      renderFiles();
+      updateResults();
+      updateExportBtns();
+      log("История серии загружена: записей " + records.length + ", ключей " + usedKeywords.size, "старт");
+    }catch(e){
+      log("История серии не загружена, работа продолжается: " + (e && e.message ? e.message : e), "ошибка");
+    }
+  })();
+});
+</script>
+</body>
+</html>
+
+function renderHistory(){
+  const list = document.getElementById('historyList');
+  if(!list) return;
+  if(!historySessions || historySessions.length===0){ list.innerHTML='<div class="muted">Пусто</div>'; return; }
+  list.innerHTML='';
+  for(const ses of historySessions){
+    const card=document.createElement('div');
+    card.className='card';
+    const d=new Date(ses.endedAt||ses.startedAt);
+    card.innerHTML='<h3>'+d.toLocaleString()+' ('+ses.count+')</h3><div class="row"><button class="btn s showhist">Показать</button></div><div class="histitems" style="display:none"></div>';
+    card.querySelector('.showhist').onclick=function(){
+      const box=card.querySelector('.histitems');
+      if(box.style.display==='none'){ box.style.display='block'; box.innerHTML=renderSmallTable(ses.items); } else { box.style.display='none'; }
+    };
+    list.appendChild(card);
+  }
+}
+function renderSmallTable(items){
+  if(!items||!items.length) return '<div class="muted">Нет</div>';
+  let html='<table class="res"><thead><tr><th>Файл</th><th>Заголовок</th><th>Ключи</th><th>Источник</th></tr></thead><tbody>';
+  for(const r of items){
+    html+='<tr><td>'+escapeHtml(r.filename)+'</td><td>'+escapeHtml(r.title||'')+'</td><td>'+escapeHtml((r.keywords||[]).slice(0,5).join(', '))+'</td><td>'+escapeHtml(r.source||'')+'</td></tr>';
+  }
+  html+='</tbody></table>';
+  return html;
+}
+function loadHistorySessions(){
+  try{ historySessions = JSON.parse(localStorage.getItem('bk_history_sessions')||'[]'); }catch(e){ historySessions=[]; }
+  renderHistory();
+}
