@@ -1244,7 +1244,7 @@ function readCfg(){
     const model = $("qwen-model").value.trim();
     let base = $("qwen-base").value.trim() || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
     base = base.replace(/\/+$/, "");
-    if(!key) return {ok:false, err:"Нужен ключ Alibaba Cloud Model Studio (DashScope) API key (sk-...). Бесплатная квота доступна новым аккаунтам."};
+    if(!key) return {ok:false, err:"Нужен ключ Alibaba Cloud Model Studio (DashScope). Нет доступа к сайту или нет ключа? Переключитесь на Ollama (локально, бесплатно)."};
     if(!model) return {ok:false, err:"Укажите модель, например qwen3-vl-plus"};
     store.set("qwen_key", key); store.set("qwen_model", model); store.set("qwen_base", base);
     return {ok:true, provider, key, model, base};
@@ -1252,7 +1252,7 @@ function readCfg(){
   if(provider === "together"){
     const key = $("tg-key").value.trim();
     const model = $("tg-model").value.trim();
-    if(!key) return {ok:false, err:"Нужен API-ключ Together AI (Together AI → API Keys, начинается с sk-)."};
+    if(!key) return {ok:false, err:"Нужен API-ключ Together AI (Together AI → API Keys, начинается с sk-). Нет доступа к сайту? Переключитесь на Ollama (локально, бесплатно)."};
     if(!model) return {ok:false, err:"Укажите модель Together, например meta-llama/Llama-Vision-Free"};
     store.set("tg_key", key); store.set("tg_model", model);
     return {ok:true, provider, key, model, base:"https://api.together.xyz/v1"};
