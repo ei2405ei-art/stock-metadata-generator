@@ -1315,14 +1315,14 @@ async function fallbackChain(cfg){
 }
 
 async function ollamaRequest(cfg, prompt, imgs){
-  const content = imgs.map(u => ({type:"image_url", image_url:{url:u}}));
+  const images = (imgs || []).map(u => String(u).replace(/^data:[^,]*,/, ""));
   const body = {
     model: cfg.model,
-    messages: [{role:"user", content: prompt}],
+    messages: [{role:"user", content: prompt, images}],
     stream: false,
     format: "json",
-    keep_alive: "30m",
-    options: {temperature:0.7, num_ctx:8192}
+    keep_alive: "4h",
+    options: {temperature:0.7, num_ctx:4096}
   };
   for(let attempt = 1; attempt <= 2; attempt++){
     let ctl;
@@ -1360,7 +1360,7 @@ async function openrouterRequest(cfg, prompt, imgs){
 
   const body = {
     model: cfg.model,
-    messages: [{role:"user", content: prompt}],
+    messages: [{role:"user", content}],
     max_tokens: MAX_TOKENS,
     temperature: 0.75
   };
@@ -2065,6 +2065,25 @@ async function runBatch(entries){
   const candidates = [cfg].concat((await fallbackChain(cfg)).slice(1));
   log("===== Старт: " + entries.length + " файлов · цепочка: " +
       candidates.map(providerLabel).join(" → ") + " =====", "батч");
+
+  const oll = candidates.find(c => c.provider === "ollama");
+  if(oll){
+    setStatus("Прогрев Ollama — загрузка модели, это разово может занять 1-2 минуты...");
+    log("Прогрев Ollama: " + oll.model, "батч");
+    try{
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 300000);
+      await fetch(oll.url.replace(/\/+$/, "") + "/api/chat", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:oll.model, messages:[{role:"user", content:"ping"}], stream:false, keep_alive:"4h"}),
+        signal:ctl.signal
+      });
+      clearTimeout(timer);
+      log("Ollama готова", "батч");
+    }catch(e){
+      log("Прогрев Ollama не удался: " + (e.message || e), "ошибка");
+    }
+  }
 
   for(const e of entries){
     if(batchAbort){ log("Остановлено пользователем", "батч"); break; }
@@ -3438,7 +3457,7 @@ function applyProviderUI(){
     openrouter: "Нужен ключ OpenRouter. OpenRouter блокирует аккаунты за анонимную массовую генерацию — используйте openrouter/free или локальную Ollama.",
     qwen: "Vision-модель Alibaba. Бесплатная квота для новых аккаунтов. DeepSeek не подходит: нет vision-моделей в публичном API.",
     together: "Облачный Together AI. Нужен ключ sk-... из Together AI → API Keys. Есть бесплатная vision-модель Llama-Vision-Free.",
-    ollama: "Локально и бесплатно. Нужна переменная OLLAMA_ORIGINS=* и перезапуск Ollama. На CPU один файл 2–4 минуты."
+    ollama: "Локально и бесплатно. Нужны переменные OLLAMA_ORIGINS=* и OLLAMA_KEEP_ALIVE=4h, затем перезапуск Ollama. На слабом ноутбуке закройте лишние вкладки Chrome — модели нужно ~3 ГБ ОЗУ. На CPU один файл 2–4 минуты."
   };
   $("prov-hint").textContent = hints[p] || "";
 }
