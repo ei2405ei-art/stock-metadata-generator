@@ -100,6 +100,57 @@ function send(res, code, payload){
   res.end(isStr ? payload : JSON.stringify(payload));
 }
 
+/*
+ * Релей к Ollama: запросы браузера идут на /ollama/<...> и проксируются в http://127.0.0.1:11434/<...>.
+ * Зачем: браузер обрывает «молчащее» соединение к Ollama, пока модель считает ответ (на слабом CPU это 1-2 мин).
+ * Релей сразу открывает ответ и раз в 5 с шлёт пробел — соединение не рвётся. Пробелы перед JSON безвредны (JSON.parse их игнорирует).
+ */
+function proxyOllama(req, res, u){
+  const targetPath = (u.pathname.slice("/ollama".length) || "/") + (u.search || "");
+  const chunks = [];
+  req.on("data", c => chunks.push(c));
+  req.on("end", () => {
+    const bodyBuf = Buffer.concat(chunks);
+    let headersSent = false, iv = null;
+    const upHeaders = { "Content-Type": req.headers["content-type"] || "application/json" };
+    const preq = http.request({ host: "127.0.0.1", port: 11434, path: targetPath, method: req.method, headers: upHeaders }, pres => {
+      if(headersSent){
+        const parts = [];
+        pres.on("data", c => parts.push(c));
+        pres.on("end", () => { if(iv) clearInterval(iv); try{ res.end(Buffer.concat(parts)); }catch(e){} });
+        pres.on("error", () => { if(iv) clearInterval(iv); try{ res.end(); }catch(e){} });
+      }else{
+        headersSent = true;
+        res.writeHead(pres.statusCode || 200, Object.assign({
+          "Content-Type": pres.headers["content-type"] || "application/json; charset=utf-8",
+          "Cache-Control": "no-store"
+        }, CORS));
+        pres.pipe(res);
+      }
+    });
+    preq.on("error", err => {
+      if(iv) clearInterval(iv);
+      if(!headersSent && !res.headersSent){
+        headersSent = true;
+        try{ send(res, 502, { error: "Ollama недоступна: " + err.message }); }catch(e){}
+      }else{
+        try{ res.end(JSON.stringify({ error: "Ollama: " + err.message })); }catch(e){}
+      }
+    });
+    setTimeout(() => {
+      if(headersSent || res.headersSent) return;
+      headersSent = true;
+      res.writeHead(200, Object.assign({
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store"
+      }, CORS));
+      iv = setInterval(() => { try{ res.write(" "); }catch(e){} }, 5000);
+    }, 300);
+    if(bodyBuf.length) preq.write(bodyBuf);
+    preq.end();
+  });
+}
+
 const server = http.createServer((req, res) => {
   try{
     const u = new URL(req.url, "http://localhost:" + PORT);
@@ -132,7 +183,11 @@ const server = http.createServer((req, res) => {
       return send(res, 200, {files: Object.keys(idx.data.files || {})});
     }
 
-    return send(res, 404, {error: "неизвестный путь. Рабочие: /health, /meta?file=..., /list"});
+    if(u.pathname === "/ollama" || u.pathname.startsWith("/ollama/")){
+      return proxyOllama(req, res, u);
+    }
+
+    return send(res, 404, {error: "неизвестный путь. Рабочие: /health, /meta?file=..., /list, /ollama/*"});
   }catch(e){
     return send(res, 500, {error: String(e && e.message || e)});
   }
@@ -144,17 +199,18 @@ const server = http.createServer((req, res) => {
   if(cfg && cfg.folder && fs.existsSync(cfg.folder)){
     log("Папка: " + cfg.folder);
   }else{
-    log("Выберите рабочую папку в диалоге Windows (первый запуск)...");
+    log("Папка для Adobe Stock не настроена — открою диалог (можно отменить: релей Ollama работает и без папки)...");
     const folder = await pickFolderDialog();
-    if(!folder){
-      console.error("[helper] Папка не выбрана. Запустите start.bat ещё раз.");
-      process.exit(1);
+    if(folder){
+      saveCfg({folder});
+      log("Папка сохранена: " + folder);
+    }else{
+      log("Папка не выбрана — доступны /health и /ollama/* (релей к Ollama).");
     }
-    saveCfg({folder});
-    log("Папка сохранена: " + folder);
   }
   server.listen(PORT, "127.0.0.1", () => {
     log("Работает: http://localhost:" + PORT + " — окно нужно держать открытым");
+    log("Ollama-релей: http://localhost:" + PORT + "/ollama  (обход обрыва соединения)");
     log("Проверка: http://localhost:" + PORT + "/health");
   });
 })();
