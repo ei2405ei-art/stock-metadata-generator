@@ -3808,7 +3808,13 @@ function initEvents(){
   $("qwen-model").value = store.get("qwen_model", "qwen3-vl-plus");
   $("qwen-base").value = store.get("qwen_base", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1");
   $("oll-url").value = store.get("oll_url", "http://localhost:11434");
-  { const savedModel = store.get("oll_model", ""); $("oll-model").value = (savedModel && savedModel !== "qwen2.5vl:3b") ? savedModel : "moondream"; }
+  { const saved = store.get("oll_model", "");
+    if(store.get("oll_migrated", "") !== "1"){
+      $("oll-model").value = (saved && saved !== "qwen2.5vl:3b") ? saved : "moondream";
+      store.set("oll_migrated", "1");
+    }else{
+      $("oll-model").value = saved || "moondream";
+    } }
   $("oll-relay").checked = store.get("oll_relay", "1") !== "0";
   $("oll-relay").addEventListener("change", () => { store.set("oll_relay", $("oll-relay").checked ? "1" : "0"); detectOllRelay(); });
   $("tg-key").value = store.get("tg_key", "");
