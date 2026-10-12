@@ -208,6 +208,13 @@ const server = http.createServer((req, res) => {
       log("Папка не выбрана — доступны /health и /ollama/* (релей к Ollama).");
     }
   }
+  server.on("error", (e) => {
+    if(e && e.code === "EADDRINUSE"){
+      log("Порт " + PORT + " уже занят — helper уже запущен, второй экземпляр не нужен.");
+      process.exit(0);
+    }
+    throw e;
+  });
   server.listen(PORT, "127.0.0.1", () => {
     log("Работает: http://localhost:" + PORT + " — окно нужно держать открытым");
     log("Ollama-релей: http://localhost:" + PORT + "/ollama  (обход обрыва соединения)");
