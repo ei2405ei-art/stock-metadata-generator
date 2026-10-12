@@ -161,7 +161,7 @@ td{padding:7px 6px;border-bottom:1px solid var(--border);vertical-align:top}
       </div>
       <div id="ollama-panel" class="grid2" hidden>
         <div><label class="f">Адрес Ollama</label><input type="text" id="oll-url" placeholder="http://localhost:11434"></div>
-        <div><label class="f">Модель</label><input type="text" id="oll-model" list="ollama-models" placeholder="moondream"></div>
+        <div><label class="f">Модель</label><input type="text" id="oll-model" list="ollama-models" placeholder="qwen2.5vl:3b"></div>
         <div style="grid-column:1/-1"><button class="btn s" id="oll-test-btn" type="button">Проверить связь</button> <label class="f" style="display:inline-flex;align-items:center;gap:6px;margin-left:12px;vertical-align:middle"><input type="checkbox" id="oll-relay" checked> Релей helper/server.js (обход обрыва соединения)</label></div>
       </div>
       <datalist id="or-models">
@@ -176,7 +176,7 @@ td{padding:7px 6px;border-bottom:1px solid var(--border);vertical-align:top}
         <option value="google/gemma-3-27b-it"><option value="Qwen/Qwen2.5-VL-72B-Instruct">
       </datalist>
       <datalist id="ollama-models">
-        <option value="moondream"><option value="qwen2.5vl:3b"><option value="qwen2.5vl:7b"><option value="qwen3-vl:8b">
+        <option value="qwen2.5vl:3b"><option value="moondream"><option value="qwen2.5vl:7b"><option value="qwen3-vl:8b">
       </datalist>
       <div class="hint" id="prov-hint"></div>
       <div class="row" style="margin-top:10px">
@@ -374,7 +374,7 @@ const KW_MODELS = [
   {provider:"qwen",      model:"qwen3-vl-plus"},
   {provider:"qwen",      model:"qwen3-vl-flash"},
   {provider:"qwen",      model:"qwen2.5-vl-72b-instruct"},
-  {provider:"ollama",    model:"moondream"},
+  {provider:"ollama",    model:"qwen2.5vl:3b"},
   {provider:"ollama",    model:"qwen2.5vl:3b"},
   {provider:"ollama",    model:"qwen2.5vl:7b"},
   {provider:"ollama",    model:"qwen3-vl:8b"},
@@ -1236,7 +1236,7 @@ function readCfg(){
   if(provider === "ollama"){
     const url = $("oll-url").value.trim().replace(/\/+$/, "") || "http://localhost:11434";
     const model = $("oll-model").value.trim();
-    if(!model) return {ok:false, err:"Укажите модель Ollama, например moondream (ollama pull moondream)"};
+    if(!model) return {ok:false, err:"Укажите модель Ollama, например qwen2.5vl:3b (ollama pull qwen2.5vl:3b)"};
     store.set("oll_url", url); store.set("oll_model", model);
     return {ok:true, provider, url, model};
   }
@@ -1325,7 +1325,7 @@ async function ollamaAlive(url, ms){
 
 async function testOllama(){
   const url = ($("oll-url").value.trim() || "http://localhost:11434").replace(/\/+$/, "");
-  const model = $("oll-model").value.trim() || "moondream";
+  const model = $("oll-model").value.trim() || "qwen2.5vl:3b";
   setStatus("Проверка Ollama…");
   await detectOllRelay();
   const eff = ollBase(url);
@@ -1360,7 +1360,7 @@ async function fallbackChain(cfg){
     const qk = $("qwen-key").value.trim();
     if(qk) chain.push({provider:"qwen", key:qk, model:$("qwen-model").value.trim() || "qwen3-vl-plus", base:($("qwen-base").value.trim() || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1").replace(/\/+$/,"")});
     const url = ($("oll-url").value.trim() || "http://localhost:11434").replace(/\/+$/,"");
-    if(await ollamaAlive(url)) chain.push({provider:"ollama", url, model:$("oll-model").value.trim() || "moondream"});
+    if(await ollamaAlive(url)) chain.push({provider:"ollama", url, model:$("oll-model").value.trim() || "qwen2.5vl:3b"});
     const tk = $("tg-key").value.trim();
     if(tk) chain.push({provider:"together", key:tk, model:$("tg-model").value.trim() || "meta-llama/Llama-Vision-Free", base:"https://api.together.xyz/v1"});
   }
@@ -1405,8 +1405,8 @@ async function ollamaRequest(cfg, prompt, imgs){
       if(e.message && /MODEL_UNAVAILABLE|HTTP \d/.test(e.message)) throw e;
       if(attempt === 2){
         const em = String(e.message || e);
-        if(e.name === "AbortError" || /abort/i.test(em)) throw new Error("Ollama не успела ответить за 10 минут (модель слишком тяжёлая для этого ПК). Попробуйте модель меньше, напр. moondream.");
-        throw new Error("Ollama не ответила по адресу " + cfg.url + " (сетевая ошибка). Если сервер не запущен — выполните: ollama serve. Если запущен — скорее всего не хватает ОЗУ: закройте лишние окна/вкладки Chrome и повторите, либо возьмите модель полегче (moondream).");
+        if(e.name === "AbortError" || /abort/i.test(em)) throw new Error("Ollama не успела ответить за 10 минут (модель слишком тяжёлая для этого ПК). Попробуйте модель меньше, напр. qwen2.5vl:3b.");
+        throw new Error("Ollama не ответила по адресу " + cfg.url + " (сетевая ошибка). Если сервер не запущен — выполните: ollama serve. Если запущен — скорее всего не хватает ОЗУ: закройте лишние окна/вкладки Chrome и повторите.");
       }
       log("Ollama: сетевая ошибка, повтор через 2 с", "сеть");
       await sleep(2000);
@@ -2147,7 +2147,7 @@ async function runBatch(entries){
         log("Прогрев Ollama (запасной провайдер) не удался: " + (e.message || e), "сеть");
       }else{
         const msg = (e.name === "AbortError" || /abort/i.test(String(e.message || e)))
-          ? "Ollama: модель не загрузилась за 5 минут — для этого ПК модель слишком тяжёлая. Попробуйте moondream."
+          ? "Ollama: модель не загрузилась за 5 минут — для этого ПК модель слишком тяжёлая. Попробуйте qwen2.5vl:3b."
           : "Ollama не отвечает по адресу " + oll.url + ". Запустите сервер: ollama serve — затем повторите. Проверка: откройте " + oll.url + "/api/tags в браузере.";
         log(msg, "ошибка");
         setStatus(msg);
@@ -3810,10 +3810,10 @@ function initEvents(){
   $("oll-url").value = store.get("oll_url", "http://localhost:11434");
   { const saved = store.get("oll_model", "");
     if(store.get("oll_migrated", "") !== "1"){
-      $("oll-model").value = (saved && saved !== "qwen2.5vl:3b") ? saved : "moondream";
+      $("oll-model").value = (saved && saved !== "moondream") ? saved : "qwen2.5vl:3b";
       store.set("oll_migrated", "1");
     }else{
-      $("oll-model").value = saved || "moondream";
+      $("oll-model").value = saved || "qwen2.5vl:3b";
     } }
   $("oll-relay").checked = store.get("oll_relay", "1") !== "0";
   $("oll-relay").addEventListener("change", () => { store.set("oll_relay", $("oll-relay").checked ? "1" : "0"); detectOllRelay(); });
