@@ -1379,7 +1379,7 @@ async function ollamaRequest(cfg, prompt, imgs){
     stream: false,
     format: "json",
     keep_alive: "4h",
-    options: {temperature:0.7, num_ctx:4096}
+    options: {temperature:0.7, num_ctx:8192}
   };
   for(let attempt = 1; attempt <= 2; attempt++){
     let ctl;
@@ -1618,8 +1618,8 @@ function parseAI(content){
     const brokens = (t.match(/\[/g) || []).length - (t.match(/\]/g) || []).length;
     const inStr = /"[^"]*$/.test(t);
     if(inStr) t += '"';
-    t = "]".repeat(Math.max(0, brokens));
-    t = "}".repeat(Math.max(0, opens));
+    t += "]".repeat(Math.max(0, brokens));
+    t += "}".repeat(Math.max(0, opens));
     try{ obj = JSON.parse(t); }catch(e2){}
   }
   if(!obj) throw new Error("Модель вернула нечитаемый ответ");
