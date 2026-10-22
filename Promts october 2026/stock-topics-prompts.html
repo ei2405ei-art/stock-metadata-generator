@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icon-180.png" sizes="180x180">
+<link rel="icon" type="image/png" href="icon-512.png">
 <title>Stock Topics &amp; Prompts — темы Adobe Stock и генератор промптов</title>
 <style>
 :root{
@@ -1681,7 +1683,7 @@ function renderGrid(g){
   $("#grid-out").innerHTML=html;
   $("#g-copy-md").addEventListener("click",e=>copyText(md,e.target));
   $("#g-dl-md").addEventListener("click",()=>downloadMd(md,gridFileName(g)));
-  ["#g-copy-all","#g-download"].forEach(s=>$(s).disabled=false);
+  ["#g-copy-all","#g-download","#g-to-plan"].forEach(s=>$(s).disabled=false);
   $("#exp-copy").disabled=false;$("#exp-download").disabled=false;
   $("#exp-current").innerHTML="<b>"+esc(g.theme.titleRu)+"</b> · "+FMT[g.format].ru+" · "+g.count+" работ · имя файла сетки: <code>"+esc(gridFileName(g))+"</code>";
   pushHistory(g,md);
@@ -1827,6 +1829,11 @@ $("#cl-reset").addEventListener("click",()=>{
   $("#g-nopeople").checked=state.noPeople;
   renderGFmt();
   renderCal();renderThemes();renderBpChips();renderHistory();renderChecklist();
+  /* манифест для установки ярлыка на телефон — только под http(s),
+     чтобы file:// не выдавал ошибку загрузки манифеста */
+  if(typeof location!=="undefined"&&(location.protocol==="http:"||location.protocol==="https:")&&document.head){
+    const lm=document.createElement("link");lm.rel="manifest";lm.href="manifest.webmanifest";document.head.appendChild(lm);
+  }
 })();
 </script>
 </body>
