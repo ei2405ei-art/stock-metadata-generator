@@ -1,0 +1,1833 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1b3e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<title>Stock Topics &amp; Prompts — темы Adobe Stock и генератор промптов</title>
+<style>
+:root{
+  --bg:#0d1b3e; --surface:#112449; --surface2:#16305f; --border:#2a4580;
+  --text:#e8e8f0; --text2:#9aa7c7; --accent:#6c5ce7; --accent2:#a29bfe;
+  --green:#2ecc71; --red:#e74c3c; --yellow:#f1c40f; --blue:#3498db;
+  --radius:12px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",Arial,sans-serif;
+  -webkit-tap-highlight-color:transparent}
+button,input,select,.chip,.tab,.btn{touch-action:manipulation}
+.app{max-width:960px;margin:0 auto;padding:20px 14px 60px}
+h1{font-size:24px;margin:0 0 4px}
+h2{font-size:17px;margin:0 0 10px}
+h3{font-size:15px;margin:16px 0 8px}
+.sub{color:var(--text2);margin:0 0 18px;font-size:13px}
+.muted{color:var(--text2);font-size:12.5px}
+code{background:var(--surface2);padding:1px 5px;border-radius:5px;font-size:13px}
+/* tabs */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab{flex:1;min-width:110px;padding:10px 14px;border:1px solid var(--border);background:var(--surface);
+  color:var(--text2);border-radius:var(--radius);cursor:pointer;font-size:14px;font-weight:600}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.panel{display:none}
+.panel.active{display:block}
+/* cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.row{display:flex;gap:12px;align-items:center}
+.row.wrap{flex-wrap:wrap}
+label{font-size:13px;color:var(--text2);display:flex;gap:6px;align-items:center}
+input[type=date],input[type=search],input[type=number],select{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:7px 9px;font-size:14px;font-family:inherit}
+input[type=search]{min-width:170px}
+/* chips */
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--text2);cursor:pointer;font-size:13px}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+/* badges */
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11.5px;font-weight:700;color:#fff;white-space:nowrap}
+.b-burn{background:var(--red)} .b-soon{background:var(--blue)} .b-wait{background:#4a5b8c}
+.b-pass{background:#3c4a75;color:#c5cde6} .b-ever{background:var(--green)} .b-info{background:var(--accent)}
+.tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:#3c4a75}
+.tag.f-ph{background:#7b1fa2} .tag.f-vi{background:#00695c} .tag.f-ve{background:#e65100}
+/* buttons */
+.btn{padding:8px 14px;border-radius:9px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--text);cursor:pointer;font-size:13.5px;font-family:inherit}
+.btn:hover{border-color:var(--accent)}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.g{background:#1e8e4e;border-color:#1e8e4e;color:#fff}
+.btn.s{padding:5px 10px;font-size:12.5px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.ok{background:var(--green);border-color:var(--green);color:#08130b}
+/* tables */
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--surface2);font-weight:600}
+/* таблица календаря — королевский синий фон */
+#cal-table{background:#4169E1;color:#fff}
+#cal-table th,#cal-table td{border-color:rgba(255,255,255,.4);color:#fff}
+#cal-table th{background:#3658c9;color:#fff}
+#cal-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.07)}
+#cal-table tbody tr:hover td{background:rgba(255,255,255,.14)}
+#cal-table code{background:rgba(0,0,0,.28);color:#fff}
+#cal-table .badge{box-shadow:0 1px 3px rgba(0,0,0,.35)}
+/* theme cards */
+.tcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px}
+.tcard.burn{border-color:#a83f4b}
+.tcard.soon{border-color:#3f6cc4}
+.tcard.done{border-color:var(--green);opacity:.62}
+.tcard.done .tcard-title{text-decoration:line-through;color:var(--text2)}
+.tcard-actions .btn.on{background:#1e8e4e;border-color:#1e8e4e;color:#fff}
+.bp-done{accent-color:var(--green);width:15px;height:15px;cursor:pointer}
+tr.bprow.done td{opacity:.55}
+tr.bprow.done td:nth-child(3){text-decoration:line-through}
+.tcard-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.tcard-title{font-size:16px;font-weight:700}
+.tcard .detail{color:var(--text2);font-size:13.5px;margin:4px 0 8px}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:2px 10px;font-size:13px;margin:8px 0}
+.kv b{color:var(--text2);font-weight:600}
+.hooks{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.hook{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12.5px}
+.hook i{color:var(--text2);font-style:normal}
+.avoid{color:#e08a8a;font-size:12.5px}
+.tcard-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.season-sec{margin:22px 0 8px;padding:6px 10px;border-radius:6px;background:var(--surface2);
+  font-weight:700;font-size:14px;border-left:4px solid var(--accent)}
+.season-sec.red{border-color:var(--red)} .season-sec.blue{border-color:var(--blue)}
+.season-sec.green{border-color:var(--green)} .season-sec.yellow{border-color:var(--yellow)}
+/* prompts */
+.item{border:1px solid var(--border);border-radius:10px;background:var(--surface2);padding:11px 13px;margin-bottom:10px}
+.item-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fname{font-family:Consolas,monospace;font-size:13px;background:#0a1b45;border:1px solid var(--border);
+  padding:2px 7px;border-radius:6px;color:var(--accent2)}
+.item-ru{font-size:13px;color:var(--text2);margin:5px 0}
+.prompt{margin:6px 0 0;background:#0a1b45;border:1px solid var(--border);border-radius:8px;
+  padding:9px 11px;white-space:pre-wrap;word-break:break-word;font-family:Consolas,monospace;
+  font-size:12.8px;line-height:1.45;color:#d7d7e6}
+.item-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:11.5px;color:var(--text2)}
+.item-meta span{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:1px 6px}
+.negbox{background:#131f42;border:1px solid #3a4d85;border-radius:8px;padding:9px 11px;
+  font-family:Consolas,monospace;font-size:12.5px;white-space:pre-wrap;word-break:break-word;color:#f0c9c9}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.out-title{font-size:15px;font-weight:700;margin:16px 0 8px}
+/* checklist */
+.cl-group{margin-bottom:14px}
+.cl-group h4{margin:0 0 6px;font-size:13.5px;color:var(--accent2)}
+.cl-item{display:flex;gap:8px;align-items:flex-start;font-size:13.3px;margin:4px 0;color:var(--text)}
+.cl-item input{margin-top:3px;accent-color:var(--accent)}
+.cl-item.done{color:var(--text2);text-decoration:line-through}
+/* history */
+.hist{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--border);
+  border-radius:8px;padding:7px 10px;margin-bottom:6px;background:var(--surface2);font-size:13px}
+.hist .grow{flex:1;min-width:180px}
+.mdview{background:#0a1b45;border:1px solid var(--border);border-radius:8px;padding:10px;
+  max-height:420px;overflow:auto;white-space:pre-wrap;font-family:Consolas,monospace;font-size:12.3px;line-height:1.45}
+.callout{background:#15204d;border-left:4px solid var(--accent);padding:9px 12px;border-radius:6px;
+  font-size:13px;color:var(--text2);margin:10px 0}
+.callout.red{background:#301737;border-color:var(--red)}
+.sep{height:1px;background:var(--border);margin:14px 0}
+@media(max-width:640px){
+  .app{padding:14px 10px calc(60px + env(safe-area-inset-bottom,0px))}
+  h1{font-size:21px}
+  h2{font-size:16px}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .kv{grid-template-columns:96px 1fr}
+  /* вкладки — закреплены сверху, по одной строке */
+  .tabs{position:sticky;top:0;z-index:40;background:var(--bg);
+    margin:0 -10px 14px;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 8px;
+    box-shadow:0 6px 12px -8px rgba(0,0,0,.9)}
+  .tab{min-width:0;flex:1 1 0;font-size:14px;padding:11px 4px;min-height:42px}
+  /* крупные тапы */
+  .btn{padding:10px 14px;min-height:40px;font-size:14px}
+  .btn.s{padding:9px 12px;min-height:36px}
+  .chip{padding:9px 13px;min-height:36px;font-size:13.5px}
+  .cl-item{padding:4px 0}
+  .cl-item input{width:18px;height:18px}
+  .bp-done{width:20px;height:20px}
+  /* поля — на всю ширину, 16px против зума iOS Safari */
+  label{width:100%;flex-wrap:wrap;gap:4px 6px}
+  input[type=date],input[type=search],input[type=number],select{
+    font-size:16px;flex:1 1 100%;min-width:0;width:100%}
+  input[type=search]{min-width:0}
+  .cbline input[type=checkbox]{flex:0 0 auto;width:18px;height:18px}
+  /* таблицы листаются вбок, а не сжимаются в кашу */
+  .tablewrap{-webkit-overflow-scrolling:touch}
+  #cal-table{min-width:600px}
+  #bp-out table{min-width:640px}
+  /* карточки и текст */
+  .card,.tcard{padding:12px}
+  .prompt,.negbox,.mdview{font-size:12.5px}
+  .chips{flex:1 1 100%}
+  .item-head .btn{flex:1 1 100%}
+  .tcard-actions .btn{flex:1 1 auto}
+  .actions .btn{flex:1 1 calc(50% - 4px);text-align:center}
+  .hist .grow{min-width:120px}
+  .season-sec{font-size:13.5px}
+}
+@media(max-width:400px){
+  .actions .btn,.tcard-actions .btn{flex:1 1 100%}
+  .kv{grid-template-columns:84px 1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Stock Topics &amp; Prompts</h1>
+    <p class="sub">Актуальные темы Adobe Stock (окт 2026 — дек 2027) и генератор сеток промптов · работает офлайн, без API</p>
+  </header>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="themes">Темы</button>
+    <button class="tab" data-tab="grid">Сетка</button>
+    <button class="tab" data-tab="export">Экспорт</button>
+  </div>
+
+  <!-- ============ ВКЛАДКА 1: ТЕМЫ ============ -->
+  <section class="panel active" id="tab-themes">
+    <div class="card">
+      <h2>Календарь дедлайнов</h2>
+      <div class="row wrap" style="margin-bottom:10px">
+        <label>Дата <input type="date" id="t-date"></label>
+        <div class="chips" id="t-formats">
+          <button class="chip on" data-f="photo">Фото</button>
+          <button class="chip on" data-f="video">Видео</button>
+          <button class="chip on" data-f="vector">Вектор</button>
+        </div>
+        <label class="cbline"><input type="checkbox" id="t-evergreen" checked> evergreen + белые пятна</label>
+        <label class="cbline"><input type="checkbox" id="t-passed"> пропущенные окна</label>
+        <label class="cbline"><input type="checkbox" id="t-hidedone"> скрыть выполненные</label>
+        <input type="search" id="t-search" placeholder="Поиск темы…">
+      </div>
+      <div class="tablewrap"><table id="cal-table">
+        <thead><tr><th style="width:24%">Пик спроса</th><th style="width:16%">Дедлайн загрузки</th><th style="width:14%">Статус</th><th>Форматный акцент и что делать</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <p class="muted">«Дедлайн» = дата отправки на модерацию (учтите 1–3 недели модерации). Сезонка загружается за 10–12 недель до пика. Статусы пересчитываются от даты выше; пропущенные окна при <code>repeatYearly</code> сдвигаются на следующий год автоматически.</p>
+    </div>
+    <div id="themes-list"></div>
+  </section>
+
+  <!-- ============ ВКЛАДКА 2: СЕТКА ============ -->
+  <section class="panel" id="tab-grid">
+    <div class="card">
+      <h2>Генератор сетки промптов</h2>
+      <div class="grid2">
+        <label>Тема <select id="g-theme"></select></label>
+        <label>Формат <span class="chips" id="g-formats"></span></label>
+      </div>
+      <div class="grid3" style="margin-top:10px">
+        <label>Количество <select id="g-count"><option value="10">10</option><option value="20">20</option></select></label>
+        <label>Стиль (тренд) <select id="g-style"></select></label>
+        <label class="cbline"><input type="checkbox" id="g-nopeople"> без людей (no people)</label>
+      </div>
+      <div class="actions">
+        <button class="btn p" id="g-run">Сгенерировать сетку</button>
+        <button class="btn" id="g-copy-all" disabled>Копировать всё</button>
+        <button class="btn" id="g-download" disabled>Скачать .md</button>
+        <button class="btn" id="g-to-plan" disabled>В батч-план</button>
+      </div>
+      <div class="callout" id="g-hint">Выберите тему на вкладке «Темы» или здесь — и нажмите «Сгенерировать». Имена файлов латиницей ≤30 символов, промпты EN с <code>--ar</code> в конце, negative и посевные ключи прилагаются.</div>
+    </div>
+    <div id="grid-out"></div>
+  </section>
+
+  <!-- ============ ВКЛАДКА 3: ЭКСПОРТ ============ -->
+  <section class="panel" id="tab-export">
+    <div class="card">
+      <h2>Батч-план загрузок</h2>
+      <div class="grid3">
+        <label>Работ всего <input type="number" id="bp-total" min="5" max="200" value="20"></label>
+        <label>Размер батча <select id="bp-size"><option value="5">5</option><option value="10" selected>10</option></select></label>
+        <label>Старт <input type="date" id="bp-start"></label>
+      </div>
+      <div style="margin-top:10px">
+        <div class="muted" style="margin-bottom:6px">Темы (отмеченные на вкладке «Темы» кнопкой «В батч-план» показаны здесь; можно добавить любые):</div>
+        <div class="chips" id="bp-themes"></div>
+      </div>
+      <div class="actions"><button class="btn p" id="bp-run">Собрать план</button>
+        <button class="btn" id="bp-copy" disabled>Копировать план</button></div>
+      <div id="bp-out"></div>
+    </div>
+
+    <div class="card">
+      <h2>Текущая сетка</h2>
+      <div id="exp-current" class="muted">Сетка ещё не сгенерирована — вкладка «Сетка».</div>
+      <div class="actions">
+        <button class="btn" id="exp-copy" disabled>Копировать .md</button>
+        <button class="btn" id="exp-download" disabled>Скачать .md</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>История сеток</h2>
+      <div id="hist-list" class="muted">Пусто. Последние 20 сеток сохраняются в localStorage.</div>
+      <div id="hist-view"></div>
+    </div>
+
+    <div class="card">
+      <h2>Чек-лист перед загрузкой</h2>
+      <p class="muted">Из <code>Adobe_Stock_чек-лист_перед_загрузкой.md</code>. Пункты отмечаются и хранятся в localStorage.</p>
+      <div id="checklist"></div>
+      <div class="actions"><button class="btn s" id="cl-reset">Сбросить отметки</button></div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ================= DATA ================= */
+const RU_MON=["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+const FMT={
+  photo:{ru:"Фото",cls:"f-ph",ext:".jpg",kind:"p"},
+  video:{ru:"Видео",cls:"f-vi",ext:".mp4",kind:"vid"},
+  vector:{ru:"Вектор",cls:"f-ve",ext:".eps",kind:"v"}
+};
+
+/* --- Сезонный календарь (Adobe_Stock_актуальные_темы_2027, §2) --- */
+const CALENDAR=[
+ {peak:"Halloween — 31 окт 2026",from:"2026-08-09",to:"2026-08-23",
+  note:"Пропущено. Готовить на 2027: дедлайн <b>16–30 авг 2027</b>. Тыквы, декор, костюмы без IP."},
+ {peak:"Thanksgiving — 26 ноя 2026",from:"2026-09-03",to:"2026-09-17",
+  note:"Пропущено. Готовить на 2027 (25 ноя): дедлайн <b>10–24 авг 2027</b>."},
+ {peak:"Зима / Рождество / Новый год — дек 2026 — янв 2027",from:"2026-10-02",to:"2026-10-22",
+  note:"<b>Приоритет №1.</b> Вектор (открытки, паттерны, рамки), видео-лупы (снег, огни, свечи, камины), фото (уют, вечеринки без дат, зимние пейзажи). Не датируйте «2026» — делайте winter/holiday вечным."},
+ {peak:"Год Козы 2027 (лунный НГ) — 6 фев 2027",from:"2026-10-12",to:"2026-12-20",status:"в работе",
+  note:"50 работ, 6 батчей — см. <code>Год Козы 2027/goat2027_batch_plan.md</code>."},
+ {peak:"Святой Валентин — 14 фев 2027",from:"2026-11-29",to:"2026-12-13",
+  note:"Вектор — лидер (открытки, сердца, паттерны). Фото — пары без клише, дружеская любовь, самолюбовь. Видео — лупы с сердечками, конфетти, шёлком."},
+ {peak:"Пасха — 4 апр 2027",from:"2027-01-19",to:"2027-02-02",
+  note:"Кролики, яйца, традиции без IP, весенние краски. Вектор и декор — ядро."},
+ {peak:"Весна / Освежение — мар–май 2027",from:"2026-12-01",to:"2027-02-28",
+  note:"Уборка, сад, цветение, гендер-пати (без стереотипов), прогулки. Фото + вертикальное видео."},
+ {peak:"День матери — 9 май 2027 (США)",from:"2027-02-14",to:"2027-02-28",
+  note:"Мультипоколенческие семьи (официальный запрос), разные форматы семей, тёплые бытовые сцены."},
+ {peak:"День отца — 20 июн 2027 (США)",from:"2027-03-14",to:"2027-03-28",
+  note:"Папы с детьми, хобби, ремесла. Без стереотипов — реалистичные роли."},
+ {peak:"Лето / Отпуск — июн–авг 2027",from:"2027-03-01",to:"2027-05-31",
+  note:"Пляж, приключения без брендинга, фермы, ягоды, фестивали уличной еды. Видео и вертикали."},
+ {peak:"4 июля (США) — 2027",from:"2027-04-18",to:"2027-05-02",
+  note:"Патриотические пикники в US-палитре; флаг не делать главным объектом без контекста."},
+ {peak:"Back to school — сен 2027",from:"2027-06-01",to:"2027-07-31",
+  note:"Рюкзаки, студкампусы, разные возрасты, EDU-технологии. Evergreen-двойник: school круглый год."},
+ {peak:"Halloween / Thanksgiving / Рождество — 2027",from:"2027-08-01",to:"2027-09-30",
+  note:"Повторить цикл 2026 с новых ракурсов — старые файлы в портфеле продолжат работать."}
+];
+
+const GROUPS=[
+ {id:"winter",title:"🔴 СРОЧНО: Зима · Рождество · Новый год (дедлайн — окт 2026)",cls:"red"},
+ {id:"valentine",title:"💙 Следующее окно: Святой Валентин (дедлайн 29 ноя — 13 дек 2026)",cls:"blue"},
+ {id:"spring",title:"🌱 Весна 2027 (дедлайн дек 2026 — фев 2027)",cls:"green"},
+ {id:"summer",title:"☀️ Лето и осень 2027 (дедлайн мар — сен 2027)",cls:"yellow"},
+ {id:"evergreen",title:"🌿 Evergreen-ниши без срока годности",cls:""},
+ {id:"white",title:"⭐ Белые пятна — проверяйте выдачу перед съёмкой",cls:""}
+];
+
+/* --- Тематическая база. hooks: {slug,en,ru} --- */
+const THEMES=[
+/* ===== зима ===== */
+{id:"cozy-interior",titleRu:"Уютный интерьер",prefix:"cozyint",formats:["photo","video"],cat:"seasonal",group:"winter",
+ season:[10,11,12,1,2,3],win:{from:"2026-10-02",to:"2026-10-22"},yearly:true,
+ detail:"Камин/тёплый свет/плед без рождественского клише — вечная «зима»; видео-луп мерцания огня.",
+ subjectEn:"cozy winter interior",peopleLikely:false,competition:"низкая/средняя",
+ hooks:[
+  {slug:"fireplace",en:"burning fireplace in a cozy living room",ru:"Камин крупным планом"},
+  {slug:"nook",en:"window reading nook with knitted blanket and steaming mug",ru:"Чтение у окна"},
+  {slug:"knit",en:"chunky knitted wool blanket texture",ru:"Макро вязаного пледа"},
+  {slug:"tea",en:"steaming cup of tea on a wooden windowsill",ru:"Чай у заснеженного окна"},
+  {slug:"candle",en:"lit candles on a rustic wooden table",ru:"Свечи на деревянном столе"},
+  {slug:"cat",en:"ginger cat sleeping beside a glowing fireplace",ru:"Кот у камина"},
+  {slug:"lights",en:"warm string lights draped over a linen sofa",ru:"Огоньки на диване"},
+  {slug:"frost",en:"heavy snow falling outside a large warm window",ru:"Снег за окном изнутри"},
+  {slug:"hands",en:"two hands wrapped around a large ceramic mug",ru:"Руки с кружкой (без лица)"},
+  {slug:"linen",en:"rumpled natural linen bedding in winter morning light",ru:"Утренний свет и льняное бельё"}],
+ avoid:["christmas tree","ornaments","christmas decorations","garland","Merry Christmas"],
+ seedKeys:["cozy winter interior","fireplace glow","warm hygge home","knitted blanket texture","steaming tea by window","candlelight evening","snow through window","cat by fire","morning linen light","winter home"]},
+
+{id:"winter-nature",titleRu:"Зимняя природа",prefix:"wintern",formats:["video","photo"],cat:"seasonal",group:"winter",
+ season:[11,12,1,2],win:{from:"2026-10-02",to:"2026-10-22"},yearly:true,
+ detail:"Падающий снег (луп), иней макро, заснеженный лес с воздуха, оттепель. Вертикали — сразу 9:16.",
+ subjectEn:"winter nature",peopleLikely:false,competition:"средняя",
+ hooks:[
+  {slug:"snowfall",en:"soft snowflakes falling through a winter forest",ru:"Луп падающего снега"},
+  {slug:"droneforest",en:"snow covered pine forest seen from a drone",ru:"Полёт над заснеженным лесом"},
+  {slug:"thawdrip",en:"melting icicles dripping from a wooden roof edge",ru:"Капель оттепели"},
+  {slug:"branchsnow",en:"snow shaken off a laden pine branch",ru:"Снег осыпается с веток"},
+  {slug:"frostglass",en:"frost crystals branching across dark window glass",ru:"Иней растёт по стеклу"},
+  {slug:"riverice",en:"partially frozen river with drifting ice floes",ru:"Лёд на реке"},
+  {slug:"parkfall",en:"heavy soft snowfall in a quiet winter park",ru:"Снегопад в парке"},
+  {slug:"birchwalk",en:"snowy birch forest path with fresh untouched snow",ru:"Прогулка по зимнему лесу"},
+  {slug:"frostspark",en:"frost covered branches sparkling in low sun",ru:"Искристый иней"},
+  {slug:"snowwind",en:"wind blowing loose snow off frosted trees",ru:"Ветер в заснеженных деревьях"}],
+ avoid:["christmas decorations","holiday lights"],
+ seedKeys:["winter nature","falling snow","hoarfrost macro","snowy forest aerial","thaw icicles","frozen river","frost on window","snow texture macro","rime covered trees","vertical winter video"]},
+
+{id:"holiday-decor",titleRu:"Праздничный декор",prefix:"winterdeco",formats:["vector"],cat:"seasonal",group:"winter",
+ season:[10,11,12,1],win:{from:"2026-10-02",to:"2026-10-22"},yearly:true,
+ detail:"Гирлянды, венки, снежинки, рамки, paper-cut, паттерны. Стили 2027: органика, ризо, «puffy»-формы.",
+ subjectEn:"winter holiday decor",peopleLikely:false,competition:"средняя",
+ hooks:[
+  {slug:"puffy-garland",en:"horizontal garland of inflated puffy baubles",ru:"Пуффи-гирлянда из шаров"},
+  {slug:"wreath-organic",en:"hand drawn organic winter wreath",ru:"Органический венок"},
+  {slug:"snowflake-riso",en:"set of six decorative risograph snowflakes",ru:"Ризо-снежинки"},
+  {slug:"frame-paper",en:"layered paper cut decorative frame with blank center",ru:"Рамка из бумаги"},
+  {slug:"village-papercut",en:"paper cut cozy winter village artwork",ru:"Paper-cut зимний посёлок"},
+  {slug:"pattern-puffy",en:"seamless repeating puffy holiday pattern",ru:"Пуффи бесшовный паттерн"},
+  {slug:"garland-classic",en:"flat garland of baubles on a string",ru:"Классическая гирлянда-шары"},
+  {slug:"wreath-riso",en:"risograph style holiday wreath",ru:"Ризо-венок"},
+  {slug:"pine-border",en:"horizontal border of hand drawn pine branches and cones",ru:"Хвойный бордюр"},
+  {slug:"wrap-riso",en:"three gift wrap sheet designs",ru:"Обёрточная бумага ризо"}],
+ avoid:["photograph","3d render","realistic photo"],
+ seedKeys:["winter holiday decor","christmas garland","festive wreath","snowflake ornament","paper cut frame","seamless pattern","gift wrap","organic hand drawn","risograph print","puffy 3d shapes"]},
+
+{id:"greeting-cards",titleRu:"Открытки и поздравления",prefix:"wintercard",formats:["vector"],cat:"seasonal",group:"winter",
+ season:[10,11,12,1],win:{from:"2026-10-02",to:"2026-10-22"},yearly:true,
+ detail:"Шаблоны без текста (или с placeholder), минимализм + максимализм — две линейки. Еловые ветки line art.",
+ subjectEn:"winter greeting card design",peopleLikely:false,competition:"высокая",
+ hooks:[
+  {slug:"card-blank",en:"greeting card layout with blank center for custom text",ru:"Открытка с местом под текст"},
+  {slug:"fir-line",en:"line art border of fir branches and berries",ru:"Линейная рамка из еловых веток"},
+  {slug:"corner-frame",en:"set of four ornamental corner frames",ru:"Набор угловых рамок"},
+  {slug:"stamp-snow",en:"set of postage stamp style snowflake cards",ru:"Марки-снежинки"},
+  {slug:"advent-grid",en:"advent calendar grid template",ru:"Сетка адвент-календаря"},
+  {slug:"bokeh-banner",en:"horizontal banner with string lights bokeh",ru:"Баннер с огоньками"},
+  {slug:"bird-papercut",en:"paper cut bird on a snowy branch",ru:"Paper-cut птичка на ветке"},
+  {slug:"poster-blank",en:"holiday poster with large empty center for text",ru:"Постер с пустым центром"}],
+ avoid:["photograph","real text"],
+ seedKeys:["greeting card template","winter card frame","holiday border","blank space for text","line art fir","advent calendar","winter banner","paper cut card"]},
+
+{id:"gifts-wrapping",titleRu:"Подарки и упаковка",prefix:"wintergift",formats:["photo","vector"],cat:"seasonal",group:"winter",
+ season:[11,12,1],win:{from:"2026-10-02",to:"2026-10-22"},yearly:true,
+ detail:"Крафт-бумага, ленты, стопка коробок. Без брендов на упаковке!",
+ subjectEn:"gift wrapping still life",peopleLikely:false,competition:"средняя",
+ hooks:[
+  {slug:"kraft-gifts",en:"kraft paper gifts tied with cotton ribbons",ru:"Подарки в крафте с лентами"},
+  {slug:"box-stack",en:"stack of wrapped boxes on a wooden floor",ru:"Стопка коробок на полу"},
+  {slug:"gift-tags",en:"gift tags with twine on brown paper",ru:"Бирки для подарков"},
+  {slug:"wrap-hands",en:"hands wrapping a gift box",ru:"Упаковка в руках"},
+  {slug:"bow-macro",en:"macro of a satin bow on a present",ru:"Макро банта"},
+  {slug:"present-pile",en:"pile of presents beside a sofa",ru:"Стопка подарков у дивана"},
+  {slug:"topper",en:"paper snowflake gift topper",ru:"Снежинка-украшение подарка"},
+  {slug:"wrap-floor",en:"wrapped gifts on a wooden floor with pine sprigs",ru:"Подарки на полу"}],
+ avoid:["brand logo","barcode","price tag"],
+ seedKeys:["gift wrapping","kraft paper gift","present stack","gift tag","satin ribbon bow","wrapped boxes","holiday present","paper craft"]},
+
+{id:"candles-light",titleRu:"Свечи и свет",prefix:"wincandle",formats:["photo","video"],cat:"seasonal",group:"winter",
+ season:[10,11,12,1,2],win:{from:"2026-10-02",to:"2026-10-22"},yearly:true,
+ detail:"Макро фитиля, гирлянды bokeh, адвент-календари. Тренд «All the Feels» — тактильность и тепло.",
+ subjectEn:"candlelight and warm lights",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"wick-macro",en:"macro of a candle wick and teardrop flame",ru:"Макро фитиля и пламени"},
+  {slug:"lights-bokeh",en:"warm string lights bokeh in a dark cozy room",ru:"Bokeh огоньков в темноте"},
+  {slug:"advent-row",en:"row of small lit candles on a wooden shelf",ru:"Ряд свечей на полке"},
+  {slug:"tealight",en:"tea light candles on a rustic wooden tray",ru:"Свечи на подносе"},
+  {slug:"flame-window",en:"single candle flame against a dark window",ru:"Пламя у тёмного окна"},
+  {slug:"lamp-corner",en:"warm table lamp glow in a reading corner",ru:"Тёплый свет лампы"},
+  {slug:"candle-mug",en:"lit candle beside a steaming ceramic mug",ru:"Свечи рядом с кружкой"},
+  {slug:"glow-path",en:"line of small candles glowing on a dark surface",ru:"Ряд свечей в темноте"}],
+ avoid:["christmas ornaments","text"],
+ seedKeys:["candlelight","warm bokeh lights","flame macro","cozy evening light","advent candles","string lights","glowing candles","winter atmosphere"]},
+
+{id:"winter-aerial",titleRu:"Зимние виды сверху",prefix:"winaerial",formats:["video"],cat:"seasonal",group:"winter",
+ season:[11,12,1,2],win:{from:"2026-10-02",to:"2026-10-22"},yearly:true,
+ detail:"Aerial: заснеженные крыши, лес, река. Чистый медленный полёт — топ по спросу Adobe.",
+ subjectEn:"winter aerial view",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"rooftops",en:"snow covered rooftops of a quiet village seen from above",ru:"Заснеженные крыши сверху"},
+  {slug:"riveraerial",en:"frozen river winding through winter forest from above",ru:"Замёрзшая река с воздуха"},
+  {slug:"forestsun",en:"snow covered pine forest at sunrise from a drone",ru:"Лес на рассвете с воздуха"},
+  {slug:"village",en:"winter village with smoke rising from chimneys aerial",ru:"Зимняя деревня сверху"},
+  {slug:"field",en:"snow covered fields with long tree shadows aerial",ru:"Снежные поля с тенями"},
+  {slug:"icelake",en:"frozen lake with cracked ice seen from above",ru:"Замёрзшее озеро сверху"}],
+ avoid:["people","text"],
+ seedKeys:["aerial winter","drone snow footage","snowy rooftops","frozen river aerial","winter forest drone","slow aerial video","snow landscape","4K nature video"]},
+
+{id:"festive-table",titleRu:"Праздничный стол",prefix:"wintable",formats:["photo"],cat:"seasonal",group:"winter",
+ season:[11,12,1],win:{from:"2026-10-02",to:"2026-10-22"},yearly:true,
+ detail:"Не «Thanksgiving-клише», а «winter dinner with friends» — шире по сроку жизни. Разные культуры зимних столов.",
+ subjectEn:"winter dinner table",peopleLikely:true,competition:"средняя",
+ hooks:[
+  {slug:"dinner-friends",en:"winter dinner table set for friends",ru:"Зимний стол для друзей"},
+  {slug:"roast",en:"roasted root vegetables and herbs close up",ru:"Запечённые овощи крупным планом"},
+  {slug:"mulled",en:"mulled drink being poured into a glass",ru:"Глинтвейн наливают в бокал"},
+  {slug:"setting",en:"place setting with a pine sprig and linen napkin",ru:"Сервировка стола"},
+  {slug:"serving",en:"hands serving warm soup bowls",ru:"Подача супа (руки)"},
+  {slug:"dessert",en:"powdered winter dessert on a ceramic plate",ru:"Десерт с сахарной пудрой"},
+  {slug:"breadboard",en:"rustic bread board with cheese and herbs",ru:"Доска с хлебом"},
+  {slug:"candles-table",en:"lit candles along a festive dinner table",ru:"Свечи на праздничном столе"}],
+ avoid:["branded packaging","christmas tree"],
+ seedKeys:["winter dinner table","holiday food","friends dinner","festive table setting","mulled drink","served soup","rustic dessert","cozy holiday meal"]},
+
+{id:"snow-textures",titleRu:"Снежные текстуры и фоны",prefix:"snowtext",formats:["photo","vector"],cat:"seasonal",group:"winter",
+ season:[10,11,12,1,2],win:{from:"2026-10-02",to:"2026-10-22"},yearly:true,
+ detail:"Фоны под текст («воздух» обязателен), abstract snow, кристаллы макро.",
+ subjectEn:"snow texture and abstract winter background",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"sparkle",en:"sparkling snow surface macro with glittering crystals",ru:"Искрящаяся фактура снега"},
+  {slug:"bokeh",en:"abstract soft snow bokeh background",ru:"Размытый снежный фон"},
+  {slug:"crystal",en:"macro of an ice crystal structure",ru:"Макро кристалла льда"},
+  {slug:"dunes",en:"wind ripples across pristine snow",ru:"Снежные дюны с волнами"},
+  {slug:"copy-space",en:"white winter background with open copy space",ru:"Белый фон с воздухом"},
+  {slug:"falling-dark",en:"falling snow on a dark gradient background",ru:"Снег на тёмном фоне"},
+  {slug:"frost-pattern",en:"frost flower pattern spreading across glass",ru:"Морозный узор на стекле"},
+  {slug:"flake-macro",en:"single snowflake extreme macro",ru:"Макро единичной снежинки"}],
+ avoid:["people","text"],
+ seedKeys:["snow texture","winter background","ice macro","abstract snow","frost pattern","copy space background","white winter","snowflake macro"]},
+/* ===== валентин ===== */
+{id:"valentine-cards",titleRu:"Открытки и сердца",prefix:"valcard",formats:["vector"],cat:"seasonal",group:"valentine",
+ season:[1,2],win:{from:"2026-11-29",to:"2026-12-13"},yearly:true,
+ detail:"Классика + фреш: paper-cut сердца, abstract hearts, hand-drawn линии, «puffy» 3D-сердца.",
+ subjectEn:"valentine card and hearts",peopleLikely:false,competition:"высокая",
+ hooks:[
+  {slug:"paperhearts",en:"set of layered paper cut hearts",ru:"Paper-cut сердца"},
+  {slug:"abstract-hearts",en:"abstract geometric heart shapes",ru:"Абстрактные сердца"},
+  {slug:"line-hearts",en:"hand drawn line heart illustrations",ru:"Линейные сердца"},
+  {slug:"puffy-hearts",en:"puffy 3d heart seamless pattern",ru:"Пуффи паттерн из сердец"},
+  {slug:"heart-frame",en:"heart ornament frame with blank center",ru:"Рамка из сердец"},
+  {slug:"love-card",en:"greeting card layout with heart border",ru:"Открытка с сердечками"},
+  {slug:"heart-pattern",en:"seamless repeating heart pattern",ru:"Бесшовный паттерн сердец"},
+  {slug:"envelope-hearts",en:"envelope with scattered confetti hearts",ru:"Конверт с сердечками"}],
+ avoid:["photograph","real text"],
+ seedKeys:["valentine card","heart pattern","paper cut hearts","love greeting card","abstract heart","puffy 3d hearts","seamless pattern","romantic design"]},
+
+{id:"friendship-love",titleRu:"Дружеская и семейная любовь",prefix:"vallove",formats:["photo"],cat:"seasonal",group:"valentine",
+ season:[1,2],win:{from:"2026-11-29",to:"2026-12-13"},yearly:true,
+ detail:"Подлинные моменты (Connectioneering): объятия друзей, бабушка с внучкой, пары разного возраста.",
+ subjectEn:"authentic affection between people",peopleLikely:true,competition:"средняя",
+ hooks:[
+  {slug:"friends-hug",en:"friends hugging in a park",ru:"Объятия друзей в парке"},
+  {slug:"granny-grand",en:"grandmother with granddaughter reading together",ru:"Бабушка с внучкой"},
+  {slug:"old-couple",en:"older couple walking hand in hand",ru:"Пара постарше за руки"},
+  {slug:"cafe-laugh",en:"two friends laughing at a cafe table",ru:"Друзья смеются в кафе"},
+  {slug:"family-door",en:"family embracing at the front door",ru:"Встреча семьи у двери"},
+  {slug:"kids-friends",en:"two children as best friends outdoors",ru:"Дети-друзья на улице"},
+  {slug:"hands-hold",en:"two hands held together close up",ru:"Сжатые руки крупным планом"},
+  {slug:"group-out",en:"group of friends outdoors in daylight",ru:"Компания друзей на улице"}],
+ avoid:["staged stock smiles","text"],
+ seedKeys:["friends hugging","family affection","grandmother granddaughter","couple holding hands","authentic emotion","friends laughing","close relationship","connection"]},
+
+{id:"self-care",titleRu:"Self-love / забота о себе",prefix:"valself",formats:["photo","video"],cat:"seasonal",group:"valentine",
+ season:[1,2],win:{from:"2026-11-29",to:"2026-12-13"},yearly:true,
+ detail:"Ванна, свечи, дневник, шёлковый халат. Ниша: Valentine для одного человека — растёт спрос.",
+ subjectEn:"self care ritual",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"bathtub",en:"bathtub with floating petals and candles",ru:"Ванна с лепестками и свечами"},
+  {slug:"journal",en:"hands writing in a journal",ru:"Записи в дневнике (руки)"},
+  {slug:"silk-robe",en:"silk robe detail hanging on a hook",ru:"Шёлковый халат"},
+  {slug:"skincare",en:"skincare bottles flatlay on a stone tray",ru:"Раскладка ухода за кожей"},
+  {slug:"tea-book",en:"tea and an open book on a soft bed",ru:"Чай и книга на кровати"},
+  {slug:"meditate",en:"person meditating by a window seen from behind",ru:"Медитация у окна со спины"},
+  {slug:"mask",en:"evening skin care routine flatlay",ru:"Вечерний уход за кожей"},
+  {slug:"alone-cozy",en:"cozy evening alone wrapped in a blanket",ru:"Уютный вечер в одиночестве"}],
+ avoid:["text","brand logos"],
+ seedKeys:["self care","relaxation ritual","spa at home","skincare routine","quiet evening","mindfulness","cozy alone time","wellness at home"]},
+
+{id:"confetti-silk",titleRu:"Конфетти и шёлк",prefix:"valsilk",formats:["video"],cat:"seasonal",group:"valentine",
+ season:[1,2],win:{from:"2026-11-29",to:"2026-12-13"},yearly:true,
+ detail:"Лупы: падающие сердечки, движение ткани, россыпь лепестков. Slow motion, чистый фон.",
+ subjectEn:"confetti and flowing fabric",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"heartconfetti",en:"falling heart confetti on a plain background",ru:"Падающие сердечки"},
+  {slug:"silkflow",en:"silk fabric flowing slowly in the air",ru:"Плывущий шёлк"},
+  {slug:"petals",en:"rose petals scattering in slow motion",ru:"Лепестки в slow motion"},
+  {slug:"glitter",en:"glitter bokeh particles drifting",ru:"Мерцающие частицы"},
+  {slug:"ribbon",en:"satin ribbon swirling in the air",ru:"Кружащаяся лента"},
+  {slug:"burst",en:"confetti burst on a solid backdrop",ru:"Взрыв конфетти"}],
+ avoid:["people","text"],
+ seedKeys:["falling confetti","silk motion","rose petals slow motion","glitter bokeh","ribbon loop","valentine video","seamless loop","background motion"]},
+
+{id:"chocolate-treats",titleRu:"Шоколад и угощения",prefix:"valchoco",formats:["photo","vector"],cat:"seasonal",group:"valentine",
+ season:[1,2],win:{from:"2026-11-29",to:"2026-12-13"},yearly:true,
+ detail:"Макро растекающегося шоколада (All the Feels), коробки без брендов.",
+ subjectEn:"chocolate and sweets",peopleLikely:false,competition:"средняя",
+ hooks:[
+  {slug:"melt",en:"melting chocolate macro swirl",ru:"Макро растекающегося шоколада"},
+  {slug:"box",en:"open chocolate box without branding",ru:"Коробка конфет без бренда"},
+  {slug:"truffles",en:"chocolate truffles dusted on marble",ru:"Шоколадные трюфели"},
+  {slug:"dip",en:"strawberry dipped in dark chocolate",ru:"Клубника в шоколаде"},
+  {slug:"candy",en:"heart shaped candy hearts flatlay",ru:"Сердечки-конфеты"},
+  {slug:"pattern",en:"sweet candy heart repeating pattern",ru:"Паттерн из сердец"}],
+ avoid:["brand logo","packaging text"],
+ seedKeys:["chocolate macro","melting chocolate","chocolate box","sweet treat","heart candy","dessert still life","valentine food","candy pattern"]},
+
+/* ===== весна ===== */
+{id:"spring-bloom",titleRu:"Цветение и пробуждение",prefix:"springbloom",formats:["video","photo"],cat:"seasonal",group:"spring",
+ season:[3,4,5],win:{from:"2026-12-01",to:"2027-02-28"},yearly:true,
+ detail:"Time-lapse цветения, сакура/яблони, первые насекомые, роса макро.",
+ subjectEn:"spring blossoms",peopleLikely:false,competition:"средняя",
+ hooks:[
+  {slug:"timelapse",en:"time lapse of a flower blooming",ru:"Таймлапс цветения"},
+  {slug:"blossom",en:"cherry blossom branch swaying in the wind",ru:"Ветка цветущей вишни"},
+  {slug:"bee",en:"bee landing on the first spring flower",ru:"Пчела на первом цветке"},
+  {slug:"dew",en:"dew drops on blossom petals macro",ru:"Роса на лепестках"},
+  {slug:"orchard",en:"apple orchard in full bloom",ru:"Цветущий яблоневый сад"},
+  {slug:"crocus",en:"crocus pushing through melting snow",ru:"Крокус сквозь снег"},
+  {slug:"tulips",en:"tulip field in soft spring light",ru:"Поле тюльпанов"},
+  {slug:"petals",en:"falling blossom petals in daylight",ru:"Падающие лепестки"}],
+ avoid:["christmas","text"],
+ seedKeys:["spring bloom","cherry blossom","flower timelapse","bee on flower","dew macro","apple orchard","crocus spring","petals falling"]},
+
+{id:"garden-dacha",titleRu:"Сад и дача",prefix:"springgarden",formats:["photo"],cat:"seasonal",group:"spring",
+ season:[4,5],win:{from:"2026-12-01",to:"2027-02-28"},yearly:true,
+ detail:"Посадка руками, рассада, компост (устойчивое живание — официальный спрос), детский сад.",
+ subjectEn:"gardening and planting",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"planting",en:"hands planting seedlings in dark soil",ru:"Посадка рассады руками"},
+  {slug:"sprouts",en:"young green sprouts emerging from soil",ru:"Всходы рассады"},
+  {slug:"compost",en:"compost bin with garden scraps",ru:"Компостная куча"},
+  {slug:"beds",en:"raised garden beds with fresh greens",ru:"Грядки с зеленью"},
+  {slug:"child-water",en:"child watering plants in the garden",ru:"Дети поливают растения"},
+  {slug:"trays",en:"seedling trays on a sunny windowsill",ru:"Рассада на подоконнике"},
+  {slug:"pruning",en:"hands pruning a green shrub",ru:"Обрезка кустарника"},
+  {slug:"harvest",en:"woven basket with freshly picked vegetables",ru:"Корзина со свежим урожаем"}],
+ avoid:["branded tools","text"],
+ seedKeys:["gardening","planting seedlings","sprouts soil","community garden","watering plants","vegetable harvest","home garden","sustainable living"]},
+
+{id:"spring-cleaning",titleRu:"Весенняя уборка / обновление",prefix:"springclean",formats:["photo","video"],cat:"seasonal",group:"spring",
+ season:[3,4,5],win:{from:"2026-12-01",to:"2027-02-28"},yearly:true,
+ detail:"До/после без клише, распаковка, открытые окна, свежий воздух.",
+ subjectEn:"spring cleaning and refresh",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"window",en:"open window with a sheer curtain moving in the breeze",ru:"Открытое окно с занавеской"},
+  {slug:"wipe",en:"hands wiping a wooden table with a cloth",ru:"Протирание стола (руки)"},
+  {slug:"laundry",en:"fresh laundry drying outside in the sun",ru:"Бельё сушится на улице"},
+  {slug:"shelf",en:"hands tidying an empty wooden shelf",ru:"Наведение порядка на полке"},
+  {slug:"sunroom",en:"sunlit clean minimal living room",ru:"Светлая убранная гостиная"},
+  {slug:"donate",en:"sorting clothes into a donation box",ru:"Сортировка одежды в коробку"},
+  {slug:"rug",en:"beating a rug outdoors",ru:"Выбивание ковра"},
+  {slug:"plants",en:"watering houseplants while tidying",ru:"Полив комнатных растений"}],
+ avoid:["text","people faces"],
+ seedKeys:["spring cleaning","tidying home","fresh laundry","open window","decluttering","clean living room","household chores","renewal"]},
+
+{id:"easter-decor",titleRu:"Пасхальные и весенние декоры",prefix:"easterdec",formats:["vector"],cat:"seasonal",group:"spring",
+ season:[3,4],win:{from:"2027-01-19",to:"2027-02-02"},yearly:true,
+ detail:"Кролики, яйца, гнёзда, pastel-паттерны. Дедлайн Пасхи (4 апр 2027): 19 янв — 2 фев.",
+ subjectEn:"easter and spring decor",peopleLikely:false,competition:"средняя",
+ hooks:[
+  {slug:"eggs",en:"set of decorated easter eggs",ru:"Расписанные пасхальные яйца"},
+  {slug:"bunny",en:"simple hand drawn easter bunny illustration",ru:"Иллюстрация кролика"},
+  {slug:"nest",en:"nest with pastel painted eggs",ru:"Гнездо с яйцами"},
+  {slug:"pastel-pattern",en:"seamless pastel spring pattern",ru:"Пастельный весенний паттерн"},
+  {slug:"card-blank",en:"easter card layout with blank center",ru:"Пасхальная открытка"},
+  {slug:"egg-icons",en:"set of line icons of painted eggs",ru:"Набор иконок яиц"},
+  {slug:"carrot-border",en:"decorative border of carrots and leaves",ru:"Морковный бордюр"},
+  {slug:"basket",en:"easter basket with grass and eggs",ru:"Пасхальная корзинка"}],
+ avoid:["photograph","real text","religious figures"],
+ seedKeys:["easter decor","painted eggs","bunny illustration","pastel pattern","spring card","easter basket","holiday vector","seasonal design"]},
+
+{id:"gender-party",titleRu:"Гендер-пати и ожидание",prefix:"genderparty",formats:["photo"],cat:"seasonal",group:"spring",
+ season:[3,4,5],win:{from:"2026-12-01",to:"2027-02-28"},yearly:true,
+ detail:"Современные, без клише «розовый=девочка»; разные семьи. Осторожно с IP-декором.",
+ subjectEn:"expecting a baby",peopleLikely:true,competition:"низкая",
+ hooks:[
+  {slug:"socks",en:"tiny knitted socks held in adult hands",ru:"Маленькие носочки в руках"},
+  {slug:"balloons",en:"pastel balloon garland on a wall",ru:"Гирлянда из шаров"},
+  {slug:"belly",en:"expecting mother holding her belly in soft light",ru:"Будущая мама"},
+  {slug:"envelope",en:"hands opening a surprise envelope",ru:"Открытие конверта с сюрпризом"},
+  {slug:"clothes",en:"folded baby clothes on linen",ru:"Детская одежда на льне"},
+  {slug:"family-hug",en:"couple embracing in soft daylight",ru:"Объятия пары"}],
+ avoid:["stereotyped colors only","text","brand logos"],
+ seedKeys:["gender reveal","expecting mother","baby shower","tiny socks","balloon garland","new baby","family celebration","pregnancy"]},
+/* ===== лето и осень ===== */
+{id:"summer-travel",titleRu:"Отпуск и путешествия",prefix:"summertrip",formats:["video","photo"],cat:"seasonal",group:"summer",
+ season:[6,7,8],win:{from:"2027-03-01",to:"2027-05-31"},yearly:true,
+ detail:"Море без раскрученных курортов, походы, road trip, van life. Local Flavors — локации своего региона.",
+ subjectEn:"summer travel and outdoors",peopleLikely:false,competition:"высокая",
+ hooks:[
+  {slug:"waves",en:"turquoise sea waves on an empty beach",ru:"Волны на пустом пляже"},
+  {slug:"road",en:"open road through a summer landscape",ru:"Дорога через летний пейзаж"},
+  {slug:"camp",en:"van life campsite at golden hour",ru:"Стоянка фургона на закате"},
+  {slug:"trail",en:"hiking trail winding through mountains",ru:"Пешая тропа в горах"},
+  {slug:"lake",en:"crystal mountain lake shore",ru:"Берег горного озера"},
+  {slug:"tent",en:"tent pitched in a pine forest",ru:"Палатка в сосновом лесу"},
+  {slug:"bike",en:"bicycle resting on a coastal road",ru:"Велосипед на побережье"},
+  {slug:"pier",en:"wooden pier stretching over calm water",ru:"Деревянный мостик над водой"}],
+ avoid:["brand logos","resort names","text"],
+ seedKeys:["summer travel","road trip","van life","hiking trail","beach waves","mountain lake","camping tent","coastal view"]},
+
+{id:"street-food-farms",titleRu:"Уличная еда и фермы",prefix:"summerfood",formats:["photo","video"],cat:"seasonal",group:"summer",
+ season:[6,7,8],win:{from:"2027-03-01",to:"2027-05-31"},yearly:true,
+ detail:"Ягоды макро, гриль, фермерские корзины, медленная еда. Тренд All the Feels — вкус глазами.",
+ subjectEn:"street food and farm produce",peopleLikely:false,competition:"средняя",
+ hooks:[
+  {slug:"berries",en:"macro of fresh berries with dew drops",ru:"Макро ягод с росой"},
+  {slug:"grill",en:"skewers grilling over glowing charcoal",ru:"Шашлыки на углях"},
+  {slug:"market",en:"farmer market basket with vegetables",ru:"Фермерская корзина с овощами"},
+  {slug:"honey",en:"honey pouring in slow motion",ru:"Текущий мёд в slow motion"},
+  {slug:"vegcrate",en:"crate of freshly picked vegetables",ru:"Ящик со свежими овощами"},
+  {slug:"oven",en:"flatbread baking in a wood fired oven",ru:"Лепёшка в дровяной печи"},
+  {slug:"corn",en:"corn cobs roasting on a grill",ru:"Кукуруза на гриле"},
+  {slug:"picking",en:"hands picking strawberries in a field",ru:"Сбор клубники руками"}],
+ avoid:["brand logos","text"],
+ seedKeys:["street food","farm produce","berries macro","grilling food","farmers market","honey pouring","fresh vegetables","food in motion"]},
+
+{id:"festivals-traditions",titleRu:"Фестивали и традиции",prefix:"summerfest",formats:["photo"],cat:"seasonal",group:"summer",
+ season:[5,6,7,8],win:{from:"2027-03-01",to:"2027-06-30"},yearly:true,
+ detail:"Официальный спрос Adobe: культурное наследие без стереотипов — снимайте «как это есть», с уважением.",
+ subjectEn:"local festival and craft tradition",peopleLikely:true,competition:"низкая",
+ hooks:[
+  {slug:"stall",en:"craft market stall with handmade goods",ru:"Прилавок ремесленного рынка"},
+  {slug:"pottery",en:"potter shaping clay on a wheel",ru:"Гончарный круг"},
+  {slug:"embroidery",en:"hands embroidering a colorful pattern",ru:"Вышивка руками"},
+  {slug:"lantern",en:"paper lanterns glowing at an evening festival",ru:"Фонари на вечернем празднике"},
+  {slug:"crowd",en:"outdoor music crowd at sunset",ru:"Толпа на закатном концерте"},
+  {slug:"feast",en:"community celebration table outdoors",ru:"Общая праздничная трапеза"},
+  {slug:"weaving",en:"weaving on a wooden loom",ru:"Ткацкий станок"},
+  {slug:"costume",en:"traditional folk costume detail",ru:"Деталь народного костюма"}],
+ avoid:["stereotypes","brand logos","text"],
+ seedKeys:["cultural tradition","craft market","pottery hands","festival lanterns","folk costume","local culture","community celebration","handmade craft"]},
+
+{id:"weather-elements",titleRu:"Стихии и погода",prefix:"weatherelem",formats:["video"],cat:"seasonal",group:"summer",
+ season:[5,6,7,8],win:{from:"2027-03-01",to:"2027-05-31"},yearly:true,
+ detail:"Гроза, закаты, волны, дождь по стеклу (луп), ветер в траве. Nature — evergreen + video bestseller.",
+ subjectEn:"weather and elements",peopleLikely:false,competition:"средняя",
+ hooks:[
+  {slug:"lightning",en:"lightning striking over a summer field",ru:"Молния над полем"},
+  {slug:"sunset",en:"sun setting over the sea in time lapse",ru:"Закат над морем (таймлапс)"},
+  {slug:"waves",en:"ocean waves crashing on coastal rocks",ru:"Волны об скалы"},
+  {slug:"rain-glass",en:"rain drops running down a window pane",ru:"Дождь по стеклу"},
+  {slug:"grass",en:"wind blowing through tall summer grass",ru:"Ветер в высокой траве"},
+  {slug:"clouds",en:"storm clouds rolling across the sky",ru:"Туча надвигается"},
+  {slug:"embers",en:"glowing campfire embers and sparks",ru:"Угли и искры костра"},
+  {slug:"rays",en:"sun rays cutting through drifting dust",ru:"Лучи света в пыли"}],
+ avoid:["people","text"],
+ seedKeys:["storm lightning","sunset timelapse","ocean waves","rain on window","wind in grass","weather video","nature loop","elemental motion"]},
+
+{id:"school-office",titleRu:"Back to school / офис",prefix:"schoolwork",formats:["photo","vector"],cat:"seasonal",group:"summer",
+ season:[8,9],win:{from:"2027-06-01",to:"2027-07-31"},yearly:true,
+ detail:"Рюкзаки, кампус, гибридный офис, разные роли (учителя, медики, рабочие). Дедлайн: июнь–июль 2027.",
+ subjectEn:"school and office",peopleLikely:true,competition:"средняя",
+ hooks:[
+  {slug:"backpack",en:"school backpack with supplies flatlay",ru:"Рюкзак с канцтоварами"},
+  {slug:"corridor",en:"university campus corridor with daylight",ru:"Коридор кампуса"},
+  {slug:"notes",en:"hands writing notes in a notebook",ru:"Конспект (руки)"},
+  {slug:"desk",en:"home office desk with laptop and coffee",ru:"Рабочий стол с ноутбуком"},
+  {slug:"teacher",en:"teacher explaining at a whiteboard",ru:"Учитель у доски"},
+  {slug:"stationery",en:"stationery set arranged on a desk",ru:"Раскладка канцелярии"},
+  {slug:"meeting",en:"team meeting around a table",ru:"Встреча команды за столом"},
+  {slug:"locker",en:"school hallway with lockers",ru:"Школьный коридор с шкафчиками"}],
+ avoid:["brand logos","readable text"],
+ seedKeys:["back to school","school supplies","campus corridor","study notes","home office","classroom","team meeting","stationery"]},
+
+{id:"halloween",titleRu:"Halloween-2027 серия",prefix:"halloween",formats:["vector","video"],cat:"seasonal",group:"summer",
+ season:[9,10],win:{from:"2027-08-16",to:"2027-08-30"},yearly:true,
+ detail:"Тыквы без жути для детсадов, autumn palette, тикающие ланчбоксы, силуэты. Дедлайн: 16–30 авг 2027.",
+ subjectEn:"friendly halloween and autumn decor",peopleLikely:false,competition:"средняя",
+ hooks:[
+  {slug:"pumpkin",en:"cute smiling pumpkin illustration",ru:"Дружелюбная тыква"},
+  {slug:"leaves",en:"autumn leaf seamless pattern",ru:"Осенний листопад-паттерн"},
+  {slug:"mask",en:"set of costume mask icons",ru:"Набор масок"},
+  {slug:"bucket",en:"trick or treat candy bucket",ru:"Ведёрко для сладостей"},
+  {slug:"house",en:"soft silhouette of a crooked haunted house",ru:"Силуэт домика"},
+  {slug:"candy",en:"candy corn repeating pattern",ru:"Паттерн из конфет"},
+  {slug:"ghost",en:"cute friendly ghost character",ru:"Добрый призрак"},
+  {slug:"wreath",en:"autumn door wreath with leaves and acorns",ru:"Осенний венок на дверь"}],
+ avoid:["gore","blood","horror face","text"],
+ seedKeys:["halloween decor","pumpkin illustration","autumn pattern","cute ghost","costume mask","friendly halloween","autumn palette","holiday vector"]},
+/* ===== evergreen ===== */
+{id:"real-people",titleRu:"Реальные люди в естественной среде",prefix:"peopleout",formats:["photo","video"],cat:"evergreen",group:"evergreen",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Парки, пляжи, лесные тропы; чтение на скамейке, дети в игре, смех в поездке. Минимум постановки. Model release на узнаваемых лицах.",
+ subjectEn:"real people in natural settings",peopleLikely:true,competition:"высокая",
+ hooks:[
+  {slug:"park-laugh",en:"friends laughing together on a park bench",ru:"Друзья смеются на скамейке"},
+  {slug:"reading",en:"woman reading a book on a park bench",ru:"Чтение на скамейке"},
+  {slug:"ball",en:"kids playing with a ball on the grass",ru:"Дети играют в мяч"},
+  {slug:"picnic",en:"family picnic on a summer lawn",ru:"Пикник семьи на лужайке"},
+  {slug:"elderly",en:"elderly couple walking together",ru:"Пожилая пара гуляет"},
+  {slug:"jogger",en:"jogger running at sunrise",ru:"Бегун на рассвете"},
+  {slug:"dogwalk",en:"dog walker greeting a neighbor",ru:"Выгульщик собаки знакомится"},
+  {slug:"teen",en:"teenager with headphones in the city",ru:"Подросток с наушниками"}],
+ avoid:["staged stock smiles","text"],
+ seedKeys:["real people","everyday life","park scene","friends outdoors","family moment","natural light portrait","candid lifestyle","people in the city"]},
+
+{id:"daily-moments",titleRu:"Бытовые моменты и отношения",prefix:"dailylife",formats:["photo","video"],cat:"evergreen",group:"evergreen",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Семья готовит вместе, друзья за кофе, бабушки с внуками. Мультипоколенческие и мультирасовые семьи — явный официальный запрос.",
+ subjectEn:"everyday family and friends moments",peopleLikely:true,competition:"высокая",
+ hooks:[
+  {slug:"cooking",en:"family cooking together in the kitchen",ru:"Семья готовит вместе"},
+  {slug:"coffee",en:"friends sharing coffee at a kitchen table",ru:"Друзья за кофе"},
+  {slug:"dogwalk",en:"couple walking a dog in the neighborhood",ru:"Пара гуляет с собакой"},
+  {slug:"granny",en:"grandmother with grandchildren on a sofa",ru:"Бабушка с внуками"},
+  {slug:"breakfast",en:"shared breakfast table in morning light",ru:"Завтрак за столом"},
+  {slug:"laundry",en:"folding laundry together at home",ru:"Складывают бельё"},
+  {slug:"story",en:"reading a bedtime story to a child",ru:"Сказка перед сном"},
+  {slug:"laughter",en:"shared laughter at the kitchen table",ru:"Общий смех на кухне"}],
+ avoid:["staged smiles","text"],
+ seedKeys:["family life","everyday moment","friends at home","multigenerational family","cooking together","home routine","authentic emotion","shared joy"]},
+
+{id:"remotework",titleRu:"Удалёнка, технологии, отрасли",prefix:"remotework",formats:["photo"],cat:"evergreen",group:"evergreen",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Домашний офис без «стока», видеозвонки, коворкинги, реальные рабочие. Современные устройства, но не в фокусе.",
+ subjectEn:"modern work and technology",peopleLikely:true,competition:"средняя",
+ hooks:[
+  {slug:"homeoffice",en:"home office desk by a bright window",ru:"Домашний офис у окна"},
+  {slug:"call",en:"over the shoulder view of a video call",ru:"Видеозвонок через плечо"},
+  {slug:"coworking",en:"coworking table with open laptops",ru:"Стол в коворкинге"},
+  {slug:"typing",en:"hands typing with a coffee cup nearby",ru:"Печать на клавиатуре"},
+  {slug:"standing",en:"standing desk workspace",ru:"Стол для работы стоя"},
+  {slug:"planning",en:"notebook and laptop planning session",ru:"Планирование в блокноте"},
+  {slug:"balcony",en:"working on a laptop on a balcony",ru:"Работа с ноутбуком на балконе"},
+  {slug:"workshop",en:"team workshop with sticky notes on glass",ru:"Воркшоп со стикерами"}],
+ avoid:["readable screen text","brand logos"],
+ seedKeys:["remote work","home office","video call","coworking","team collaboration","laptop workspace","modern office","technology at work"]},
+
+{id:"sustainab",titleRu:"Устойчивое живание",prefix:"sustainab",formats:["photo","video"],cat:"evergreen",group:"evergreen",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Компост, городские грядки, электрокары, ремонт вместо покупки, рынки, zero-waste, солнечные панели. Люди — «часть решения».",
+ subjectEn:"sustainable everyday living",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"compost",en:"hands adding scraps to a compost bin",ru:"Компост (руки)"},
+  {slug:"urban-garden",en:"urban vegetable garden bed",ru:"Городская грядка"},
+  {slug:"ev-car",en:"electric car charging at a station",ru:"Зарядка электрокара"},
+  {slug:"patch",en:"hands stitching a fabric patch",ru:"Заплатка на ткани"},
+  {slug:"market-bags",en:"reusable bags with market vegetables",ru:"Мешки для рынка"},
+  {slug:"solar",en:"solar panels on a rooftop",ru:"Солнечные панели на крыше"},
+  {slug:"jars",en:"zero waste kitchen with glass jars",ru:"Кухня zero-waste в банках"},
+  {slug:"bike-commute",en:"bicycle commuting in the city",ru:"Велоезды в городе"}],
+ avoid:["brand logos","text"],
+ seedKeys:["sustainable living","zero waste","compost","urban garden","electric car","reusable bag","solar energy","eco lifestyle"]},
+
+{id:"localflavor",titleRu:"Культура и традиции",prefix:"localflavor",formats:["photo","vector"],cat:"evergreen",group:"evergreen",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Праздники разных народов, подготовка к трапезе, одежда, ремесло, передача навыков. Local Flavors — без стереотипов и IP.",
+ subjectEn:"local craft and cultural tradition",peopleLikely:true,competition:"низкая",
+ hooks:[
+  {slug:"textiles",en:"market stall with folded handmade textiles",ru:"Прилавок с текстилем"},
+  {slug:"paint-bowl",en:"hands painting a ceramic bowl",ru:"Роспись керамической чаши"},
+  {slug:"embroidered",en:"traditional embroidered fabric detail",ru:"Деталь вышивки"},
+  {slug:"bread-oven",en:"bread baking in a stone oven",ru:"Хлеб в каменной печи"},
+  {slug:"dumplings",en:"hands preparing traditional dumplings",ru:"Лепка пельменей"},
+  {slug:"workshop",en:"craftsman workshop with hand tools",ru:"Мастерская с ручными инструментами"},
+  {slug:"garment",en:"traditional garment textile detail",ru:"Деталь традиционной одежды"},
+  {slug:"carving",en:"wooden carving tools in use",ru:"Резьба по дереву"}],
+ avoid:["stereotypes","brand logos","text"],
+ seedKeys:["local culture","traditional craft","handmade textile","folk art","artisan hands","cultural heritage","market tradition","regional cuisine"]},
+
+{id:"wellness",titleRu:"Здоровье и wellness",prefix:"wellness",formats:["photo","video"],cat:"evergreen",group:"evergreen",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Медприёмы, терапия, фитнес, медитация, здоровая еда, сон, self-care; разные возрасты, тела, возможности. Без «драматизации».",
+ subjectEn:"health and wellness routine",peopleLikely:true,competition:"средняя",
+ hooks:[
+  {slug:"yoga",en:"yoga pose on a mat by a window",ru:"Йога у окна"},
+  {slug:"bowl",en:"healthy breakfast bowl preparation",ru:"Полезная тарелка завтрака"},
+  {slug:"stretch",en:"stretching in a bright room",ru:"Растяжка в светлой комнате"},
+  {slug:"rest",en:"calm resting in soft bedding",ru:"Отдых в мягкой постели"},
+  {slug:"breathe",en:"deep breathing by an open window",ru:"Дыхательная практика у окна"},
+  {slug:"tea-herbal",en:"herbal tea with fresh herbs",ru:"Травяной чай"},
+  {slug:"walk-trail",en:"mindful walk on a forest trail",ru:"Прогулка по лесной тропе"},
+  {slug:"sleep",en:"peaceful sleep in a dim bedroom",ru:"Спокойный сон"}],
+ avoid:["medical drama","text","brand logos"],
+ seedKeys:["wellness","mental health","yoga practice","healthy habits","relaxation","fitness routine","self care","balanced lifestyle"]},
+
+{id:"fooddrink",titleRu:"Еда и напитки",prefix:"fooddrink",formats:["photo","video"],cat:"evergreen",group:"evergreen",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Приготовление, макро текстур, разные кухни, фермерство, напитки в движении (литьё, пар). Evergreen №1 по продажам.",
+ subjectEn:"food and drinks",peopleLikely:false,competition:"высокая",
+ hooks:[
+  {slug:"coffee",en:"pouring coffee into a ceramic cup macro",ru:"Проливающийся кофе"},
+  {slug:"soup",en:"steam rising from a bowl of soup",ru:"Пар от тарелки супа"},
+  {slug:"bread",en:"slicing a fresh loaf of bread",ru:"Нарезка свежего хлеба"},
+  {slug:"juice",en:"pouring fresh orange juice",ru:"Наливание сока"},
+  {slug:"herbs",en:"fresh herbs on a wooden cutting board",ru:"Зелень на разделочной доске"},
+  {slug:"choc",en:"chocolate melting macro",ru:"Тающий шоколад"},
+  {slug:"citrus",en:"citrus slice splashing in water",ru:"Цитрус в воде"},
+  {slug:"pancakes",en:"stack of pancakes with dripping syrup",ru:"Стопка панкейков"}],
+ avoid:["brand packaging","text"],
+ seedKeys:["food photography","pouring drink","steam macro","fresh ingredients","cooking process","appetizing detail","kitchen still life","beverage motion"]},
+
+{id:"wildnature",titleRu:"Природа и дикая природа",prefix:"wildnature",formats:["photo","video"],cat:"evergreen",group:"evergreen",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Поведение животных, смена сезонов, аэро, погодные явления. Видео здесь лицензируется особенно часто.",
+ subjectEn:"wild nature and wildlife",peopleLikely:false,competition:"средняя",
+ hooks:[
+  {slug:"fox",en:"red fox standing in morning mist",ru:"Лиса в утреннем тумане"},
+  {slug:"birds",en:"flock of birds taking flight",ru:"Стая птиц взлетает"},
+  {slug:"deer",en:"deer at the forest edge at dawn",ru:"Олень на опушке"},
+  {slug:"waves",en:"waves hitting coastal rocks",ru:"Волны об берег"},
+  {slug:"stream",en:"forest stream flowing over stones",ru:"Лесной ручей"},
+  {slug:"clouds",en:"clouds rolling over mountain peaks",ru:"Облака над горами"},
+  {slug:"leaves",en:"autumn leaves falling in a forest",ru:"Осенний листопад"},
+  {slug:"owl",en:"owl perched on a branch close up",ru:"Сова на ветке"}],
+ avoid:["people","text"],
+ seedKeys:["wildlife","nature video","forest animal","mountain landscape","flowing water","birds flying","seasonal nature","wild habitat"]},
+/* ===== белые пятна ===== */
+{id:"seniortech",titleRu:"Старшее поколение + технологии",prefix:"seniortech",formats:["photo"],cat:"whitespot",group:"white",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Активные 65–80, не «пожилые грустные». Проверяйте выдачу: белое пятно с растущим спросом.",
+ subjectEn:"senior people using technology",peopleLikely:true,competition:"низкая",
+ hooks:[
+  {slug:"tablet",en:"senior man using a tablet and smiling",ru:"Пожилой мужчина с планшетом"},
+  {slug:"videocall",en:"grandmother on a video call at home",ru:"Бабушка на видеозвонке"},
+  {slug:"smartphone",en:"older woman taking a photo with a phone",ru:"Женщина фотографирует телефоном"},
+  {slug:"laptop",en:"elderly hands typing on a laptop",ru:"Руки пожилого человека на ноутбуке"},
+  {slug:"pair-pc",en:"senior couple looking at a computer together",ru:"Пара за компьютером"},
+  {slug:"learn",en:"senior learning a new app with a helper",ru:"Освоение нового приложения"}],
+ avoid:["staged pity","text"],
+ seedKeys:["senior technology","older adult online","grandparent smartphone","active aging","video call home","laptop senior","digital literacy","retirement lifestyle"]},
+
+{id:"menscare",titleRu:"Мужской self-care",prefix:"menscare",formats:["photo"],cat:"whitespot",group:"white",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Уход за кожой, бритьё, восстановление — меньше контента, чем женского. Узкая коммерческая ниша.",
+ subjectEn:"men grooming routine",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"shaving",en:"shaving brush and safety razor on marble",ru:"Щётка и бритва"},
+  {slug:"skincare",en:"men skincare bottles flatlay",ru:"Мужской уход (раскладка)"},
+  {slug:"beard",en:"beard comb and oil on a wooden surface",ru:"Масло и расчёска для бороды"},
+  {slug:"cream",en:"hands applying face cream",ru:"Нанесение крема (руки)"},
+  {slug:"grooming",en:"bathroom grooming set neatly arranged",ru:"Набор для ухода"},
+  {slug:"towel",en:"fresh towel and razor on a bathroom counter",ru:"Полотенце и бритва"}],
+ avoid:["brand logos","text"],
+ seedKeys:["men grooming","shaving tools","skincare for men","beard care","bathroom routine","male self care","grooming flatlay","daily care"]},
+
+{id:"inclsport",titleRu:"Инклюзивный спорт",prefix:"inclsport",formats:["photo","video"],cat:"whitespot",group:"white",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Коляски, протезы, пара-спорт, адаптивное оборудование. Только уважительная реальная съёмка.",
+ subjectEn:"adaptive and inclusive sports",peopleLikely:true,competition:"очень низкая",
+ hooks:[
+  {slug:"wheeltrain",en:"wheelchair athlete training on a track",ru:"Тренировка спортсмена в коляске"},
+  {slug:"blade",en:"running blade prosthetic close up",ru:"Беговой протез крупным планом"},
+  {slug:"swim",en:"para swimmer at the pool edge",ru:"Плавец у бортика"},
+  {slug:"gym",en:"adaptive gym equipment in use",ru:"Адаптивный спортзал"},
+  {slug:"guide",en:"guided runner with a tether",ru:"Бег с проводником"},
+  {slug:"handcycle",en:"handcycle riding on an open road",ru:"Хэндсайкл на дороге"}],
+ avoid:["inspiration porn","text"],
+ seedKeys:["inclusive sport","paralympic athlete","adaptive equipment","wheelchair training","prosthetic sport","disability sport","barrier free fitness","team support"]},
+
+{id:"repaircraft",titleRu:"Ремесло и repair-культура",prefix:"repaircraft",formats:["photo","video"],cat:"whitespot",group:"white",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Починка техники, штьё, столярка — устойчивость + Local Flavors. Hands-only снимается отлично.",
+ subjectEn:"repair and handcraft",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"patch",en:"hands sewing a patch on denim",ru:"Заплатка на джинсах"},
+  {slug:"bike-fix",en:"repairing a bicycle wheel with tools",ru:"Ремонт велосипеда"},
+  {slug:"sand",en:"sanding a wooden board in a workshop",ru:"Шлифовка дерева"},
+  {slug:"solder",en:"soldering electronics on a workbench",ru:"Пайка электроники"},
+  {slug:"knit-fix",en:"darning a knitted sock with a needle",ru:"Чинка вязаного носка"},
+  {slug:"tools",en:"workshop tool wall with hand tools",ru:"Стена с инструментами"}],
+ avoid:["brand logos","text"],
+ seedKeys:["repair culture","handcraft","mending clothes","bicycle repair","woodworking","soldering","workshop tools","fixing instead of buying"]},
+
+{id:"nightshift",titleRu:"Ночная смена и нестандартный ритм",prefix:"nightshift",formats:["photo"],cat:"whitespot",group:"white",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Врачи ночью, пекарни в 4 утра, курьеры. Узкая ниша с очень низкой конкуренцией.",
+ subjectEn:"night work and unusual schedules",peopleLikely:true,competition:"очень низкая",
+ hooks:[
+  {slug:"baker",en:"baker pulling fresh bread from an oven at night",ru:"Пекарь ночью"},
+  {slug:"courier",en:"delivery courier on a night street",ru:"Курьер ночью"},
+  {slug:"desk-night",en:"nurse station desk lit at night",ru:"Пост медсестры ночью"},
+  {slug:"truck",en:"truck driver at a dawn rest stop",ru:"Дальнобойщик на рассвете"},
+  {slug:"code",en:"hands typing late at night by lamp light",ru:"Ночная работа за клавиатурой"},
+  {slug:"office-clean",en:"cleaning crew in an empty office at night",ru:"Уборка пустого офиса"}],
+ avoid:["readable text","brand logos"],
+ seedKeys:["night shift","late night work","night worker","early morning job","city at night","overtime","service worker","night routine"]},
+
+{id:"catswork",titleRu:"Кошки в рабочей среде",prefix:"catswork",formats:["photo","video"],cat:"whitespot",group:"white",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Узкая ниша, стабильный спрос, низкая конкуренция против «office».",
+ subjectEn:"cat in a workspace",peopleLikely:false,competition:"очень низкая",
+ hooks:[
+  {slug:"desk",en:"cat sitting beside a laptop on a desk",ru:"Кот у ноутбука"},
+  {slug:"keyboard",en:"cat sleeping on a keyboard",ru:"Кот на клавиатуре"},
+  {slug:"chair",en:"cat resting in an office chair",ru:"Кот в офисном кресле"},
+  {slug:"window",en:"cat watching through an office window",ru:"Кот у окна офиса"},
+  {slug:"cup",en:"cat sniffing a coffee cup on a desk",ru:"Кот у кружки"},
+  {slug:"shelf",en:"cat resting on a workspace shelf",ru:"Кот на полке рабочего места"}],
+ avoid:["text","people"],
+ seedKeys:["office cat","cat working","cat on desk","home office pet","cat laptop","workplace animal","cozy desk","pet at work"]},
+
+{id:"dentalcare",titleRu:"Гигиена полости рта / мелкий wellness",prefix:"dentalcare",formats:["photo"],cat:"whitespot",group:"white",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Узкая коммерческая ниша (стоматологии, бренды). Без брендов на упаковке.",
+ subjectEn:"dental hygiene still life",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"brush",en:"electric toothbrush on a marble sink",ru:"Электрощётка на раковине"},
+  {slug:"floss",en:"toothbrush and floss flatlay",ru:"Щётка и нить (раскладка)"},
+  {slug:"holder",en:"toothbrushes in a ceramic holder",ru:"Подставка для щёток"},
+  {slug:"paste",en:"toothpaste tube and brush on a tray",ru:"Паста и щётка на подносе"},
+  {slug:"waterfloss",en:"water flosser device on a bathroom counter",ru:"Ирригатор"},
+  {slug:"set",en:"bathroom dental care set neatly arranged",ru:"Набор для гигиены"}],
+ avoid:["brand logos","readable text"],
+ seedKeys:["dental hygiene","toothbrush","oral care","bathroom routine","dental health","clean smile routine","hygiene tools","morning routine"]},
+
+{id:"elementmac",titleRu:"Стихии макро",prefix:"elementmac",formats:["photo","vector"],cat:"whitespot",group:"white",
+ season:[1,2,3,4,5,6,7,8,9,10,11,12],
+ detail:"Вода, огонь, лёд, песок крупным планом — фоны и abstract. Проверяйте выдачу перед съёмкой.",
+ subjectEn:"macro element texture",peopleLikely:false,competition:"низкая",
+ hooks:[
+  {slug:"water",en:"water drop splash macro",ru:"Брызги воды макро"},
+  {slug:"flame",en:"flame macro on a black background",ru:"Пламя на чёрном фоне"},
+  {slug:"ice",en:"ice crystal formation macro",ru:"Формация льда"},
+  {slug:"sand",en:"sand dune texture macro",ru:"Фактура песка"},
+  {slug:"smoke",en:"smoke swirl on a dark background",ru:"Завиток дыма"},
+  {slug:"ember",en:"glowing embers macro",ru:"Тлеющие угли"},
+  {slug:"rain",en:"rain impact on water surface macro",ru:"Дождь по воде"},
+  {slug:"dust",en:"dust particles floating in a light beam",ru:"Пылинки в луче света"}],
+ avoid:["people","text"],
+ seedKeys:["macro texture","water splash","flame macro","ice texture","sand dunes","smoke abstract","elemental background","abstract nature"]}
+];
+
+/* --- Трендовые стили 2026 → 2027 (§5): ph — слово для фото, ve — для вектора, ex — принудительный extras --- */
+const STYLES=[
+ {id:"",ru:"Любой стиль",ph:"",ve:"",ex:""},
+ {id:"feels",ru:"All the Feels — тактильность и макро",ph:"Macro",ve:"",ex:"tactile sensory macro detail"},
+ {id:"connection",ru:"Connectioneering — подлинные эмоции",ph:"Candid lifestyle",ve:"",ex:"authentic genuine emotion"},
+ {id:"surreal",ru:"Surreal Silliness — сюрреал и абсурд",ph:"Surreal",ve:"Surreal flat illustration",ex:"playful surreal twist"},
+ {id:"local",ru:"Local Flavors — локальный колорит",ph:"Documentary",ve:"",ex:"authentic local character"},
+ {id:"organic",ru:"Organic & imperfect — ручной вид",ph:"",ve:"Hand drawn illustration",ex:"imperfect organic handmade look"},
+ {id:"collage",ru:"Коллаж и слои",ph:"",ve:"Layered collage artwork",ex:"layered collage textures"},
+ {id:"typo",ru:"Игривая типографика",ph:"",ve:"Bold typographic shapes",ex:"chunky playful shapes"},
+ {id:"max",ru:"Максимализм / controlled chaos",ph:"",ve:"Maximalist flat illustration",ex:"rich layered maximal composition"},
+ {id:"warm",ru:"Тёплый персональный стиль",ph:"Soft warm",ve:"",ex:"soft rounded warm tones"},
+ {id:"immersive",ru:"Immersive high-energy",ph:"Dynamic",ve:"",ex:"glowing vivid colors"}
+];
+
+/* --- Видео-приоритеты Adobe (§6) --- */
+const VIDEO_RULES=[
+ {ru:"Вертикали 9:16",en:"1080×1920 / 2160×3840 нативно, 10–30 с, в ключах обязательно vertical + video"},
+ {ru:"Лупы (seamless loop)",en:"начало = конец, 5–15 с, статичная камера или slow pan"},
+ {ru:"Abstract / motion graphics",en:"чистый фон, без текста в кадре"},
+ {ru:"Aerial / drone",en:"4K приветствуется, медленный стабильный полёт"},
+ {ru:"Hands + процесс",en:"стабильный штатив, вертикаль + горизонталь из одной сессии"},
+ {ru:"Стихии",en:"безопасность, без опознаваемых локаций"}
+];
+/* --- Шаблоны промптов по форматам --- */
+const TEMPLATES={
+ photo:{label:"Фото",ext:".jpg",kind:"p",
+  tpl:"{style} photograph, {subject}, {setting}, {lighting}, {mood}, {extras}, {constraint} --ar {ratio}",
+  ratios:["3:2","4:5","1:1"],
+  style:["Photorealistic","Natural light","Candid lifestyle","Macro","Aerial drone","Documentary"],
+  setting:["in a cozy living room","by a large window","on a rustic wooden table","near a stone fireplace","in soft daylight","against a dark warm background","indoors in warm lamplight","in an open airy space"],
+  lighting:["warm ambient light","soft diffused daylight","natural window light","golden hour backlight","candlelight glow","cool daylight contrast","gentle side light","bright overcast light"],
+  mood:["calm cozy atmosphere","quiet meditative mood","inviting warm mood","fresh airy feeling","intimate evening mood","serene peaceful mood"],
+  extras:["shallow depth of field","high detail","natural colors","soft bokeh background","fine texture detail","clean composition with copy space"],
+  negative:"text, watermark, logo, letters, signature, blurry, low quality, jpeg artifacts, extra limbs, deformed hands, cropped, mockup, hdr, overprocessed",
+  post:["Апскейл минимум 4 МП (лучше 12–24 МП) без «мыла».","Проверка в 100%: руки/лица, нет HDR и пересатурации, естественные тона, горизонт.","Экспорт: JPEG, sRGB, ≤45 МБ. Имя файла = из сетки (≤30 символов)."],
+  spec:["4–100 МП","JPEG sRGB ≤45 МБ","просмотр в 100%"]},
+
+ video:{label:"Видео",ext:".mp4",kind:"vid",
+  tpl:"{lead} {subject}, {lighting}, {mood}, {motion}, {extras}, {constraint} --ar {ratio}",
+  leadH:"Seamless loop video",leadV:"Vertical video",
+  ratioH:"16:9",ratioV:"9:16",
+  setting:["in a cozy living room","by a window at dusk","on a wooden table","in a quiet natural landscape","against a clean dark background","in soft daylight"],
+  lighting:["warm ambient light","soft diffused daylight","natural window light","cool blue daylight","golden hour light","gentle side light"],
+  mood:["calm cozy atmosphere","peaceful meditative mood","gentle dreamy mood","fresh airy feeling","intimate evening mood"],
+  motion:["gentle natural movement","slow smooth camera drift","soft floating motion","steady subtle animation","slow motion action","delicate flickering motion"],
+  extras:["cinematic shallow depth of field","clean simple composition","soft bokeh","high detail"],
+  negative:"text, watermark, logo, letters, transitions, titles, blurry, low quality, jitter, flicker, static dead frame, upscaling artifacts",
+  post:["Нативное разрешение: горизонталь 1920×1080 / 3840×2160, вертикали 1080×1920 / 2160×3840 сразу — без апскейла.","Длительность 5–60 с (вертикали 10–30 с), кадр 24/25/30, кодек H.264 (MP4).","Без текста, титров, переходов; движение читается с первого взгляда — «мёртвые» кадры не принимаются."],
+  spec:["5–60 с (верт. 10–30 с)","HD 1920×1080 / 4K 3840×2160; верт. 1080×1920 / 2160×3840","кадр 24/25/30, H.264"]},
+
+ vector:{label:"Вектор",ext:".eps",kind:"v",
+  tpl:"{style} of {subject}, {setting}, {palette}, {composition}, {constraint} --ar {ratio}",
+  ratios:["1:1","3:2","3:1","2:1","2:3","3:4","4:5"],
+  style:["Flat vector illustration","Risograph print","Paper cut artwork","Hand drawn illustration","Minimal line art","Seamless pattern design","Icon set"],
+  setting:["centered on a cream background","on off white paper","on a flat neutral background","arranged as a horizontal banner","in a balanced square layout"],
+  palette:["muted earthy palette of sage sand and terracotta","classic red green and gold palette","pastel pink mint and cream palette","minimal black ink on white","warm kraft brown and cream tones","soft blue and warm pink two ink layers"],
+  composition:["clean composition with airy copy space","symmetrical arrangement","evenly distributed elements","blank center for custom text","even grid layout"],
+  constraint:"no text",
+  negative:"text, watermark, logo, letters, signature, username, blurry, low quality, jpeg artifacts, mockup photo, photograph, 3d render",
+  post:["Вариант А: PNG → Illustrator → Image Trace (3–6 Colors / Line Art) → Expand → чистка узлов → EPS/AI + JPG-превью ≥4 МП.","Вариант Б (пуффи/ризо/сложное): генерировать от 2048 px, загрузить как иллюстрацию (категория 8 или 15, тип Illustrations).","Превью в 100%: нет растровых пикселей в контурах, нет плавающего текста; конкуренция запроса лучше <10K выдач."],
+  spec:["EPS/AI + JPG-превью ≥4 МП","чистые контуры, без растровых следов","без текста в кадре"]}
+};
+
+/* --- Кадры-обрамления для разнообразия (кроме первого прохода по хукам) --- */
+const FRAMES=["","close-up of ","wide view of ","detail of "];
+
+/* --- Hard Rules скилла (для подсказки и проверок) --- */
+const HARD_RULES=[
+ ["Промпты","EN, `--ar` в конце, `no text` для вектора и фото без людей"],
+ ["Имя файла","≤30 символов латиницей: `prefix-p01-slug.jpg`, `prefix-vid01-slug.mp4`"],
+ ["Evergreen","без дат и годов; «winter/holiday», не «Christmas 2026»"],
+ ["Negative","общий набор + запреты темы (avoid)"],
+ ["Дедлайн сезонки","загрузка за 10–12 недель до пика (модерация 1–3 нед)"],
+ ["Метаданные (отдельно)","Title 120–180, ключи 40–49, первые 3 — фразы; `no people`/`nobody` только без людей"],
+ ["Люди в кадре","model release, либо руки без лица / спина"],
+ ["Видео","5–60 с (вертикали 10–30 с), 24/25/30 к/с, H.264, движение обязательно"]
+];
+
+/* --- Чек-лист перед загрузкой (Adobe_Stock_чек-лист_перед_загрузкой.md) --- */
+const CHECKLIST=[
+ {t:"1. Файл и имя файла",items:[
+  "Имя файла до 30 символов с расширением, латиницей, без пробелов",
+  "Имя осмысленное (не DSC_4567) — оно участвует в загрузке и в CSV"]},
+ {t:"2. Фотографии — техника",items:[
+  "Разрешение 4–100 МП; JPEG, профиль sRGB, размер до 45 МБ",
+  "Просмотрено в 100%: резкость объекта, нет «мыла»",
+  "Экспозиция: нет выбитых светов и провалов в тенях",
+  "Баланс белого естественный, кожные тона живые",
+  "Нет перезаострения, пересатурации, жёсткого HDR, артефактов",
+  "Нет пыли на матрице, хроматических аберраций, мусора в кадре",
+  "Нет водяных знаков, таймкодов, рамок, брендинга",
+  "Горизонт выровнен; в композиции есть «воздух» под текст"]},
+ {t:"3. Видео — техника",items:[
+  "Формат MOV / MPG / MP4, кодек ProRes или H.264",
+  "Длительность 5–60 с (вертикалям 10–30 с), файл до 3900 МБ",
+  "Частота кадров из списка: 23.98 / 24 / 25 / 29.97 / 30 / 50 / 59.94 / 60",
+  "Разрешение нативное камеры; вертикали сняты сразу 9:16",
+  "Никакого апскейла (HD→4K = отказ)",
+  "Стабильность: нет «желе», skew, flash banding, мерцания",
+  "Нет логотипов, брендов, текста, титров, переходов",
+  "Движение в кадре есть, действие читается с первого просмотра"]},
+ {t:"4. Права и релизы",items:[
+  "Узнаваемые люди → model release заготовлен",
+  "Узнаваемая собственность как субъект → property release",
+  "Нет логотипов, товарных знаков, чужих произведений",
+  "Локация не в списке known restrictions",
+  "Файлы релизов — JPEG, имена совпадают с колонкой CSV"]},
+ {t:"5. Заголовок (Title)",items:[
+  "До 70 символов для CSV, без запятых и спецсимволов",
+  "Субъект + действие + окружение одним естественным предложением",
+  "Без брендов, имён, названий техники, «made with …»",
+  "Каждое важное слово заголовка продублировано в ключах"]},
+ {t:"6. Ключевые слова",items:[
+  "До 49 ключей; первые 10 — самое важное",
+  "Порядок переставлен вручную (после Lightroom/Bridge он алфавитный)",
+  "Существительные в единственном числе, глаголы в инфинитиве",
+  "Устойчивые фразы добавлены и фразой, и по отдельности",
+  "Нет людей → есть no people и nobody; есть люди → возраст/пол/роль/эмоции",
+  "Есть окружение и рабурс; концептов умеренно (2–5)",
+  "Нет дублей, брендов, имён, параметров камеры",
+  "Видео: есть video; вертикали — vertical + video"]},
+ {t:"7. Категория и CSV",items:[
+  "Категория соответствует содержанию (21 категория, нумерация по порталу)",
+  "CSV: UTF-8, ≤5000 строк, ≤1 МБ, имя без пробелов",
+  "Заголовок точно: Filename,Title,Keywords,Category,Releases",
+  "Имена в колонке Filename совпадают байт-в-байт",
+  "Keywords в кавычках, порядок = порядок важности; Title без запятых",
+  "CSV отправляется в той же сессии, что и файлы"]},
+ {t:"8. Генеративный ИИ",items:[
+  "Отмечен чекбокс Created using generative AI tools",
+  "People and Property are fictional — если люди/собственность вымышлены",
+  "Тип контента честно: фотореализм → Photos, арт → Illustrations, движение → Videos",
+  "Проверены анатомия, тени, отражения, геометрия фона",
+  "В промптах, title и ключах нет имён художников, людей, персонажей, брендов"]},
+ {t:"9. Отбор и портфель",items:[
+  "На один сюжет/ракурс отобрано 3–5 лучших, остальное в архив",
+  "Сезонный контент загружен за 2–3 месяца до сезона",
+  "Такой сюжет ещё не залит ранее в похожем виде",
+  "У продающихся файлов метаданные не редактируются"]},
+ {t:"10. Финальный проход",items:[
+  "Открыл файл в 100% — резкость/артефакты в норме",
+  "Заголовок читается как предложение и описывает именно этот файл",
+  "Первые 10 ключей — то, что я сам ввёл бы в поиск",
+  "Релизы приложены/указаны, ИИ-чекбоксы выставлены",
+  "Отправляю"]}
+];
+
+/* ================= LOGIC ================= */
+/* ---------- утилиты дат ---------- */
+function pad(n){return (n<10?"0":"")+n}
+function toISO(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function parseISO(s){const p=String(s).split("-").map(Number);return new Date(p[0],p[1]-1,p[2])}
+function addDays(d,n){const x=new Date(d.getTime());x.setDate(x.getDate()+n);return x}
+function addYears(d,n){const x=new Date(d.getTime());x.setFullYear(x.getFullYear()+n);return x}
+function diffDays(a,b){return Math.round((b-a)/86400000)}
+function winLabel(from,to){
+  const a=parseISO(from),b=parseISO(to);
+  if(a.getMonth()===b.getMonth()&&a.getFullYear()===b.getFullYear())
+    return a.getDate()+"–"+b.getDate()+" "+RU_MON[a.getMonth()]+" "+a.getFullYear();
+  if(a.getFullYear()===b.getFullYear())
+    return a.getDate()+" "+RU_MON[a.getMonth()]+" — "+b.getDate()+" "+RU_MON[b.getMonth()]+" "+a.getFullYear();
+  return a.getDate()+" "+RU_MON[a.getMonth()]+" "+a.getFullYear()+" — "+b.getDate()+" "+RU_MON[b.getMonth()]+" "+b.getFullYear();
+}
+/* сдвиг годового окна на будущее, если оно уже прошло */
+function shiftWin(win,yearly,now){
+  if(!win) return null;
+  let f=parseISO(win.from),t=parseISO(win.to);
+  if(yearly){let guard=0;while(t<now&&guard++<20){f=addYears(f,1);t=addYears(t,1)}}
+  return {from:toISO(f),to:toISO(t)};
+}
+/* статус окна: b-burn / b-soon / b-wait / b-pass / b-ever / b-info */
+function urgency(win,yearly,now,override){
+  if(override) return {key:"info",label:override,cls:"b-info",win:win?shiftWin(win,yearly,now):null};
+  if(!win) return {key:"ever",label:"всегда",cls:"b-ever",win:null};
+  const w=shiftWin(win,yearly,now);
+  const f=parseISO(w.from),t=parseISO(w.to);
+  if(now>t) return {key:"pass",label:"пропущено",cls:"b-pass",win:w};
+  if(now>=f) return {key:"burn",label:"горит",cls:"b-burn",win:w,left:diffDays(now,t)};
+  const d=diffDays(now,f);
+  if(d<=60) return {key:"soon",label:"скоро · "+d+" дн.",cls:"b-soon",win:w,left:diffDays(now,t)};
+  return {key:"wait",label:"ждать",cls:"b-wait",win:w};
+}
+function themeById(id){return THEMES.find(t=>t.id===id)}
+function fmtTags(formats){
+  return formats.map(f=>'<span class="tag '+FMT[f].cls+'">'+FMT[f].ru.toUpperCase()+'</span>').join("");
+}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+/* ---------- имена файлов ---------- */
+function slugify(s){
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
+}
+function cutSlug(s,max){
+  if(max<=0) return "";
+  if(s.length<=max) return s;
+  let c=s.slice(0,max);
+  const i=c.lastIndexOf("-");
+  if(i>3) c=c.slice(0,i);
+  return c.replace(/-+$/,"");
+}
+function makeFilename(theme,format,index,slug){
+  const f=TEMPLATES[format];
+  const base=theme.prefix+"-"+f.kind+pad(index+1)+"-";
+  let s=slugify(slug);
+  if(base.length+s.length+f.ext.length>30) s=cutSlug(s,30-base.length-f.ext.length);
+  return base+s+f.ext;
+}
+
+/* ---------- сборка сетки промптов ---------- */
+function rot(arr,i){return arr[((i%arr.length)+arr.length)%arr.length]}
+function joinParts(p){return p.filter(Boolean).join(", ")}
+/* первый кандидат из пула, которого нет в subject (антидубльслов) */
+function pickNotIn(arr,i,subject){
+  const low=subject.toLowerCase();
+  for(let j=0;j<arr.length;j++){
+    const v=rot(arr,i+j);
+    if(low.indexOf(v.toLowerCase())<0)return v;
+  }
+  return rot(arr,i);
+}
+/* осмысленный стиль для фото: аэро/макро по ключам сюжета, остальное — ротация */
+function pickPhotoStyle(subject,i){
+  const s=subject.toLowerCase();
+  if(/\b(aerial|drone|from above|bird)\b/.test(s))return "Aerial drone";
+  if(/\b(macro|texture|close up|crystal|slice|detail)\b/.test(s))return "Macro";
+  if(hasPeopleWord(s))return "Candid lifestyle";
+  return rot(["Photorealistic","Natural light","Documentary","Still life"],i);
+}
+function hasPeopleWord(s){
+  return /\b(people|woman|man|kids|family|friends|hands|child|couple|teen|elderly|runner|jogger)\b/.test(s);
+}
+/* стиль вектора: не повторять первые два слова сюжета («Hand drawn … hand drawn …») */
+function pickVecStyle(arr,i,subject){
+  const low=subject.toLowerCase();
+  for(let j=0;j<arr.length;j++){
+    const v=rot(arr,i+j),lv=v.toLowerCase();
+    const first2=lv.split(" ").slice(0,2).join(" ");
+    if(low.indexOf(lv)<0&&low.indexOf(first2)<0)return v;
+  }
+  return rot(arr,i);
+}
+
+function buildGrid(o){
+  const theme=themeById(o.themeId);
+  const f=TEMPLATES[o.format];
+  const n=o.count;
+  const st=STYLES.find(s=>s.id===o.styleId)||STYLES[0];
+  const noPeople=o.noPeople!==undefined?o.noPeople:!theme.peopleLikely;
+  const items=[],warns=[];
+  /* видео: 60% горизонталь / 40% вертикаль */
+  const plan=[];
+  if(o.format==="video"){const h=Math.round(n*0.6);for(let i=0;i<n;i++)plan.push(i<h?"h":"v")}
+  const used=new Set();
+
+  for(let k=0;k<n;k++){
+    const hook=theme.hooks[k%theme.hooks.length];
+    const round=Math.floor(k/theme.hooks.length);
+    const frame=FRAMES[round%FRAMES.length];
+    const subject=frame+hook.en;
+    const vertical=o.format==="video"&&plan[k]==="v";
+    let parts,constraint,ratio;
+
+    if(o.format==="photo"){
+      const style=st.ph||pickPhotoStyle(subject,k+round);
+      constraint=noPeople?"no people, no text":"natural candid moment";
+      ratio=rot(f.ratios,k);
+      parts=[style+" photograph",subject,
+        pickNotIn(f.setting,k*3+round,subject),rot(f.lighting,k*5+round),rot(f.mood,k*2+round),
+        st.ex||rot(f.extras,k*7+round),constraint];
+    }else if(o.format==="video"){
+      constraint=noPeople?"no people":"natural candid moment";
+      ratio=vertical?f.ratioV:f.ratioH;
+      parts=[vertical?f.leadV:f.leadH,subject,
+        rot(f.lighting,k*5+round),rot(f.mood,k*2+round),
+        rot(f.motion,k*3+round+1),st.ex||rot(f.extras,k*7+round),constraint];
+    }else{ /* vector */
+      constraint=f.constraint;
+      ratio=rot(f.ratios,k+round);
+      const comp=(st.ex?st.ex+", ":"")+rot(f.composition,k*2+round);
+      const veLow=(st.ve||"").toLowerCase().split(" ").slice(0,2).join(" ");
+      const veClash=st.ve&&veLow&&subject.toLowerCase().indexOf(veLow)>=0;
+      const ve=st.ve&&!veClash?st.ve:pickVecStyle(f.style,k+round,subject);
+      parts=[ve,subject,
+        pickNotIn(f.setting,k*3+round,subject),rot(f.palette,k*5+round),comp,constraint];
+    }
+
+    let prompt=joinParts(parts)+" --ar "+ratio;
+    /* антидубль: крутим extras/mood, пока промпт не станет уникальным */
+    let guard=0;
+    while(used.has(prompt)&&guard++<40){
+      if(o.format==="vector") parts[4]=(st.ex?st.ex+", ":"")+rot(f.composition,k*2+round+guard+1);
+      else if(o.format==="photo") parts[5]=(st.ex?st.ex+", ":"")+rot(f.extras,k*7+round+guard+1);
+      else parts[6]=(st.ex?st.ex+", ":"")+rot(f.extras,k*7+round+guard+1);
+      prompt=joinParts(parts)+" --ar "+ratio;
+    }
+    used.add(prompt);
+
+    const filename=makeFilename(theme,o.format,k,hook.slug);
+    const extraKeys=[];
+    if(o.format==="video") extraKeys.push(vertical?"vertical":"horizontal","video");
+    if(noPeople) extraKeys.push("no people","nobody");
+
+    const item={n:k+1,filename,ru:hook.ru,prompt,ratio,vertical,extraKeys,
+      slug:hook.slug,subject};
+    if(filename.length>30) warns.push("Имя длиннее 30: "+filename);
+    if(!/--ar\s+\S+$/.test(prompt)) warns.push("Нет --ar в конце: "+filename);
+    items.push(item);
+  }
+
+  const negative=f.negative+(theme.avoid.length?", "+theme.avoid.join(", "):"");
+  const seed=theme.seedKeys.slice();
+  if(o.format==="video"){seed.push("video");items.forEach(i=>{if(i.vertical)seed.push("vertical")})}
+  if(noPeople){seed.push("no people","nobody")}
+
+  return {theme,format:o.format,count:n,noPeople,style:st,items,warns,negative,
+    post:f.post,spec:f.spec,seedKeys:unique(seed)};
+}
+function unique(a){return a.filter((v,i)=>a.indexOf(v)===i)}
+
+/* ---------- markdown сетки (эталон: header → callout → батчи → post-gen → ключи) ---------- */
+function buildMd(g){
+  const F="```";
+  const t=g.theme,f=TEMPLATES[g.format];
+  const L=[];
+  const fmtList=g.format==="video"?"видео MP4 (разделено на горизонталь и вертикали)":
+    g.format==="photo"?"фото JPEG":"вектор EPS/AI (+ JPG-превью)";
+  const win=t.win?shiftWin(t.win,t.yearly,new Date()):null;
+  L.push("# "+t.titleRu+" ("+f.label.toUpperCase()+") — промпты на сезон 2026–2027");
+  L.push("");
+  L.push("**Тема:** "+t.detail.replace(/<[^>]+>/g,""));
+  L.push("**Форматы:** "+fmtList+"; в сетке "+g.count+" работ.");
+  if(win) L.push("**Дедлайн:** окно загрузки "+winLabel(win.from,win.to)+" (за 10–12 недель до пика, модерация 1–3 нед).");
+  else L.push("**Дедлайн:** evergreen — без срока, но чем раньше, тем лучше.");
+  L.push("");
+  L.push("## Правила перед генерацией");
+  L.push("");
+  L.push("- **Без дат в кадре и в промпте:** только «winter/holiday» и тема — датированные одноразовки живут один сезон (evergreen-правило).");
+  if(t.avoid.length) L.push("- **Исключить (avoid):** "+t.avoid.join(", ")+".");
+  if(g.noPeople) L.push("- **Без людей:** в кадре нет людей → в ключах `no people` + `nobody`, model release не нужен.");
+  else L.push("- **Люди в кадре = model release** (либо руки без лица / спина); для ИИ — чекбокс «People and Property are fictional».");
+  if(g.format==="video") L.push("- Видео: 5–60 с (вертикали 10–30 с), движение читается с первого взгляда, луп предпочтителен.");
+  if(g.format==="vector") L.push("- Везде в конце промпта `no text`; текст в кадре = отказ или «плавающие буквы».");
+  L.push("");
+  L.push("## Общий negative prompt");
+  L.push("");
+  L.push(F);
+  L.push(g.negative);
+  L.push(F);
+  L.push("");
+
+  /* батчи: до 10 в батче; для видео — горизонталь отдельно от вертикалей */
+  let batches=[];
+  if(g.format==="video"){
+    const h=g.items.filter(i=>!i.vertical),v=g.items.filter(i=>i.vertical);
+    if(h.length)batches.push({title:"Видео горизонталь 16:9 ("+h.length+")",items:h});
+    if(v.length)batches.push({title:"Видео вертикали 9:16 ("+v.length+")",items:v});
+  }else{
+    const half=Math.ceil(g.count/2);
+    const label=g.format==="photo"?"Фото":"Вектор";
+    if(g.count<=10) batches.push({title:label+" ("+g.count+")",items:g.items});
+    else{
+      batches.push({title:label+" — батч 1 ("+half+")",items:g.items.slice(0,half)});
+      batches.push({title:label+" — батч 2 ("+(g.count-half)+")",items:g.items.slice(half)});
+    }
+  }
+  let idx=0;
+  batches.forEach(b=>{
+    L.push("---");
+    L.push("");
+    L.push("## Батч — "+b.title);
+    L.push("");
+    b.items.forEach(it=>{
+      idx++;
+      L.push("### "+idx+". `"+it.filename+"` — "+it.ru);
+      L.push(F);
+      L.push(it.prompt);
+      L.push(F);
+      L.push("");
+    });
+  });
+
+  L.push("---");
+  L.push("");
+  L.push("## Что делать после генерации");
+  L.push("");
+  if(g.format==="photo"){
+    L.push("**Фото:**");
+    g.post.forEach((p,i)=>L.push((i+1)+". "+p));
+  }else if(g.format==="video"){
+    L.push("**Видео:**");
+    g.post.forEach((p,i)=>L.push((i+1)+". "+p));
+  }else{
+    L.push("**Вектор:**");
+    g.post.forEach(p=>L.push("- "+p));
+  }
+  L.push("");
+  L.push("**Метаданные (отдельно, metadata-generator):**");
+  L.push("- Title: 2 предложения, 120–180 символов, без дат.");
+  L.push("- Ключи: 40–49, первые 3 — фразы; вертикали — обязательно `vertical` + `video`.");
+  if(g.noPeople) L.push("- `no people` + `nobody` — для всех кадров сетки.");
+  L.push("- ИИ: чекбокс «Created using generative AI tools».");
+  L.push("");
+  L.push("## Посевные ключи (якоря, EN)");
+  L.push("");
+  L.push(F);
+  L.push(g.seedKeys.join(", "));
+  L.push(F);
+  return L.join("\n");
+}
+
+/* ---------- батч-план ---------- */
+const FMT_RANK={vector:0,photo:1,video:2};
+function buildBatchPlan(o){
+  const now=new Date();
+  const themes=o.themeIds.map(themeById).filter(Boolean);
+  if(!themes.length) return null;
+  /* срочность темы: сезонные вперёд по дедлайну, evergreen в конец */
+  const ordered=themes.slice().sort((a,b)=>{
+    const ua=a.win?shiftWin(a.win,a.yearly,now).to:"9999-12-31";
+    const ub=b.win?shiftWin(b.win,b.yearly,now).to:"9999-12-31";
+    if(ua!==ub) return ua<ub?-1:1;
+    return a.titleRu<b.titleRu?-1:1;
+  });
+  /* работы: поровну между темами, внутри темы — форматы по рангу */
+  const base=Math.floor(o.total/themes.length);
+  let rest=o.total-base*themes.length;
+  const works=[];
+  ordered.forEach(t=>{
+    const cnt=base+(rest>0?(rest--,1):0);
+    const fmts=t.formats.slice().sort((a,b)=>FMT_RANK[a]-FMT_RANK[b]);
+    for(let i=0;i<cnt;i++) works.push({theme:t,format:fmts[i%fmts.length]});
+  });
+  /* порядок внутри плана: дедлайн темы → формат */
+  works.sort((a,b)=>{
+    const ta=a.theme.win?shiftWin(a.theme.win,a.theme.yearly,now).to:"9999-12-31";
+    const tb=b.theme.win?shiftWin(b.theme.win,b.theme.yearly,now).to:"9999-12-31";
+    if(ta!==tb) return ta<tb?-1:1;
+    if(a.theme.id!==b.theme.id) return a.theme.id<b.theme.id?-1:1;
+    return FMT_RANK[a.format]-FMT_RANK[b.format];
+  });
+  /* батчи */
+  const size=o.size,batches=[];
+  for(let i=0;i<works.length;i+=size) batches.push(works.slice(i,i+size));
+  const start=parseISO(o.start);
+  const out=batches.map((b,i)=>{
+    const d1=addDays(start,i*7),d2=addDays(d1,6);
+    const byFmt={};const notes=[];
+    b.forEach(w=>{
+      (byFmt[w.format]=byFmt[w.format]||new Set()).add(w.theme.titleRu);
+      const u=w.theme.win?urgency(w.theme.win,w.theme.yearly,now):{key:"ever",label:"всегда"};
+      if(u.key==="burn"&&!notes.includes("горит — дедлайн "+winLabel(u.win.from,u.win.to)))
+        notes.push("горит — дедлайн "+winLabel(u.win.from,u.win.to));
+      if(w.format==="video"&&!notes.includes("вертикали сразу 9:16 нативно"))
+        notes.push("вертикали сразу 9:16 нативно");
+      if(w.theme.peopleLikely&&!notes.includes("model release на людей"))
+        notes.push("model release на людей");
+      if(w.format==="vector"&&!notes.includes("Image Trace → EPS/AI + превью"))
+        notes.push("Image Trace → EPS/AI + превью");
+    });
+    const summary=Object.keys(byFmt).sort((a,b)=>FMT_RANK[a]-FMT_RANK[b])
+      .map(k=>byFmt[k].size+" "+FMT[k].ru.toLowerCase()+": "+Array.from(byFmt[k]).join(", ")).join("; ");
+    return {n:i+1,from:toISO(d1),fromLabel:d1.getDate()+" "+RU_MON[d1.getMonth()],
+      toLabel:d2.getDate()+" "+RU_MON[d2.getMonth()],count:b.length,summary,
+      notes:notes.join("; ")||"—"};
+  });
+  return {total:works.length,batches:out,start:o.start,size};
+}
+function planMd(p){
+  const L=["# Батч-план загрузок — "+p.total+" работ",""];
+  L.push("| Батч | Даты | Работ | Что | Особенности |");
+  L.push("|---|---|---|---|---|");
+  p.batches.forEach(b=>L.push("| "+b.n+" | "+b.fromLabel+" — "+b.toLabel+" | "+b.count+" | "+b.summary+" | "+b.notes+" |"));
+  L.push("");
+  L.push("## Контрольные точки");
+  L.push("");
+  p.batches.forEach(b=>L.push("- [ ] "+b.fromLabel+": батч "+b.n+" отправлен ("+b.count+" работ)"));
+  L.push("");
+  L.push("*Сезонка — за 10–12 недель до пика; лимиты загрузок с мая 2025 → не лить сверх плана; файлы + CSV в одной сессии.*");
+  return L.join("\n");
+}
+
+/* ================= UI ================= */
+const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
+const LS={
+  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+const state={
+  date:toISO(new Date()),
+  formats:new Set(["photo","video","vector"]),
+  evergreen:true,passed:false,search:"",hideDone:false,
+  themeId:null,gFormat:null,gCount:10,gStyle:"",noPeople:false,
+  bpThemes:new Set(),
+  lastGrid:null,lastMd:"",
+  done:LS.get("stp_done",{}),
+  bpDone:LS.get("stp_bpdone",{}),
+  history:LS.get("stp_history",[])
+};
+const inputs=LS.get("stp_inputs",{});
+function saveInputs(){
+  LS.set("stp_inputs",{date:state.date,evergreen:state.evergreen,passed:state.passed,
+    search:state.search,hideDone:state.hideDone,themeId:state.themeId,gCount:state.gCount,gStyle:state.gStyle,
+    noPeople:state.noPeople,bpTotal:$("#bp-total").value,bpSize:$("#bp-size").value,
+    bpStart:$("#bp-start").value});
+}
+function flash(btn,txt){
+  const old=btn.textContent;btn.textContent=txt||"Скопировано";btn.classList.add("ok");
+  setTimeout(()=>{btn.textContent=old;btn.classList.remove("ok")},1200);
+}
+function copyText(txt,btn){
+  const done=()=>flash(btn);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done,()=>fallback());
+  }else fallback();
+  function fallback(){
+    /* execCommand-путь: работает на file:// и на http:// с телефона,
+       где clipboard API недоступен (iOS Safari, не-secure контекст) */
+    const ta=document.createElement("textarea");
+    ta.value=txt;ta.setAttribute("readonly","");
+    ta.style.position="fixed";ta.style.top="0";ta.style.left="0";ta.style.opacity="0";
+    document.body.appendChild(ta);
+    ta.focus();ta.select();
+    try{ta.setSelectionRange(0,ta.value.length)}catch(e){}
+    let ok=false;
+    try{ok=document.execCommand("copy")}catch(e){ok=false}
+    document.body.removeChild(ta);
+    if(ok)done();
+    else if(typeof prompt==="function")prompt("Скопируйте вручную:",txt);
+    else if(typeof alert==="function")alert("Скопировать не удалось");
+  }
+}
+function downloadMd(md,name){
+  try{
+    const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    document.body.appendChild(a);
+    if("download" in a){a.href=url;a.download=name;a.click()}
+    else if(typeof window!=="undefined"&&window.open)window.open(url,"_blank"); /* старые мобильные браузеры */
+    else throw new Error("no download");
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},1000);
+  }catch(e){
+    if(typeof prompt==="function")prompt("Скачивание недоступно — скопируйте текст:",md);
+    else if(typeof alert==="function")alert("Скачивание недоступно — используйте «Копировать .md»");
+  }
+}
+function gridFileName(g){
+  return (g.theme.prefix+"_"+g.format+"_prompts.md").replace(/[^a-z0-9_.-]/gi,"-").slice(0,60);
+}
+
+/* ---------- вкладки ---------- */
+$$("#tabs .tab").forEach(btn=>btn.addEventListener("click",()=>{
+  $$("#tabs .tab").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  $$(".panel").forEach(p=>p.classList.remove("active"));
+  $("#tab-"+btn.dataset.tab).classList.add("active");
+}));
+
+/* ---------- вкладка «Темы» ---------- */
+function calStatus(row,now){
+  return urgency({from:row.from,to:row.to},false,now,row.status);
+}
+function renderCal(){
+  const now=parseISO(state.date),tb=$("#cal-table tbody"),rows=[];
+  CALENDAR.forEach(r=>{
+    const u=calStatus(r,now);
+    if(u.key==="pass"&&!state.passed)return;
+    rows.push(r);
+  });
+  tb.innerHTML=rows.map(r=>{
+    const u=calStatus(r,now);
+    return "<tr><td>"+r.peak+"</td><td>"+winLabel(r.from,r.to)+"</td>"+
+      '<td><span class="badge '+u.cls+'">'+u.label+"</span></td><td>"+r.note+"</td></tr>";
+  }).join("")||'<tr><td colspan="4" class="muted">Ничего не найдено — снимите фильтры.</td></tr>';
+}
+function themeVisible(t,now){
+  if(!t.formats.some(f=>state.formats.has(f)))return false;
+  const cat=t.cat;
+  if(!state.evergreen&&(cat==="evergreen"||cat==="whitespot"))return false;
+  const u=urgency(t.win,t.yearly,now);
+  if(u.key==="pass"&&!state.passed)return false;
+  if(state.hideDone&&state.done[t.id])return false;
+  const q=state.search.trim().toLowerCase();
+  if(q&&!(t.titleRu.toLowerCase().includes(q)||t.detail.toLowerCase().includes(q)||t.id.includes(q)))return false;
+  return true;
+}
+function themeCard(t,now){
+  const u=urgency(t.win,t.yearly,now);
+  const isDone=!!state.done[t.id];
+  const season=t.season.map(m=>RU_MON[m-1]).join(" ");
+  const win=t.win?shiftWin(t.win,t.yearly,now):null;
+  return '<div class="tcard'+(u.key==="burn"?" burn":u.key==="soon"?" soon":"")+(isDone?" done":"")+'">'+
+   '<div class="tcard-head"><span class="tcard-title">'+esc(t.titleRu)+"</span>"+
+     '<span class="badge '+u.cls+'">'+u.label+"</span>"+fmtTags(t.formats)+
+     (isDone?'<span class="badge b-ever">выполнено</span>':"")+"</div>"+
+   '<div class="detail">'+esc(t.detail)+"</div>"+
+   '<div class="kv"><b>Сезон</b><span>'+esc(season)+"</span>"+
+     "<b>Дедлайн</b><span>"+(win?winLabel(win.from,win.to):"—")+"</span>"+
+     "<b>Конкурент.</b><span>"+esc(t.competition)+"</span>"+
+     "<b>Люди</b><span>"+(t.peopleLikely?"возможны → model release":"обычно нет → no people")+"</span>"+
+     "<b>Хуки</b><span class='hooks'>"+t.hooks.map(h=>'<span class="hook">'+esc(h.ru)+" <i>"+esc(h.en)+"</i></span>").join("")+"</span>"+
+     "<b>Исключить</b><span class='avoid'>"+esc(t.avoid.join(", ")||"—")+"</span></div>"+
+   '<div class="tcard-actions"><button class="btn s" data-gen="'+t.id+'">Сгенерировать сетку</button>'+
+     '<button class="btn s" data-bp="'+t.id+'">В батч-план</button>'+
+     '<button class="btn s'+(isDone?" on":"")+'" data-done="'+t.id+'">'+(isDone?"Вернуть в работу":"Отметить выполненной")+"</button></div></div>";
+}
+function renderThemes(){
+  const now=parseISO(state.date),host=$("#themes-list");
+  let html="";
+  GROUPS.forEach(gr=>{
+    const list=THEMES.filter(t=>t.group===gr.id&&themeVisible(t,now));
+    if(!list.length)return;
+    html+='<div class="season-sec '+gr.cls+'">'+esc(gr.title)+" · "+list.length+"</div>";
+    html+=list.map(t=>themeCard(t,now)).join("");
+  });
+  host.innerHTML=html||'<div class="callout">Под фильтры ничего не подошло. Снимите поиск или включите evergreen.</div>';
+}
+$("#themes-list").addEventListener("click",e=>{
+  const btn=e.target.closest("button[data-gen],button[data-bp],button[data-done]");
+  if(!btn)return;
+  if(btn.dataset.done){
+    const id=btn.dataset.done;
+    if(state.done[id])delete state.done[id];else state.done[id]=Date.now();
+    LS.set("stp_done",state.done);
+    renderThemes();
+    return;
+  }
+  if(btn.dataset.gen){selectTheme(btn.dataset.gen);
+    $$("#tabs .tab").forEach(b=>b.classList.toggle("active",b.dataset.tab==="grid"));
+    $$(".panel").forEach(p=>p.classList.toggle("active",p.id==="tab-grid"));
+    $("#g-run").click();
+  }else{
+    state.bpThemes.add(btn.dataset.bp);renderBpChips();flash(btn,"Добавлено");
+  }
+});
+$$("#t-formats .chip").forEach(c=>c.addEventListener("click",()=>{
+  const f=c.dataset.f;
+  if(state.formats.has(f)){if(state.formats.size===1)return;state.formats.delete(f);c.classList.remove("on")}
+  else{state.formats.add(f);c.classList.add("on")}
+  renderCal();renderThemes();saveInputs();
+}));
+$("#t-date").addEventListener("change",e=>{state.date=e.target.value||toISO(new Date());renderCal();renderThemes();saveInputs()});
+$("#t-evergreen").addEventListener("change",e=>{state.evergreen=e.target.checked;renderThemes();saveInputs()});
+$("#t-passed").addEventListener("change",e=>{state.passed=e.target.checked;renderCal();renderThemes();saveInputs()});
+$("#t-hidedone").addEventListener("change",e=>{state.hideDone=e.target.checked;renderThemes();saveInputs()});
+$("#t-search").addEventListener("input",e=>{state.search=e.target.value;renderThemes();saveInputs()});
+
+/* ---------- вкладка «Сетка» ---------- */
+function selectTheme(id){
+  state.themeId=id;
+  const t=themeById(id);
+  if(!t.formats.includes(state.gFormat))state.gFormat=t.formats[0];
+  state.noPeople=!t.peopleLikely;
+  $("#g-theme").value=id;
+  $("#g-nopeople").checked=state.noPeople;
+  renderGFmt();
+  saveInputs();
+}
+function renderGFmt(){
+  const t=themeById(state.themeId);
+  $("#g-formats").innerHTML=t.formats.map(f=>
+    '<button class="chip'+(f===state.gFormat?" on":"")+'" data-gf="'+f+'">'+FMT[f].ru+"</button>").join("");
+}
+$("#g-formats").addEventListener("click",e=>{
+  const b=e.target.closest(".chip");if(!b)return;
+  state.gFormat=b.dataset.gf;renderGFmt();saveInputs();
+});
+$("#g-theme").innerHTML=THEMES.map(t=>'<option value="'+t.id+'">'+esc(t.titleRu)+" ("+t.formats.map(f=>FMT[f].ru).join("/")+")</option>").join("");
+$("#g-theme").addEventListener("change",e=>selectTheme(e.target.value));
+$("#g-count").addEventListener("change",e=>{state.gCount=+e.target.value;saveInputs()});
+$("#g-style").innerHTML=STYLES.map(s=>'<option value="'+s.id+'">'+esc(s.ru)+"</option>").join("");
+$("#g-style").addEventListener("change",e=>{state.gStyle=e.target.value;saveInputs()});
+$("#g-nopeople").addEventListener("change",e=>{state.noPeople=e.target.checked;saveInputs()});
+
+function gridItemsHtml(g){
+  return g.items.map((it,i)=>
+    '<div class="item"><div class="item-head"><span class="muted">#'+it.n+"</span>"+
+      '<span class="fname">'+esc(it.filename)+"</span>"+
+      '<span class="tag '+FMT[g.format].cls+'">'+FMT[g.format].ru.toUpperCase()+"</span>"+
+      (it.vertical?'<span class="tag">VERTICAL 9:16</span>':"")+
+      '<span class="muted">--ar '+it.ratio+"</span>"+
+      '<button class="btn s" data-p="'+i+'">Копировать промпт</button></div>'+
+    '<div class="item-ru">'+esc(it.ru)+"</div>"+
+    '<div class="prompt">'+esc(it.prompt)+"</div>"+
+    (it.extraKeys.length?'<div class="item-meta">'+it.extraKeys.map(k=>"<span>"+esc(k)+"</span>").join("")+"</div>":"")+
+    "</div>").join("");
+}
+function renderGrid(g){
+  const md=buildMd(g);
+  state.lastGrid=g;state.lastMd=md;
+  let html='<div class="card"><div class="out-title">'+esc(g.theme.titleRu)+" · "+FMT[g.format].ru+" · "+g.count+" работ"+
+    (g.style.id?' · стиль «'+esc(g.style.ru)+"»":"")+(g.noPeople?" · без людей":"")+"</div>";
+  if(g.warns.length)html+='<div class="callout red">'+g.warns.map(esc).join("<br>")+"</div>";
+  html+='<div class="muted" style="margin-bottom:6px">Negative prompt (общий):</div><div class="negbox">'+esc(g.negative)+"</div></div>";
+  html+='<div class="card">'+gridItemsHtml(g)+"</div>";
+  html+='<div class="card"><h3>Что делать после генерации</h3><ol style="margin:0;padding-left:20px">'+
+    g.post.map(esc).join("<br>")+"</ol>";
+  html+='<h3>Посевные ключи (якоря, EN)</h3><div class="prompt">'+esc(g.seedKeys.join(", "))+"</div>";
+  html+='<h3>Hard rules (напоминание)</h3><ul style="margin:0;padding-left:20px">'+
+    HARD_RULES.map(r=>"<li><b>"+esc(r[0])+"</b> — "+esc(r[1])+"</li>").join("")+"</ul></div>";
+  html+='<div class="card"><div class="actions"><button class="btn p" id="g-copy-md">Копировать .md</button>'+
+    '<button class="btn g" id="g-dl-md">Скачать .md</button></div>'+
+    '<div class="mdview" style="margin-top:10px">'+esc(md)+"</div></div>";
+  $("#grid-out").innerHTML=html;
+  $("#g-copy-md").addEventListener("click",e=>copyText(md,e.target));
+  $("#g-dl-md").addEventListener("click",()=>downloadMd(md,gridFileName(g)));
+  ["#g-copy-all","#g-download"].forEach(s=>$(s).disabled=false);
+  $("#exp-copy").disabled=false;$("#exp-download").disabled=false;
+  $("#exp-current").innerHTML="<b>"+esc(g.theme.titleRu)+"</b> · "+FMT[g.format].ru+" · "+g.count+" работ · имя файла сетки: <code>"+esc(gridFileName(g))+"</code>";
+  pushHistory(g,md);
+}
+$("#grid-out").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-p]");if(!b||!state.lastGrid)return;
+  copyText(state.lastGrid.items[+b.dataset.p].prompt,b);
+});
+$("#g-run").addEventListener("click",()=>{
+  if(!state.themeId)selectTheme(THEMES[0].id);
+  const g=buildGrid({themeId:state.themeId,format:state.gFormat,count:state.gCount,
+    styleId:state.gStyle,noPeople:state.noPeople});
+  renderGrid(g);
+});
+$("#g-copy-all").addEventListener("click",e=>{if(state.lastMd)copyText(state.lastMd,e.target)});
+$("#g-download").addEventListener("click",()=>{if(state.lastGrid)downloadMd(state.lastMd,gridFileName(state.lastGrid))});
+$("#g-to-plan").addEventListener("click",e=>{
+  if(!state.themeId)return;
+  state.bpThemes.add(state.themeId);renderBpChips();flash(e.target,"Добавлено");
+});
+
+/* ---------- вкладка «Экспорт»: батч-план ---------- */
+function renderBpChips(){
+  $("#bp-themes").innerHTML=THEMES.map(t=>
+    '<button class="chip'+(state.bpThemes.has(t.id)?" on":"")+'" data-bpt="'+t.id+'">'+
+    esc(t.titleRu)+"</button>").join("");
+}
+$("#bp-themes").addEventListener("click",e=>{
+  const b=e.target.closest(".chip");if(!b)return;
+  const id=b.dataset.bpt;
+  if(state.bpThemes.has(id))state.bpThemes.delete(id);else state.bpThemes.add(id);
+  renderBpChips();saveInputs();
+});
+$("#bp-run").addEventListener("click",()=>{
+  const ids=Array.from(state.bpThemes);
+  if(!ids.length){$("#bp-out").innerHTML='<div class="callout red">Выберите хотя бы одну тему чипами выше (или кнопкой «В батч-план» на вкладке «Темы»).</div>';return}
+  const p=buildBatchPlan({themeIds:ids,total:+$("#bp-total").value,size:+$("#bp-size").value,
+    start:$("#bp-start").value||toISO(new Date())});
+  if(!p||!p.batches.length){$("#bp-out").innerHTML='<div class="callout red">План пуст.</div>';return}
+  const md=planMd(p);
+  /* ключ плана: старт + состав, чтобы отметки переживали пересборку */
+  const planKey=($("#bp-start").value||"")+"|"+ids.slice().sort().join(",");
+  state.bpPlanKey=planKey;
+  let html='<div class="tablewrap" style="margin-top:12px"><table><thead><tr><th style="width:34px">✓</th><th>Батч</th><th>Даты</th><th>Работ</th><th>Что</th><th>Особенности</th></tr></thead><tbody>';
+  html+=p.batches.map(b=>{
+    const key=planKey+"#"+b.n,done=!!state.bpDone[key];
+    return '<tr class="bprow'+(done?" done":"")+'"><td><input type="checkbox" class="bp-done" data-key="'+esc(key)+'"'+(done?" checked":"")+"></td>"+
+      "<td><b>"+b.n+"</b></td><td>"+b.fromLabel+" — "+b.toLabel+"</td><td>"+b.count+
+      "</td><td>"+esc(b.summary)+"</td><td>"+esc(b.notes)+"</td></tr>";
+  }).join("");
+  html+='</tbody></table></div><div class="mdview" style="margin-top:10px">'+esc(md)+"</div>";
+  $("#bp-out").innerHTML=html;
+  $("#bp-copy").disabled=false;
+  state.lastPlanMd=md;
+});
+$("#bp-copy").addEventListener("click",e=>{if(state.lastPlanMd)copyText(state.lastPlanMd,e.target)});
+$("#bp-out").addEventListener("change",e=>{
+  const cb=e.target.closest(".bp-done");if(!cb)return;
+  if(cb.checked)state.bpDone[cb.dataset.key]=Date.now();else delete state.bpDone[cb.dataset.key];
+  LS.set("stp_bpdone",state.bpDone);
+  cb.closest("tr").classList.toggle("done",cb.checked);
+});
+
+/* ---------- экспорт текущей сетки ---------- */
+$("#exp-copy").addEventListener("click",e=>{if(state.lastMd)copyText(state.lastMd,e.target)});
+$("#exp-download").addEventListener("click",()=>{if(state.lastGrid)downloadMd(state.lastMd,gridFileName(state.lastGrid))});
+
+/* ---------- история ---------- */
+function pushHistory(g,md){
+  const now=new Date();
+  state.history.unshift({ts:now.toISOString().slice(0,16).replace("T"," "),
+    theme:g.theme.titleRu,format:g.format,count:g.count,md:md});
+  if(state.history.length>20)state.history.length=20;
+  LS.set("stp_history",state.history);
+  renderHistory();
+}
+function renderHistory(){
+  const host=$("#hist-list");
+  if(!state.history.length){host.innerHTML="Пусто. Последние 20 сеток сохраняются в localStorage.";return}
+  host.innerHTML=state.history.map((h,i)=>
+    '<div class="hist"><span class="muted">'+esc(h.ts)+"</span>"+
+    '<span class="grow">'+esc(h.theme)+" · "+FMT[h.format].ru+" · "+h.count+" работ</span>"+
+    '<button class="btn s" data-hs="'+i+'">Показать</button>'+
+    '<button class="btn s" data-hc="'+i+'">Копировать</button>'+
+    '<button class="btn s" data-hd="'+i+'">Удалить</button></div>').join("");
+}
+$("#hist-list").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-hs],button[data-hc],button[data-hd]");if(!b)return;
+  const i=+(b.dataset.hs!==undefined?b.dataset.hs:b.dataset.hc!==undefined?b.dataset.hc:b.dataset.hd);
+  const h=state.history[i];if(!h)return;
+  if(b.dataset.hs!==undefined){$("#hist-view").innerHTML='<div class="mdview" style="margin-top:10px">'+esc(h.md)+"</div>"}
+  else if(b.dataset.hc!==undefined){copyText(h.md,b)}
+  else{state.history.splice(i,1);LS.set("stp_history",state.history);renderHistory();
+    if(!state.history.length)$("#hist-view").innerHTML=""}
+});
+
+/* ---------- чек-лист ---------- */
+function renderChecklist(){
+  const saved=LS.get("stp_checklist",{});
+  $("#checklist").innerHTML=CHECKLIST.map((grp,gi)=>
+    '<div class="cl-group"><h4>'+esc(grp.t)+"</h4>"+
+    grp.items.map((it,ii)=>{
+      const key=gi+"-"+ii,done=!!saved[key];
+      return '<label class="cl-item'+(done?" done":"")+'"><input type="checkbox" data-cl="'+key+'"'+(done?" checked":"")+"><span>"+esc(it)+"</span></label>";
+    }).join("")+"</div>").join("");
+}
+$("#checklist").addEventListener("change",e=>{
+  const cb=e.target.closest("input[data-cl]");if(!cb)return;
+  const saved=LS.get("stp_checklist",{});
+  if(cb.checked)saved[cb.dataset.cl]=true;else delete saved[cb.dataset.cl];
+  LS.set("stp_checklist",saved);
+  cb.closest(".cl-item").classList.toggle("done",cb.checked);
+});
+$("#cl-reset").addEventListener("click",()=>{
+  if(!confirm("Сбросить все отметки чек-листа?"))return;
+  LS.set("stp_checklist",{});renderChecklist();
+});
+
+/* ---------- инициализация ---------- */
+(function init(){
+  state.themeId=inputs.themeId&&themeById(inputs.themeId)?inputs.themeId:"cozy-interior";
+  if(inputs.date)state.date=inputs.date;
+  if(inputs.evergreen!==undefined)state.evergreen=inputs.evergreen;
+  if(inputs.passed!==undefined)state.passed=inputs.passed;
+  if(inputs.search)state.search=inputs.search;
+  if(inputs.hideDone!==undefined)state.hideDone=inputs.hideDone;
+  if(inputs.gCount)state.gCount=+inputs.gCount;
+  if(inputs.gStyle!==undefined)state.gStyle=inputs.gStyle;
+  if(inputs.noPeople!==undefined)state.noPeople=inputs.noPeople;
+  $("#t-date").value=state.date;
+  $("#t-evergreen").checked=state.evergreen;
+  $("#t-passed").checked=state.passed;
+  $("#t-hidedone").checked=state.hideDone;
+  $("#t-search").value=state.search;
+  $("#bp-total").value=inputs.bpTotal||20;
+  $("#bp-size").value=inputs.bpSize||10;
+  $("#bp-start").value=inputs.bpStart||toISO(addDays(new Date(),7));
+  $("#g-count").value=String(state.gCount);
+  $("#g-style").value=state.gStyle;
+  const t=themeById(state.themeId);
+  state.gFormat=t.formats[0];
+  $("#g-theme").value=state.themeId;
+  $("#g-nopeople").checked=state.noPeople;
+  renderGFmt();
+  renderCal();renderThemes();renderBpChips();renderHistory();renderChecklist();
+})();
+</script>
+</body>
+</html>
