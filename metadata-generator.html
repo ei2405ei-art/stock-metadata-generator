@@ -91,7 +91,7 @@ textarea{resize:vertical;min-height:60px;font-size:12px;line-height:1.5}
   <div class="dzone" id="dzone">
     <div class="icon">&#128196;</div>
     <div class="t" id="dz-text">Перетащите изображения или видео сюда<br>или нажмите для выбора</div>
-    <input type="file" id="files" multiple style="display:none" accept="image/*,video/*">
+    <input type="file" id="files" multiple style="display:none" accept="image/*,video/*,.mp4,.mov,.m4v,.mkv,.avi,.webm,.3gp,.mts,.m2ts,.wmv,.flv,.mpg,.mpeg">
   </div>
 
   <div id="files-list"></div>
@@ -448,19 +448,37 @@ function getColors(file) {
   });
 }
 
+// ===== VIDEO FILE DETECTION =====
+// у части контейнеров (mkv, avi, mts, mov у некоторых ОС) браузер не заполняет
+// file.type — тогда распознаём видео по расширению файла
+function isVideoFile(file) {
+  if (file.type && file.type.startsWith("video/")) return true;
+  if (file.type && file.type.startsWith("image/")) return false;
+  return /\.(mp4|m4v|mov|mkv|avi|webm|3gp|mts|m2ts|wmv|flv|mpg|mpeg|ogv)$/i.test(file.name || "");
+}
+
 // ===== VIDEO DURATION =====
 function getVideoMeta(file) {
   return new Promise(resolve => {
-    if (!file.type.startsWith("video/")) return resolve({});
+    if (!isVideoFile(file)) return resolve({});
     const url = URL.createObjectURL(file);
     const v = document.createElement("video");
     v.preload = "metadata";
-    v.onloadedmetadata = () => {
-      const meta = { duration: Math.round(v.duration), vw: v.videoWidth, vh: v.videoHeight };
+    // жёсткий таймаут: у неподдерживаемых кодеков (H.265 без системного декодера,
+    // повреждённые файлы) события loadedmetadata/error могут НЕ прийти вовсе —
+    // раньше промис зависал навсегда и видео вообще не появлялось в списке
+    let done = false;
+    const finish = meta => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
       URL.revokeObjectURL(url);
+      try { v.removeAttribute("src"); v.load(); } catch (e) {}
       resolve(meta);
     };
-    v.onerror = () => resolve({});
+    const timer = setTimeout(() => finish({}), 8000);
+    v.onloadedmetadata = () => finish({ duration: Math.round(v.duration), vw: v.videoWidth, vh: v.videoHeight });
+    v.onerror = () => finish({});
     v.src = url;
   });
 }
@@ -582,21 +600,22 @@ fi.addEventListener("change",()=>{handleFiles(fi.files);fi.value="";});
 
 async function handleFiles(files) {
   for (const file of files) {
-    const entry = { id: Date.now() + Math.random(), file, thumbUrl: null, ctype: file.type.startsWith("video/") ? "video" : "photo" };
-    entry.exif = await readEXIF(file);
-    entry.colors = await getColors(file);
-    if (file.type.startsWith("video/")) {
-      entry.vmeta = await getVideoMeta(file);
-    }
-    // create thumbnail blob URL
-    if (file.type.startsWith("image/")) {
-      entry.thumbUrl = URL.createObjectURL(file);
-    }
+    const isVideo = isVideoFile(file);
+    // строка в списке появляется СРАЗУ, до чтения любых метаданных:
+    // один «зависший» файл больше не блокирует весь список
+    const entry = { id: Date.now() + Math.random(), file, thumbUrl: null, ctype: isVideo ? "video" : "photo", exif: {}, colors: [], vmeta: {} };
+    if (file.type.startsWith("image/")) entry.thumbUrl = URL.createObjectURL(file);
     fileEntries.push(entry);
+    renderFileList();
+    selectFile(entry.id);
+    try {
+      entry.exif = await readEXIF(file);
+      entry.colors = await getColors(file);
+      if (isVideo) entry.vmeta = await getVideoMeta(file);
+    } catch (e) { /* метаданные необязательны — строка уже в списке */ }
+    renderFileList();
   }
-
-  renderFileList();
-  selectFile(fileEntries[fileEntries.length-1].id);
+  if (fileEntries.length) selectFile(fileEntries[fileEntries.length-1].id);
 }
 
 function renderFileList() {
@@ -943,7 +962,7 @@ function resizeToDataURL(file, maxSize) {
 
 function getVideoFrames(file, n) {
   return new Promise(resolve => {
-    if (!file.type.startsWith("video/")) return resolve(null);
+    if (!isVideoFile(file)) return resolve(null);
     const url = URL.createObjectURL(file);
     const v = document.createElement("video");
     v.muted = true;
@@ -953,6 +972,9 @@ function getVideoFrames(file, n) {
     const want = Math.max(1, n || 1);
     let done = false;
     const overall = setTimeout(() => finish(frames.length ? frames : null), 45000);
+    // ошибка декодирования — завершаем сразу, не ждём 45-секундного таймаута
+    const onVideoError = () => finish(frames.length ? frames : null);
+    v.onerror = onVideoError;
     function finish(val) {
       if (done) return;
       done = true;
@@ -982,7 +1004,7 @@ function getVideoFrames(file, n) {
     }
     function seekTo(t, ondone) {
       let fired = false;
-      const doneFn = () => { if (fired) return; fired = true; v.onseeked = null; v.onerror = null; ondone(); };
+      const doneFn = () => { if (fired) return; fired = true; v.onseeked = null; v.onerror = onVideoError; ondone(); };
       const to = setTimeout(doneFn, 8000);
       v.onseeked = () => { clearTimeout(to); doneFn(); };
       v.onerror = () => { clearTimeout(to); doneFn(); };
@@ -1212,7 +1234,7 @@ async function openrouterRequest(model, key, prompt, imgs, base) {
 }
 
 async function aiForEntry(entry, cfg) {
-  const isVideo = entry.file.type.startsWith("video/");
+  const isVideo = isVideoFile(entry.file);
   let imgs = isVideo
     ? await getVideoFrames(entry.file, 3)
     : [await resizeToDataURL(entry.file, 1024)];
@@ -1348,6 +1370,9 @@ async function aiBatch() {
   errBox.textContent = "";
   const btn = document.getElementById("batch-btn");
   btn.disabled = true;
+  // всё тело — в try/finally: при любой ошибке кнопка всегда снова нажимается,
+  // иначе «Пакетная генерация» молча перестаёт реагировать на клики
+  try {
   let ok = 0;
   const errors = [];
   const noPeople = document.getElementById("no-people").checked;
@@ -1444,7 +1469,6 @@ async function aiBatch() {
     failed = await runPass(prev, 1, 4000);
   }
 
-  btn.disabled = false;
   renderFileList();
   selectFile(fileEntries[0].id);
   if (failed.length) {
@@ -1455,6 +1479,13 @@ async function aiBatch() {
   } else {
     status.textContent = "Готово: " + ok + " файлов обработано.";
     status.style.color = "var(--green)";
+  }
+  } catch (e) {
+    status.textContent = "Ошибка пакетной генерации: " + e.message;
+    status.style.color = "var(--red)";
+  } finally {
+    btn.disabled = false;
+    renderFileList();
   }
 }
 
