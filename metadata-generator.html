@@ -830,7 +830,7 @@ async function ollamaAlive(url, ms) {
 
 // ошибки, после которых текущего провайдера смысла больше не пробовать
 function providerDead(e) {
-  return /HTTP 401|HTTP 402|HTTP 403|MODEL_UNAVAILABLE/.test(e && e.message || "");
+  return /HTTP 401|HTTP 402|HTTP 403|MODEL_UNAVAILABLE|сетевая ошибка|Failed to fetch|таймаут/.test(e && e.message || "");
 }
 
 function providerDeadReason(e) {
@@ -838,6 +838,8 @@ function providerDeadReason(e) {
   if (/HTTP 401|HTTP 403/.test(m)) return "Ключ отклонён или аккаунт ограничен (401/403)";
   if (/HTTP 402/.test(m)) return "Не хватает средств или квоты (402)";
   if (/MODEL_UNAVAILABLE/.test(m)) return "Модель недоступна";
+  if (/Failed to fetch|сетевая ошибка/.test(m)) return "сайт провайдера недоступен из браузера (Failed to fetch)";
+  if (/таймаут/.test(m)) return "провайдер не ответил вовремя";
   return "Провайдер не отвечает";
 }
 
@@ -915,9 +917,9 @@ function applyProviderUI() {
   document.getElementById("ollama-panel").style.display = isOllama ? "" : "none";
   document.getElementById("ollama-model-panel").style.display = isOllama ? "" : "none";
   const hints = {
-    ollama: "Локальная модель: работает без интернета, без ключей и без лимитов. На CPU ~2–4 мин на файл.",
-    qwen: "Qwen через Alibaba Model Studio: vision-модели с бесплатной квотой для новых аккаунтов, генерация в разы быстрее локальной.",
-    openrouter: "Облачная модель: нужен API-ключ OpenRouter."
+    ollama: "Локальная модель: работает без интернета, без ключей и без лимитов. На CPU ~2–4 мин на файл. ВАЖНО: с сайта GitHub Pages (https) Ollama недоступна — откройте приложение через локальный helper.",
+    qwen: "Qwen через Alibaba Model Studio: vision-модели с бесплатной квотой для новых аккаунтов; работает из браузера, в том числе с GitHub Pages.",
+    openrouter: "Облачная модель: нужен API-ключ OpenRouter. Если появляется «Failed to fetch» — сайт недоступен из вашей сети/браузера, переключитесь на Qwen или Ollama."
   };
   document.getElementById("provider-hint").textContent = hints[p] || hints.openrouter;
   setStore("ai_provider", p);
@@ -1201,7 +1203,12 @@ async function openrouterRequest(model, key, prompt, imgs, base) {
         await sleep(5000 * attempt);
         continue;
       }
-      if (attempt >= 4) throw new Error("сетевая ошибка: " + netErr.message);
+      if (attempt >= 4) {
+        let host = url;
+        try { host = new URL(url).host; } catch (e) {}
+        throw new Error("сетевая ошибка: " + netErr.message + " — " + host +
+          " недоступен из вашего браузера. Частая причина — сеть, VPN или блокировщик, либо провайдер не разрешает запросы прямо из браузера. Переключите провайдера в настройках (Qwen или Ollama).");
+      }
       await sleep(4000 * attempt);
       continue;
     }
