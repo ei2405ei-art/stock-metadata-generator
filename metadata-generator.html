@@ -151,7 +151,7 @@ textarea{resize:vertical;min-height:60px;font-size:12px;line-height:1.5}
         <div id="ollama-panel" style="display:none">
           <label>Адрес Ollama</label>
           <input id="ollama-url" placeholder="http://localhost:11434" autocomplete="off">
-          <div class="hint">Ollama должна быть запущена и разрешать запросы из браузера: <code>setx OLLAMA_ORIGINS *</code> (потом перезапустить терминал и Ollama).</div>
+          <div class="hint">Ollama должна быть запущена. С сайта GitHub Pages приложение само находит релей helper (<code>http://localhost:8787/ollama</code>) — запустите <code>start.bat</code> из папки helper. Либо разрешите запросы напрямую: <code>setx OLLAMA_ORIGINS *</code> (потом перезапустить терминал и Ollama).</div>
         </div>
       </div>
       <div class="grid2" style="margin-top:12px">
@@ -817,8 +817,12 @@ document.getElementById("qwen-base").value = getStore("qwen_base") ||
 document.getElementById("ollama-url").value = getStore("ollama_url") || "http://localhost:11434";
 document.getElementById("ollama-model").value = getStore("ollama_model") || "qwen2.5vl:3b";
 
-// проверка, запущена ли Ollama (нужна для выбора запасного провайдера)
-async function ollamaAlive(url, ms) {
+// проверка, запущена ли Ollama (нужна для выбора запасного провайдера).
+// Прямой адрес бывает недоступен с HTTPS-страниц (CORS Ollama) — тогда пробуем
+// релей helper (start.bat): http://localhost:8787/ollama, он проксирует в 11434.
+const OLLAMA_RELAY = "http://localhost:8787/ollama";
+let ollamaBaseUsed = null;
+async function ollamaProbe(url, ms) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms || 2500);
   try {
@@ -826,6 +830,13 @@ async function ollamaAlive(url, ms) {
     return !!r.ok;
   } catch (e) { return false; }
   finally { clearTimeout(timer); }
+}
+async function ollamaAlive(url, ms) {
+  const direct = String(url || "http://localhost:11434").replace(/\/+$/, "");
+  if (await ollamaProbe(direct, ms)) { ollamaBaseUsed = direct; return true; }
+  if (direct !== OLLAMA_RELAY && await ollamaProbe(OLLAMA_RELAY, ms)) { ollamaBaseUsed = OLLAMA_RELAY; return true; }
+  ollamaBaseUsed = null;
+  return false;
 }
 
 // ошибки, после которых текущего провайдера смысла больше не пробовать
@@ -901,7 +912,8 @@ async function fallbackChain(cfg) {
   if (!/free/.test(cfg.model)) out.push({ ...cfg, model: "openrouter/free" });
   const q = readCfg("qwen");
   if (q.ok) out.push(q);
-  if (await ollamaAlive(readCfg("ollama").url)) out.push(readCfg("ollama"));
+  const oc = readCfg("ollama");
+  if (await ollamaAlive(oc.url)) { oc.url = ollamaBaseUsed || oc.url; out.push(oc); }
   return out;
 }
 
@@ -917,7 +929,7 @@ function applyProviderUI() {
   document.getElementById("ollama-panel").style.display = isOllama ? "" : "none";
   document.getElementById("ollama-model-panel").style.display = isOllama ? "" : "none";
   const hints = {
-    ollama: "Локальная модель: работает без интернета, без ключей и без лимитов. На CPU ~2–4 мин на файл. ВАЖНО: с сайта GitHub Pages (https) Ollama недоступна — откройте приложение через локальный helper.",
+    ollama: "Локальная модель: работает без интернета, без ключей и без лимитов. На CPU ~2–4 мин на файл. Для сайта GitHub Pages запустите helper (start.bat) — приложение само подключится через релей http://localhost:8787/ollama.",
     qwen: "Qwen через Alibaba Model Studio: vision-модели с бесплатной квотой для новых аккаунтов; работает из браузера, в том числе с GitHub Pages.",
     openrouter: "Облачная модель: нужен API-ключ OpenRouter. Если появляется «Failed to fetch» — сайт недоступен из вашей сети/браузера, переключитесь на Qwen или Ollama."
   };
@@ -1119,7 +1131,8 @@ function cleanAIKeywords(kws, addNoPeople, used) {
 // локальный провайдер: Ollama. Без ключа, без лимитов, работает офлайн.
 // Формат совместим с OpenAI, поэтому ответ нормализуем в choices[0].message.content.
 async function ollamaRequest(cfg, prompt, imgs) {
-  const base = (cfg.url || "http://localhost:11434").replace(/\/+$/, "");
+  let base = (cfg.url || "http://localhost:11434").replace(/\/+$/, "");
+  if (await ollamaAlive(base)) base = ollamaBaseUsed || base;
   // Ollama ждёт base64 без префикса data:...
   const images = imgs
     .map(u => String(u).replace(/^data:[^;]+;base64,/, ""))
@@ -1147,7 +1160,10 @@ async function ollamaRequest(cfg, prompt, imgs) {
       clearTimeout(timer);
       const msg = netErr && netErr.name === "AbortError"
         ? "таймаут: модель " + cfg.model + " не ответила за 10 минут (попробуйте модель поменьше)"
-        : "не удалось обратиться к " + base + " — Ollama запущена? (" + netErr.message + ")";
+        : "не удалось обратиться к " + base + " — Ollama запущена? (" + netErr.message + ")" +
+          (location.protocol === "https:"
+            ? " С HTTPS-сайта Ollama разрешает не все запросы: запустите helper (start.bat) — релей http://localhost:8787/ollama проксирует её. Или проверьте, что Ollama Desktop/сервис запущены."
+            : "");
       if (attempt >= 2) throw new Error("Ollama: " + msg);
       await sleep(2000);
       continue;
