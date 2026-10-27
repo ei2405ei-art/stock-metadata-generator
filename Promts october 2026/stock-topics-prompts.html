@@ -236,7 +236,7 @@ tr.bprow.done td:nth-child(3){text-decoration:line-through}
         <button class="btn" id="g-download" disabled>Скачать .md</button>
         <button class="btn" id="g-to-plan" disabled>В батч-план</button>
       </div>
-      <div class="callout" id="g-hint">Выберите тему на вкладке «Темы» или здесь — и нажмите «Сгенерировать». Имена файлов латиницей ≤30 символов, промпты EN с <code>--ar</code> в конце, negative и посевные ключи прилагаются.</div>
+      <div class="callout" id="g-hint">Выберите тему на вкладке «Темы» или здесь — и нажмите «Сгенерировать». Имена файлов латиницей ≤30 символов, промпты EN с <code>--ar</code> в конце, negative и посевные ключи прилагаются. Промпты проверяются на совместимость: aerial не мешается с indoor-деталями, тёплый свет только с тёплым настроением.</div>
     </div>
     <div id="grid-out"></div>
   </section>
@@ -1009,8 +1009,8 @@ const TEMPLATES={
   setting:["in a cozy living room","by a large window","on a rustic wooden table","near a stone fireplace","in soft daylight","against a dark warm background","indoors in warm lamplight","in an open airy space"],
   lighting:["warm ambient light","soft diffused daylight","natural window light","golden hour backlight","candlelight glow","cool daylight contrast","gentle side light","bright overcast light"],
   mood:["calm cozy atmosphere","quiet meditative mood","inviting warm mood","fresh airy feeling","intimate evening mood","serene peaceful mood"],
-  extras:["shallow depth of field","high detail","natural colors","soft bokeh background","fine texture detail","clean composition with copy space"],
-  negative:"text, watermark, logo, letters, signature, blurry, low quality, jpeg artifacts, extra limbs, deformed hands, cropped, mockup, hdr, overprocessed",
+  extras:["shallow depth of field","high detail","natural colors","soft bokeh background","fine texture detail","clean composition with copy space","authentic natural imperfections"],
+  negative:"text, watermark, logo, letters, signature, blurry, low quality, jpeg artifacts, extra limbs, deformed hands, cropped, mockup, hdr, overprocessed, 3d render, cgi, illustration, painting, cartoon, plastic shading",
   post:["Апскейл минимум 4 МП (лучше 12–24 МП) без «мыла».","Проверка в 100%: руки/лица, нет HDR и пересатурации, естественные тона, горизонт.","Экспорт: JPEG, sRGB, ≤45 МБ. Имя файла = из сетки (≤30 символов)."],
   spec:["4–100 МП","JPEG sRGB ≤45 МБ","просмотр в 100%"]},
 
@@ -1043,6 +1043,19 @@ const TEMPLATES={
 /* --- Кадры-обрамления для разнообразия (кроме первого прохода по хукам) --- */
 const FRAMES=["","close-up of ","wide view of ","detail of "];
 
+/* --- Совместимость слотов фото: перспектива, свет, настроение --- */
+const PHOTO_SET_OUT=["in soft daylight","in an open airy space"];
+const PHOTO_SET_AERIAL=["in soft daylight"];
+const PHOTO_SET_IN=["in a cozy living room","by a large window","on a rustic wooden table","near a stone fireplace","indoors in warm lamplight","against a dark warm background"];
+const WARM_L=["warm ambient light","natural window light","golden hour backlight","candlelight glow"];
+const COOL_L=["cool daylight contrast","bright overcast light","soft diffused daylight","gentle side light"];
+const WARM_M=["inviting warm mood","intimate evening mood","calm cozy atmosphere"];
+const COOL_M=["fresh airy feeling","serene peaceful mood","quiet meditative mood"];
+const VWARM_L=["warm ambient light","natural window light","golden hour light"];
+const VCOOL_L=["cool blue daylight","soft diffused daylight","gentle side light"];
+const VWARM_M=["calm cozy atmosphere","intimate evening mood"];
+const VCOOL_M=["peaceful meditative mood","gentle dreamy mood","fresh airy feeling"];
+
 /* --- Hard Rules скилла (для подсказки и проверок) --- */
 const HARD_RULES=[
  ["Промпты","EN, `--ar` в конце, `no text` для вектора и фото без людей"],
@@ -1052,7 +1065,11 @@ const HARD_RULES=[
  ["Дедлайн сезонки","загрузка за 10–12 недель до пика (модерация 1–3 нед)"],
  ["Метаданные (отдельно)","Title 120–180, ключи 40–49, первые 3 — фразы; `no people`/`nobody` только без людей"],
  ["Люди в кадре","model release, либо руки без лица / спина"],
- ["Видео","5–60 с (вертикали 10–30 с), 24/25/30 к/с, H.264, движение обязательно"]
+ ["Видео","5–60 с (вертикали 10–30 с), 24/25/30 к/с, H.264, движение обязательно"],
+ ["Одна перспектива","aerial/drone не сочетать с indoor-деталями (комната, печь, стол) — сломанный ракурс = отказ «качество»"],
+ ["Сцена логична","сюжет жизненно правдоподобен: случайные предметы посреди леса/поля = отказ"],
+ ["Свет и настроение","тёплый свет + тёплое настроение, холодный + холодное; смесь warm/cool = отказ"],
+ ["Спрос и уникальность","перед загрузкой найти сюжет в поиске Adobe Stock; тысячи одинаковых → сузить контекст; из серии — 1 лучший кадр"]
 ];
 
 /* --- Чек-лист перед загрузкой (Adobe_Stock_чек-лист_перед_загрузкой.md) --- */
@@ -1197,12 +1214,26 @@ function pickNotIn(arr,i,subject){
   }
   return rot(arr,i);
 }
-/* осмысленный стиль для фото: аэро/макро по ключам сюжета, остальное — ротация */
+/* осмысленный стиль для фото: аэро/макро по ключам сюжета, indoor никогда не aerial */
+function indoorSubj(s){return /\b(living room|interior|indoors|window|table|desk|kitchen|bedroom|fireplace|cafe|office|lamp)\b/.test(s)}
+function natureSubj(s){return /\b(forest|woods|pine|tree|mountain|river|lake|field|meadow|sky|beach|snow|valley|hill|canyon|waterfall|countryside|landscape|roof|rooftop|porch|garden|yard|street|barn|fence|cabin|chalet|exterior|outdoor)\b/.test(s)}
+function aerialSubj(s){return /\b(aerial|drone|from above|bird|birds eye)\b/.test(s)}
+function pickPhotoSetting(i,subject,style){
+  const s=subject.toLowerCase();
+  const aerial=style==="Aerial drone"||aerialSubj(s);
+  const pool=aerial?PHOTO_SET_AERIAL:
+    natureSubj(s)?PHOTO_SET_OUT:
+    indoorSubj(s)?PHOTO_SET_IN:
+    TEMPLATES.photo.setting;
+  return pickNotIn(pool,i,subject);
+}
 function pickPhotoStyle(subject,i){
   const s=subject.toLowerCase();
-  if(/\b(aerial|drone|from above|bird)\b/.test(s))return "Aerial drone";
+  if(aerialSubj(s))return "Aerial drone";
+  if(indoorSubj(s))return rot(["Photorealistic","Natural light","Documentary","Still life"],i);
   if(/\b(macro|texture|close up|crystal|slice|detail)\b/.test(s))return "Macro";
   if(hasPeopleWord(s))return "Candid lifestyle";
+  if(natureSubj(s))return rot(["Photorealistic","Natural light","Documentary"],i);
   return rot(["Photorealistic","Natural light","Documentary","Still life"],i);
 }
 function hasPeopleWord(s){
@@ -1243,14 +1274,16 @@ function buildGrid(o){
       const style=st.ph||pickPhotoStyle(subject,k+round);
       constraint=noPeople?"no people, no text":"natural candid moment";
       ratio=rot(f.ratios,k);
+      const warm=(k+round)%2===0;
       parts=[style+" photograph",subject,
-        pickNotIn(f.setting,k*3+round,subject),rot(f.lighting,k*5+round),rot(f.mood,k*2+round),
+        pickPhotoSetting(k*3+round,subject,style),rot(warm?WARM_L:COOL_L,k*5+round),rot(warm?WARM_M:COOL_M,k*2+round),
         st.ex||rot(f.extras,k*7+round),constraint];
     }else if(o.format==="video"){
       constraint=noPeople?"no people":"natural candid moment";
       ratio=vertical?f.ratioV:f.ratioH;
+      const warm=(k+round)%2===0;
       parts=[vertical?f.leadV:f.leadH,subject,
-        rot(f.lighting,k*5+round),rot(f.mood,k*2+round),
+        rot(warm?VWARM_L:VCOOL_L,k*5+round),rot(warm?VWARM_M:VCOOL_M,k*2+round),
         rot(f.motion,k*3+round+1),st.ex||rot(f.extras,k*7+round),constraint];
     }else{ /* vector */
       constraint=f.constraint;
@@ -1283,6 +1316,13 @@ function buildGrid(o){
       slug:hook.slug,subject};
     if(filename.length>30) warns.push("Имя длиннее 30: "+filename);
     if(!/--ar\s+\S+$/.test(prompt)) warns.push("Нет --ar в конце: "+filename);
+    if(o.format==="photo"){
+      const lp=prompt.toLowerCase();
+      if((/\baerial\b/.test(lp)||/drone/.test(lp))&&/\b(living room|fireplace|indoors|lamplight)\b/.test(lp))
+        warns.push("Конфликт перспективы (aerial + indoor): "+filename);
+      if(/\bwarm\b/.test(lp)&&/\bcool\b/.test(lp))
+        warns.push("Смешан тёплый и холодный свет: "+filename);
+    }
     items.push(item);
   }
 
@@ -1317,6 +1357,10 @@ function buildMd(g){
   if(t.avoid.length) L.push("- **Исключить (avoid):** "+t.avoid.join(", ")+".");
   if(g.noPeople) L.push("- **Без людей:** в кадре нет людей → в ключах `no people` + `nobody`, model release не нужен.");
   else L.push("- **Люди в кадре = model release** (либо руки без лица / спина); для ИИ — чекбокс «People and Property are fictional».");
+  if(g.format==="photo"){
+    L.push("- **Одна перспектива и логика сцены:** в промптах aerial не сочетается с indoor-деталями; сюжет жизненно правдоподобен — иначе отказ «Проблемы с качеством».");
+    L.push("- **Спрос и уникальность:** найдите сюжет в поиске Adobe Stock — тысячи одинаковых ракурсов → сузить контекст; из серии грузить 1 лучший кадр (анти-«похожий контент»).");
+  }
   if(g.format==="video") L.push("- Видео: 5–60 с (вертикали 10–30 с), движение читается с первого взгляда, луп предпочтителен.");
   if(g.format==="vector") L.push("- Везде в конце промпта `no text`; текст в кадре = отказ или «плавающие буквы».");
   L.push("");

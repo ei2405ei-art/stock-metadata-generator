@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1b3e">
+<title>Stock Image Generator — генерация изображений для Adobe Stock</title>
+<style>
+:root{
+  --bg:#0d1b3e; --surface:#112449; --surface2:#16305f; --border:#2a4580;
+  --text:#e8e8f0; --text2:#9aa7c7; --accent:#6c5ce7; --accent2:#a29bfe;
+  --green:#2ecc71; --red:#e74c3c; --yellow:#f1c40f; --blue:#3498db;
+  --radius:12px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",Arial,sans-serif;
+  -webkit-tap-highlight-color:transparent}
+button,input,select,textarea,.chip,.tab,.btn{touch-action:manipulation}
+.app{max-width:960px;margin:0 auto;padding:20px 14px 60px}
+h1{font-size:24px;margin:0 0 4px}
+h2{font-size:17px;margin:0 0 10px}
+.sub{color:var(--text2);margin:0 0 18px;font-size:13px}
+.muted{color:var(--text2);font-size:12.5px}
+code{background:var(--surface2);padding:1px 5px;border-radius:5px;font-size:13px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab{flex:1;min-width:110px;padding:10px 14px;border:1px solid var(--border);background:var(--surface);
+  color:var(--text2);border-radius:var(--radius);cursor:pointer;font-size:14px;font-weight:600}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.panel{display:none}
+.panel.active{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+label{font-size:13px;color:var(--text2);display:flex;gap:6px;align-items:center}
+input[type=password],input[type=number],input[type=text],select{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:7px 9px;font-size:14px;font-family:inherit}
+input[type=number]{width:86px}
+textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:9px 10px;font-size:14px;font-family:inherit;resize:vertical;line-height:1.45}
+textarea:focus,input:focus,select:focus{outline:none;border-color:var(--accent)}
+.field{display:block;margin-bottom:10px}
+.field>span{display:block;font-size:13px;color:var(--text2);margin-bottom:4px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--text2);cursor:pointer;font-size:13px}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn{padding:8px 14px;border-radius:9px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--text);cursor:pointer;font-size:13.5px;font-family:inherit}
+.btn:hover{border-color:var(--accent)}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.s{padding:5px 10px;font-size:12.5px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.ok{background:var(--green);border-color:var(--green);color:#08130b}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.callout{background:#15204d;border-left:4px solid var(--accent);padding:9px 12px;border-radius:6px;
+  font-size:13px;color:var(--text2);margin:10px 0}
+.callout.red{background:#301737;border-color:var(--red);color:#f0c9c9}
+.callout.green{background:#12301f;border-color:var(--green);color:#bff0d0}
+.results{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.res{border:1px solid var(--border);border-radius:10px;background:var(--surface2);overflow:hidden}
+.res img{width:100%;display:block;background:#0a1b45}
+.res-meta{padding:7px 10px 0;font-size:11.5px;color:var(--text2);word-break:break-word}
+.res-prompt{padding:4px 10px 0;font-size:12px;color:var(--text2);max-height:54px;overflow:hidden}
+.res-actions{display:flex;gap:6px;flex-wrap:wrap;padding:9px 10px 10px}
+.hist{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--border);
+  border-radius:8px;padding:7px 10px;margin-bottom:6px;background:var(--surface2);font-size:13px}
+.hist .grow{flex:1;min-width:180px;word-break:break-word}
+.hist .when{font-size:11.5px;color:var(--text2);white-space:nowrap}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent2);
+  border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.sep{height:1px;background:var(--border);margin:14px 0}
+.prov{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;
+  background:var(--surface2)}
+.prov.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.prov-title{font-weight:700;font-size:14.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.prov-title .badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11.5px;font-weight:700;color:#fff}
+.badge.free{background:var(--green);color:#08130b}
+.badge.paid{background:var(--blue)}
+.prov-desc{font-size:13px;color:var(--text2);margin-top:5px}
+.dims{font-size:12.5px;color:var(--accent2);font-family:Consolas,monospace}
+@media(max-width:640px){
+  .app{padding:14px 10px calc(60px + env(safe-area-inset-bottom,0px))}
+  h1{font-size:21px}
+  h2{font-size:16px}
+  .tabs{position:sticky;top:0;z-index:40;background:var(--bg);
+    margin:0 -10px 14px;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 8px;
+    box-shadow:0 6px 12px -8px rgba(0,0,0,.9)}
+  .tab{min-width:0;flex:1 1 0;font-size:14px;padding:11px 4px;min-height:42px}
+  .btn{padding:10px 14px;min-height:40px;font-size:14px}
+  .actions .btn{flex:1 1 calc(50% - 4px);text-align:center}
+  .card{padding:12px}
+  .results{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Stock Image Generator</h1>
+    <p class="sub">Генерация изображений для Adobe Stock · этап 1: промпт, форматы, вариации · SiliconFlow (качество), fal.ai и Pollinations (бесплатно)</p>
+  </header>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="gen">Генерация</button>
+    <button class="tab" data-tab="settings">Настройки</button>
+  </div>
+
+  <!-- ВКЛАДКА: ГЕНЕРАЦИЯ -->
+  <section class="panel active" id="tab-gen">
+    <div class="card">
+      <h2>Промпт</h2>
+      <label class="field"><span>Описание (лучше на английском)</span>
+        <textarea id="g-prompt" rows="3" placeholder="microchip assembly process with machinery in a technology lab, photorealistic stock photo, sharp focus, soft industrial lighting"></textarea>
+      </label>
+      <label class="field"><span>Негатив — чего избегать (опционально; работает в Pollinations и в SiliconFlow-моделях с negative prompt, напр. Qwen-Image)</span>
+        <textarea id="g-neg" rows="2" placeholder="blurry, low quality, watermark, text, logo, extra fingers, deformed hands"></textarea>
+      </label>
+
+      <div class="row" style="margin-top:4px">
+        <span class="muted">Формат:</span>
+        <div class="chips" id="g-aspect">
+          <button class="chip on" data-a="16:9">16:9 пейзаж</button>
+          <button class="chip" data-a="3:2">3:2 фото</button>
+          <button class="chip" data-a="4:5">4:5 вертикаль</button>
+          <button class="chip" data-a="9:16">9:16 сторис</button>
+          <button class="chip" data-a="1:1">1:1 квадрат</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label>Ширина <input type="number" id="g-w" min="256" max="4096" step="8" value="1920"></label>
+        <label>Высота <input type="number" id="g-h" min="256" max="4096" step="8" value="1080"></label>
+        <span class="dims" id="g-dims">1920 × 1080 px</span>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <span class="muted">Вариаций за раз:</span>
+        <div class="chips" id="g-count">
+          <button class="chip on" data-n="1">1</button>
+          <button class="chip" data-n="2">2</button>
+          <button class="chip" data-n="4">4</button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn p" id="g-run">Сгенерировать</button>
+        <span class="muted" id="g-prog"></span>
+      </div>
+      <div class="callout" id="g-msg">Укажите промпт и нажмите «Сгенерировать». Ctrl+Enter в поле промпта — тоже запуск. Из серии работ на Adobe Stock отправляйте 1 лучший кадр, иначе отказ «похожий контент».</div>
+      <p class="muted">Формат задаётся размером холста. Для Adobe Stock фото нужно ≥ 4 Мп (например 2400×1800) — бесплатный Pollinations даёт до ~1920 px по стороне, для большего подключите fal.ai или апскейл (следующие этапы).</p>
+    </div>
+
+    <div class="card">
+      <h2>Результаты</h2>
+      <div id="g-empty" class="muted">Пока пусто. Первый результат появится здесь.</div>
+      <div class="results" id="g-out"></div>
+      <div class="actions" id="g-out-actions" style="display:none">
+        <button class="btn" id="g-dl-all">Скачать все по одному</button>
+        <button class="btn" id="g-clear">Очистить</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Недавние промпты</h2>
+      <div id="h-list" class="muted">Пусто. Последние 30 промптов сохраняются в localStorage (без картинок).</div>
+    </div>
+  </section>
+
+  <!-- ВКЛАДКА: НАСТРОЙКИ -->
+  <section class="panel" id="tab-settings">
+    <div class="card">
+      <h2>Источник генерации</h2>
+
+      <div class="prov on" id="prov-pol">
+        <div class="prov-title">Pollinations <span class="badge free">бесплатно</span> <span class="badge paid">без ключа</span></div>
+        <div class="prov-desc">Модель flux, работает сразу. Анонимный лимит: примерно 1 запрос в 10–15 секунд — при ответе 402 приложение само подождёт и повторит. Размеры до ~1920 px по стороне.</div>
+      </div>
+
+      <div class="prov" id="prov-silic">
+        <div class="prov-title">SiliconFlow <span class="badge paid">качество</span> <span class="badge free">регистрация без карты</span></div>
+        <div class="prov-desc">FLUX.1-dev, FLUX.2, Qwen-Image — качественная генерация, размеры до ~2.4 Мп, negative prompt (Qwen-Image, FLUX-1.1-pro). Регистрация: cloud.siliconflow.com (email или Google), ключ: Account → API Key. Часть моделей бесплатна, остальные списывают баланс (~$0.01–0.05 за картинку).</div>
+        <div style="margin-top:10px;display:none" id="silic-fields">
+          <label class="field"><span>Ключ SiliconFlow</span>
+            <input type="password" id="s-sfkey" placeholder="sk-..." style="width:100%" autocomplete="off">
+          </label>
+          <label class="field"><span>Модель</span>
+            <input type="text" id="s-sfmodel" list="sf-list" value="black-forest-labs/FLUX.1-dev" style="width:100%">
+            <datalist id="sf-list">
+              <option value="black-forest-labs/FLUX.1-dev"></option>
+              <option value="black-forest-labs/FLUX.1-schnell"></option>
+              <option value="Qwen/Qwen-Image"></option>
+              <option value="black-forest-labs/FLUX-1.1-pro"></option>
+              <option value="black-forest-labs/FLUX-1.1-pro-Ultra"></option>
+              <option value="black-forest-labs/FLUX.2-pro"></option>
+              <option value="black-forest-labs/FLUX.2-flex"></option>
+              <option value="Tongyi-MAI/Z-Image-Turbo"></option>
+            </datalist>
+          </label>
+          <p class="muted">Ключ хранится только в этом браузере. Откройте cloud.siliconflow.com → Account → API Key и скопируйте. Баланс и цены моделей — там же в Playground/ Billing.</p>
+        </div>
+      </div>
+
+      <div class="prov" id="prov-fal">
+        <div class="prov-title">fal.ai <span class="badge paid">платно</span> <span class="badge paid">ключ</span></div>
+        <div class="prov-desc">Качественные модели (FLUX dev/schnell, Recraft и др.), крупные размеры, ~$0.003–0.03 за изображение. Ключ: fal.ai → Dashboard → API Keys.</div>
+        <div style="margin-top:10px;display:none" id="fal-fields">
+          <label class="field"><span>Ключ fal.ai</span>
+            <input type="password" id="s-falkey" placeholder="fal-..." style="width:100%" autocomplete="off">
+          </label>
+          <label class="field"><span>Модель (ID на fal.ai/models)</span>
+            <input type="text" id="s-falmodel" list="fal-list" value="fal-ai/flux/schnell" style="width:100%">
+            <datalist id="fal-list">
+              <option value="fal-ai/flux/schnell"></option>
+              <option value="fal-ai/flux/dev"></option>
+              <option value="fal-ai/flux-pro/v1.1"></option>
+              <option value="fal-ai/recraft-v3"></option>
+            </datalist>
+          </label>
+          <p class="muted">Ключ хранится только в этом браузере (localStorage). Проверится первой генерацией: 401 — ключ неверный, 402 — нет кредитов.</p>
+        </div>
+      </div>
+
+      <div class="callout" id="s-msg">Настройки сохраняются автоматически. OpenRouter, OpenAI и Gemini с вашей сети недоступны (403), Hugging Face бесплатным аккаунтам не даёт кредитов (нужна карта) — рабочий путь: SiliconFlow.</div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+const ASPECTS={
+  '16:9':[1920,1080],
+  '3:2':[1920,1280],
+  '4:5':[1536,1920],
+  '9:16':[1080,1920],
+  '1:1':[1600,1600]
+};
+
+const cfg=Object.assign({prov:'pol',falKey:'',falModel:'fal-ai/flux/schnell',sfKey:'',sfModel:'black-forest-labs/FLUX.1-dev'},LS.get('imgcfg',{}));
+const form=Object.assign({prompt:'',neg:'',aspect:'16:9',w:1920,h:1080,count:1},LS.get('imgform',{}));
+let hist=LS.get('imghist',[]);
+let results=[];
+let busy=false;
+
+function saveCfg(){LS.set('imgcfg',cfg)}
+function saveForm(){LS.set('imgform',{prompt:form.prompt,neg:form.neg,aspect:form.aspect,w:form.w,h:form.h,count:form.count})}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function waitSec(n,label){
+  return new Promise(res=>{
+    let s=n;
+    const show=()=>progress(label?label(s):('Подождите '+s+' с…'));
+    show();
+    const t=setInterval(()=>{s--;if(s<=0){clearInterval(t);res()}else show()},1000);
+  });
+}
+function progress(txt){
+  const el=$('#g-prog');
+  el.innerHTML=busy&&txt?'<span class="spin"></span>'+esc(txt):esc(txt||'');
+}
+function msg(txt,cls){
+  const el=$('#g-msg');
+  el.className='callout'+(cls?' '+cls:'');
+  el.textContent=txt;
+}
+function flash(btn,txt){
+  const old=btn.textContent;btn.textContent=txt||"Скопировано";btn.classList.add("ok");
+  setTimeout(()=>{btn.textContent=old;btn.classList.remove("ok")},1200);
+}
+function extOf(t){
+  if(!t)return'.jpg';
+  if(t.includes('png'))return'.png';
+  if(t.includes('webp'))return'.webp';
+  if(t.includes('gif'))return'.gif';
+  return'.jpg';
+}
+function slug(s){
+  const x=String(s).toLowerCase()
+    .replace(/[а-яё]/g,'')
+    .replace(/[^a-z0-9]+/g,'_')
+    .replace(/^_+|_+$/g,'')
+    .slice(0,40);
+  return x||'stock';
+}
+function dimsNow(){return[+form.w,+form.h]}
+
+function setTab(name){
+  $$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  $$('.panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));
+}
+$('#tabs').addEventListener('click',e=>{
+  const b=e.target.closest('.tab');if(b)setTab(b.dataset.tab);
+});
+
+function provLabel(){
+  if(cfg.prov==='pol')return'Pollinations, flux';
+  if(cfg.prov==='fal')return'fal.ai: '+cfg.falModel;
+  return'SiliconFlow: '+cfg.sfModel;
+}
+function applyProv(){
+  $('#prov-pol').classList.toggle('on',cfg.prov==='pol');
+  $('#prov-silic').classList.toggle('on',cfg.prov==='silic');
+  $('#prov-fal').classList.toggle('on',cfg.prov==='fal');
+  $('#fal-fields').style.display=cfg.prov==='fal'?'block':'none';
+  $('#silic-fields').style.display=cfg.prov==='silic'?'block':'none';
+  $('#g-run').textContent=busy?'Генерация…':'Сгенерировать ('+form.count+')';
+}
+$('#prov-pol').addEventListener('click',()=>{cfg.prov='pol';saveCfg();applyProv()});
+$('#prov-silic').addEventListener('click',()=>{cfg.prov='silic';saveCfg();applyProv()});
+$('#prov-fal').addEventListener('click',()=>{cfg.prov='fal';saveCfg();applyProv()});
+$('#s-falkey').addEventListener('input',e=>{cfg.falKey=e.target.value.trim();saveCfg()});
+$('#s-falmodel').addEventListener('input',e=>{cfg.falModel=e.target.value.trim();saveCfg()});
+$('#s-sfkey').addEventListener('input',e=>{
+  cfg.sfKey=e.target.value.trim();
+  if(cfg.sfKey&&cfg.prov==='pol'){cfg.prov='silic';msg('Ключ SiliconFlow сохранён — источник переключён на SiliconFlow.','green')}
+  saveCfg();applyProv();
+});
+$('#s-sfmodel').addEventListener('input',e=>{cfg.sfModel=e.target.value.trim()||'black-forest-labs/FLUX.1-dev';saveCfg()});
+
+function applyAspect(){
+  $$('#g-aspect .chip').forEach(c=>c.classList.toggle('on',c.dataset.a===form.aspect));
+  $('#g-w').value=form.w;
+  $('#g-h').value=form.h;
+  $('#g-dims').textContent=form.w+' × '+form.h+' px';
+}
+$('#g-aspect').addEventListener('click',e=>{
+  const c=e.target.closest('.chip');if(!c)return;
+  form.aspect=c.dataset.a;
+  const d=ASPECTS[form.aspect];
+  form.w=d[0];form.h=d[1];
+  saveForm();applyAspect();
+});
+$('#g-w').addEventListener('input',e=>{form.w=+e.target.value||1920;saveForm();applyAspect()});
+$('#g-h').addEventListener('input',e=>{form.h=+e.target.value||1080;saveForm();applyAspect()});
+
+function applyCount(){
+  $$('#g-count .chip').forEach(c=>c.classList.toggle('on',+c.dataset.n===form.count));
+  if(!busy)$('#g-run').textContent='Сгенерировать ('+form.count+')';
+}
+$('#g-count').addEventListener('click',e=>{
+  const c=e.target.closest('.chip');if(!c)return;
+  form.count=+c.dataset.n;saveForm();applyCount();
+});
+
+$('#g-prompt').addEventListener('input',e=>{form.prompt=e.target.value;saveForm()});
+$('#g-neg').addEventListener('input',e=>{form.neg=e.target.value;saveForm()});
+$('#g-prompt').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();run()}});
+
+async function polGen(prompt,neg,w,h,seed){
+  const u=new URL('https://image.pollinations.ai/prompt/'+encodeURIComponent(prompt));
+  u.searchParams.set('width',w);
+  u.searchParams.set('height',h);
+  u.searchParams.set('seed',seed);
+  u.searchParams.set('model','flux');
+  u.searchParams.set('nologo','true');
+  if(neg)u.searchParams.set('negative',neg);
+  let last='';
+  for(let a=0;a<3;a++){
+    let r;
+    try{r=await fetch(u)}catch(e){throw new Error('Нет сети до image.pollinations.ai ('+e.message+')')}
+    if(r.ok){
+      const b=await r.blob();
+      if(b.type&&b.type.startsWith('image/')){
+        return{url:URL.createObjectURL(b),ext:extOf(b.type),remote:false};
+      }
+      last='не-image ответ ('+(b.type||'нет типа')+')';
+    }else if(r.status===402){
+      last='лимит анонимного тарифа (402)';
+      if(a<2){await waitSec(15,s=>'Лимит Pollinations — повтор через '+s+' с…');continue}
+    }else if(r.status===429||r.status>=500){
+      last='HTTP '+r.status;
+      if(a<2){await waitSec(10,s=>'Pollinations занят (HTTP '+r.status+'), повтор через '+s+' с…');continue}
+    }else{
+      let t='';try{t=(await r.text()).slice(0,200)}catch(_){}
+      throw new Error('Pollinations: HTTP '+r.status+(t?' — '+t:''));
+    }
+  }
+  throw new Error('Pollinations: '+last+' после повторов. Подождите минуту или переключитесь на fal.ai в «Настройках».');
+}
+
+async function falGen(prompt,neg,w,h,seed){
+  if(!cfg.falKey)throw new Error('Укажите ключ fal.ai в «Настройках».');
+  if(!cfg.falModel)throw new Error('Укажите модель fal.ai в «Настройках».');
+  const body={prompt:prompt,image_size:{width:w,height:h},seed:seed,num_images:1};
+  if(neg)body.negative_prompt=neg;
+  let last='';
+  for(let a=0;a<4;a++){
+    let r;
+    try{
+      r=await fetch('https://fal.run/'+cfg.falModel,{
+        method:'POST',
+        headers:{'Authorization':'Key '+cfg.falKey,'Content-Type':'application/json'},
+        body:JSON.stringify(body)
+      });
+    }catch(e){throw new Error('Нет сети до fal.run ('+e.message+')')}
+    if(r.ok){
+      const j=await r.json();
+      const item=Array.isArray(j)?j.find(x=>x&&x.url):j;
+      const url=item&&item.url;
+      if(!url)throw new Error('fal.ai: в ответе нет url — '+JSON.stringify(j).slice(0,180));
+      try{
+        const ir=await fetch(url);
+        if(ir.ok){
+          const b=await ir.blob();
+          if(b.type&&b.type.startsWith('image/'))
+            return{url:URL.createObjectURL(b),ext:extOf(b.type),remote:false};
+        }
+      }catch(_){}
+      return{url:url,ext:'.jpg',remote:true};
+    }
+    let t='';try{t=(await r.text()).slice(0,220)}catch(_){}
+    if(r.status===401)throw new Error('fal.ai: ключ не принят (401). Проверьте ключ в «Настройках».');
+    if(r.status===402)throw new Error('fal.ai: недостаточно кредитов (402). Пополните баланс на fal.ai.');
+    if(r.status===404)throw new Error('Модель не найдена (404): '+cfg.falModel+' — проверьте ID на fal.ai/models.');
+    if(r.status===400)throw new Error('fal.ai: запрос отклонён (400): '+t);
+    if(r.status===429||r.status>=500){
+      last='HTTP '+r.status;
+      if(a<3){await waitSec(2*(a+1),s=>'fal.ai: повтор через '+s+' с…');continue}
+    }else{
+      throw new Error('fal.ai: HTTP '+r.status+(t?' — '+t:''));
+    }
+  }
+  throw new Error('fal.ai: '+last+' после повторов.');
+}
+
+function sfSnap(list,w,h){
+  let best=list[0],bd=1e18;
+  const r=w/h;
+  for(const s of list){
+    const p=s.split('x').map(Number);
+    const d=Math.abs(p[0]/p[1]-r)*1000+Math.abs(p[0]*p[1]-w*h)/1e6;
+    if(d<bd){bd=d;best=s}
+  }
+  return best;
+}
+function sfBody(model,prompt,neg,w,h,seed){
+  const body={model:model,prompt:prompt,seed:seed};
+  if(model==='black-forest-labs/FLUX-1.1-pro'){
+    body.width=Math.max(256,Math.min(1440,Math.round(w/32)*32));
+    body.height=Math.max(256,Math.min(1440,Math.round(h/32)*32));
+    body.output_format='jpeg';
+    if(neg)body.negative_prompt=neg;
+    return body;
+  }
+  if(model==='black-forest-labs/FLUX-1.1-pro-Ultra'){
+    body.image_size=w+'x'+h;
+    body.output_format='jpeg';
+    if(neg)body.negative_prompt=neg;
+    return body;
+  }
+  if(model==='black-forest-labs/FLUX.1-schnell'){
+    body.image_size=sfSnap(['1024x1024','512x1024','768x512','768x1024','1024x576','576x1024'],w,h);
+    return body;
+  }
+  if(model.indexOf('black-forest-labs/FLUX.2-')===0){
+    body.image_size=sfSnap(['512x512','768x1024','1024x768','576x1024','1024x576'],w,h);
+    return body;
+  }
+  if(model==='Tongyi-MAI/Z-Image-Turbo'){
+    body.image_size=sfSnap(['512x512','768x1024','1024x576','576x1024'],w,h);
+    if(neg)body.negative_prompt=neg;
+    return body;
+  }
+  if(model==='black-forest-labs/FLUX.1-dev'){
+    let W=w,H=h;
+    if(W*H>2359296){
+      const k=Math.sqrt(2359296/(W*H));
+      W=Math.max(256,Math.floor(W*k/32)*32);
+      H=Math.max(256,Math.floor(H*k/32)*32);
+    }
+    body.image_size=W+'x'+H;
+    body.num_inference_steps=25;
+    return body;
+  }
+  if(model==='Qwen/Qwen-Image'){
+    body.image_size=sfSnap(['1328x1328','1664x928','928x1664','1472x1140','1140x1472','1584x1056','1056x1584'],w,h);
+    if(neg)body.negative_prompt=neg;
+    return body;
+  }
+  body.image_size=w+'x'+h;
+  if(neg)body.negative_prompt=neg;
+  return body;
+}
+async function silicGen(prompt,neg,w,h,seed){
+  if(!cfg.sfKey)throw new Error('Укажите ключ SiliconFlow в «Настройках» (cloud.siliconflow.com → Account → API Key).');
+  const body=sfBody(cfg.sfModel,prompt,neg,w,h,seed);
+  let last='';
+  for(let a=0;a<4;a++){
+    let r;
+    try{
+      r=await fetch('https://api.siliconflow.com/v1/images/generations',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+cfg.sfKey,'Content-Type':'application/json'},
+        body:JSON.stringify(body)
+      });
+    }catch(e){throw new Error('Нет сети до api.siliconflow.com ('+e.message+')')}
+    if(r.ok){
+      const j=await r.json();
+      const url=j&&j.images&&j.images[0]&&j.images[0].url;
+      if(!url)throw new Error('SiliconFlow: нет url в ответе — '+JSON.stringify(j).slice(0,180));
+      try{
+        const ir=await fetch(url);
+        if(ir.ok){
+          const b=await ir.blob();
+          if(b.type&&b.type.startsWith('image/'))
+            return{url:URL.createObjectURL(b),ext:extOf(b.type),remote:false};
+        }
+      }catch(_){}
+      return{url:url,ext:'.png',remote:true};
+    }
+    let t='';try{const tt=await r.text();try{const j=JSON.parse(tt);t=j.message||tt}catch(_){t=tt}t=t.slice(0,240)}catch(_){}
+    if(r.status===401)throw new Error('SiliconFlow: ключ не принят (401). Скопируйте ключ заново: cloud.siliconflow.com → Account → API Key.');
+    if(r.status===400)throw new Error('SiliconFlow: запрос отклонён (400): '+t);
+    if(r.status===429||r.status===503||r.status===504||r.status>=500){
+      last='HTTP '+r.status;
+      if(a<3){await waitSec(3*(a+1),s=>'SiliconFlow: повтор через '+s+' с…');continue}
+    }else{
+      throw new Error('SiliconFlow: HTTP '+r.status+(t?' — '+t:''));
+    }
+  }
+  throw new Error('SiliconFlow: '+last+' после повторов. Подождите минуту и повторите.');
+}
+
+async function genOne(prompt,neg,w,h){
+  const seed=Math.floor(Math.random()*1e9);
+  const meta=provLabel();
+  const out=cfg.prov==='pol'
+    ? await polGen(prompt,neg,w,h,seed)
+    : cfg.prov==='silic'
+      ? await silicGen(prompt,neg,w,h,seed)
+      : await falGen(prompt,neg,w,h,seed);
+  return Object.assign({prompt:prompt,seed:seed,w:w,h:h,prov:meta},out);
+}
+
+function renderResults(){
+  const host=$('#g-out');
+  $('#g-empty').style.display=results.length?'none':'block';
+  $('#g-out-actions').style.display=results.length?'flex':'none';
+  host.innerHTML=results.map((r,i)=>
+    '<div class="res">'+
+      '<img src="'+esc(r.url)+'" alt="" loading="lazy">'+
+      '<div class="res-meta">'+esc(r.prov)+' · '+r.w+'×'+r.h+' · seed '+r.seed+'</div>'+
+      '<div class="res-prompt">'+esc(r.prompt)+'</div>'+
+      '<div class="res-actions">'+
+        '<button class="btn s" data-dl="'+i+'">Скачать</button>'+
+        '<button class="btn s" data-re="'+i+'">Вариация</button>'+
+        '<button class="btn s" data-rm="'+i+'">Убрать</button>'+
+      '</div>'+
+    '</div>').join('');
+}
+
+function downloadOne(r){
+  const a=document.createElement('a');
+  a.href=r.url;
+  a.download=slug(r.prompt)+'_'+r.seed+'_'+r.w+'x'+r.h+r.ext;
+  if(r.remote){a.target='_blank';a.rel='noopener'}
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  if(r.remote)msg('Изображение открылось в новой вкладке — сохраните через правый клик → «Сохранить как…».','green');
+}
+
+$('#g-out').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.dl!==undefined)downloadOne(results[+b.dataset.dl]);
+  else if(b.dataset.rm!==undefined){
+    const r=results[+b.dataset.rm];
+    if(r&&!r.remote)URL.revokeObjectURL(r.url);
+    results.splice(+b.dataset.rm,1);
+    renderResults();
+  }else if(b.dataset.re!==undefined){
+    const r=results[+b.dataset.re];
+    if(r)run([r.prompt]);
+  }
+});
+$('#g-dl-all').addEventListener('click',async e=>{
+  const btn=e.currentTarget;
+  for(let i=0;i<results.length;i++){
+    downloadOne(results[i]);
+    if(i<results.length-1)await sleep(500);
+  }
+  flash(btn,'Запущено');
+});
+$('#g-clear').addEventListener('click',()=>{
+  results.forEach(r=>{if(!r.remote)URL.revokeObjectURL(r.url)});
+  results=[];renderResults();
+});
+
+function histAdd(prompt){
+  hist=hist.filter(x=>x.p!==prompt);
+  hist.unshift({p:prompt,t:Date.now()});
+  if(hist.length>30)hist.length=30;
+  LS.set('imghist',hist);
+  renderHist();
+}
+function renderHist(){
+  const host=$('#h-list');
+  if(!hist.length){host.className='muted';host.textContent='Пусто. Последние 30 промптов сохраняются в localStorage (без картинок).';return}
+  host.className='';
+  host.innerHTML=hist.map((x,i)=>{
+    const d=new Date(x.t);
+    const ds=d.getDate()+'.'+(d.getMonth()+1)+'.'+d.getFullYear()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    return '<div class="hist"><span class="grow">'+esc(x.p)+'</span><span class="when">'+ds+'</span>'+
+      '<button class="btn s" data-h="'+i+'">Взять</button></div>';
+  }).join('');
+}
+$('#h-list').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-h]');if(!b)return;
+  const x=hist[+b.dataset.h];
+  if(!x)return;
+  form.prompt=x.p;
+  $('#g-prompt').value=x.p;
+  saveForm();
+  setTab('gen');
+  $('#g-prompt').scrollIntoView({block:'center'});
+});
+
+async function run(onlyPrompts){
+  if(busy)return;
+  const prompts=onlyPrompts||[form.prompt.trim()];
+  if(!prompts[0]){msg('Напишите промпт — пустой не сгенерировать.','red');return}
+  busy=true;
+  applyProv();
+  $('#g-run').disabled=true;
+  const total=onlyPrompts?prompts.length:form.count;
+  try{
+    const[w,h]=dimsNow();
+    for(let i=0;i<total;i++){
+      progress('Генерация '+(i+1)+' из '+total+'…');
+      const p=onlyPrompts?prompts[i]:prompts[0];
+      const img=await genOne(p,form.neg.trim(),w,h);
+      results.unshift(img);
+      renderResults();
+      histAdd(p);
+      if(i<total-1&&cfg.prov==='pol')await waitSec(12,s=>'Пауза для лимита Pollinations: '+s+' с…');
+      else if(i<total-1&&cfg.prov==='silic')await waitSec(2,s=>'Пауза '+s+' с…');
+    }
+    progress('');
+    msg('Готово: '+total+' шт. ('+provLabel()+'). Скачивайте кнопками на карточках.','green');
+  }catch(e){
+    progress('');
+    msg(e.message||String(e),'red');
+  }finally{
+    busy=false;
+    $('#g-run').disabled=false;
+    applyProv();
+  }
+}
+$('#g-run').addEventListener('click',()=>run());
+
+function init(){
+  $('#g-prompt').value=form.prompt;
+  $('#g-neg').value=form.neg;
+  $('#s-falkey').value=cfg.falKey;
+  $('#s-falmodel').value=cfg.falModel;
+  $('#s-sfkey').value=cfg.sfKey;
+  $('#s-sfmodel').value=cfg.sfModel;
+  applyAspect();
+  applyCount();
+  applyProv();
+  renderResults();
+  renderHist();
+}
+init();
+</script>
+</body>
+</html>

@@ -75,21 +75,64 @@ vanilla HTML/CSS/JS, без бэкенда, как `metadata-generator.html`. П
 | Промпты | EN, `--ar` в конце, `no text` для вектора/фото без людей |
 | Имя файла | ≤30 символов латиницей, вид: `prefix-p01-slug.jpg`, `prefix-vid01-slug.mp4` |
 | Evergreen | без дат/годов в промптах; «winter/holiday», не «Christmas 2026» |
-| Negative | общий: `text, watermark, logo, letters, signature, blurry, low quality, jpeg artifacts, extra limbs, deformed hands, cropped, mockup, hdr, overprocessed` + запрет темы (напр. `christmas tree`) |
+| Negative | общий фото: `text, watermark, logo, letters, signature, blurry, low quality, jpeg artifacts, extra limbs, deformed hands, cropped, mockup, hdr, overprocessed, 3d render, cgi, illustration, painting, cartoon, plastic shading` + запрет темы (напр. `christmas tree`). Запрет 3d/cgi добавлен после анализа отказов: «рендерный» вид = отказ «Проблемы с качеством» |
 | Дедлайн сезонки | загружать за **10–12 недель** до пика (модерация 1–3 нед) |
 | Метаданные | Title 120–180 (2 предложения), ключи 40–49 (первые 3 — фразы), `no people`/`nobody` только если людей нет |
 | Модели | опционально OpenRouter: `max_tokens: 3000`, `:free` модели без кредитов (как в stock-metadata-generator) |
 | Люди в кадре | помечать «model release», либо руки без лица / спина |
 | Видео | 5–60 с (вертикали 10–30 с), 24/25/30 к/с, H.264, движение обязательно |
+| Одна перспектива | aerial/drone-слот **никогда** не сочетать с indoor-деталями (living room, fireplace, table, window, lamplight) — сломанный ракурс = отказ «качество» |
+| Логика сцены | сюжет жизненно правдоподобен: случайные объекты (печь посреди леса) не подмешивать к природным сюжетам |
+| Свет и настроение | тёплый свет только с тёплым настроением, холодный только с холодным (смесь warm/cool = отказ) |
+| Спрос и уникальность | перед загрузкой найти сюжет в поиске Adobe Stock; тысячи одинаковых ракурсов → сузить контекст; из серии грузить **1 лучший кадр** (анти-«похожий контент») |
 
-## Prompt Diversity Algorithm
+## Prompt Coherence & Diversity (v2, окт 2026)
 
-Для N промптов одной темы ротировать слоты, не повторяться:
-- `subject` из хуков темы (карусель ~6–8 вариантов)
-- `setting` (интерьер/лес/стол/окно/…), `lighting` (warm/soft/natural/backlight/…),
-  `mood` (cozy/calm/magical/…), `extras` (macro/shallow depth of field/…), `style` (photorealistic/video/macro/aerial drone…)
-- Первые 3–4 промпта — ядро темы (по хукам), дальше — кросс-слоты
-- Проверять длину файла и слаг латиницей
+**Источник правок:** анализ 30 отказов (73% «Проблемы с качеством» — в т.ч. ИИ-артефакты и сломанная геометрия) + баг генератора: шаблон склеивал несовместимые слоты («Aerial drone photograph … near a stone fireplace» посреди заснеженного леса). Правила ниже — обязательны при любых правках шаблонов.
+
+### Совместимость слотов фото (константы в коде)
+
+```js
+PHOTO_SET_OUT   = ["in soft daylight","in an open airy space"]            // природа/улица
+PHOTO_SET_AERIAL= ["in soft daylight"]                                    // только aerial
+PHOTO_SET_IN    = ["in a cozy living room","by a large window","on a rustic wooden table",
+                   "near a stone fireplace","indoors in warm lamplight","against a dark warm background"]
+WARM_L = ["warm ambient light","natural window light","golden hour backlight","candlelight glow"]
+COOL_L = ["cool daylight contrast","bright overcast light","soft diffused daylight","gentle side light"]
+WARM_M = ["inviting warm mood","intimate evening mood","calm cozy atmosphere"]
+COOL_M = ["fresh airy feeling","serene peaceful mood","quiet meditative mood"]
+// видео: VWARM_L/VCOOL_L, VWARM_M/VCOOL_M — аналогично
+```
+
+### Классификация сюжета (regex по subject, EN)
+
+- `indoorSubj`: living room, interior, indoors, window, table, desk, kitchen, bedroom, fireplace, cafe, office, lamp
+- `natureSubj`: forest, woods, pine, tree, mountain, river, lake, field, meadow, sky, beach, snow, valley, hill, canyon, waterfall, countryside, landscape, roof, rooftop, porch, garden, yard, street, barn, fence, cabin, chalet, exterior, outdoor
+- `aerialSubj`: aerial, drone, from above, bird, birds eye
+
+### Правила выбора (функции)
+
+1. **style** (`pickPhotoStyle`): aerial только если subject сам про дрон/вид сверху; indoor-сюжет → никогда aerial; nature → только Photorealistic/Natural light/Documentary (aerial в ротацию **не добавлять** — ветка «close-up of pine branch» стала aerial-промптом); люди → Candid lifestyle; макро-слова → Macro.
+2. **setting** (`pickPhotoSetting`): aerial → только `PHOTO_SET_AERIAL`; nature → `PHOTO_SET_OUT`; indoor → `PHOTO_SET_IN`; иначе полный пул. Antidub через `pickNotIn`.
+3. **lighting/mood**: один паритет `(k+round)%2` — тёплый/холодный семейство света и настроения из пары пулов; никогда не мешать warm и cool в одном промпте.
+4. **warns в buildGrid (фото)**: aerial+indoor в готовом промпте → `Конфликт перспективы`; warm+cool → `Смешан тёплый и холодный свет`.
+
+### Ротация слотов (без изменений, плюс)
+
+- `subject` из хуков темы (карусель), кадры-обрамления FRAMES (`close-up of`, `wide view of`, `detail of`)
+- extras включает `authentic natural imperfections` (анти-пластик ИИ) и `clean composition with copy space`
+- первый 3–4 промпта — ядро темы, дальше кросс-слоты; дубликаты промптов крутятся по extras
+
+### Что нельзя делать при доработках
+
+- Не «чинить» aerial ротацией для nature (только явный aerial в subject)
+- Не возвращать свободный `rot(f.setting)` без фильтра по классификации сюжета
+- Не ослаблять negative (3d render, cgi и т.д. — защита от отказов)
+- Hard Rules и этот раздел — не удалять; любое ослабление — только по явной просьбе Елен
+
+## Связанный проект
+
+`image-generator.html` (та же папка) — генератор изображений (SiliconFlow/Pollinations/fal) для проверки этих промптов в деле; провайдер и качество — отдельный скилл не нужен, ключи SiliconFlow в localStorage `imgcfg`.
 
 ## UI (как metadata-generator)
 
@@ -103,7 +146,7 @@ fallback на prompt-окно. Названия и подписи — RU, про
 
 - `node --check` вырезанного JS или открыть в браузере, консоль без ошибок
 - Сгенерированная сетка сравнивается с эталоном `уютный-интерьер_промты_2027.md` (структура: header, callout, батчи, post-gen, посевные ключи)
-- Тесты: JS вырезается в `%TEMP%\stp_check.js` (маркер `/* ================= UI ================= */` делит data/UI), затем `stp_ui_stub`, `stp_ui_handlers` (17 сценариев), `stp_done_test` (4 сценария), смоук (buildGrid/urgency/календарь) из `%TEMP%\opencode\`
+- Тесты: JS вырезается в `%TEMP%\stp_check.js` (маркер `/* ================= UI ================= */` делит data/UI), затем `stp_ui_stub`, `stp_ui_handlers` (18 сценариев), `stp_done_test` (4 сценария), смоук (buildGrid/urgency/календарь) из `%TEMP%\opencode\`
 - `phone-server.js`: `node --check` + живой запуск (HTTP 200 на `/`, 403 на path traversal)
 - Публикация: репозиторий публичный, GitHub Pages (ветка master, корень `/`),
   адрес приложения: `https://ei2405ei-art.github.io/stock-metadata-generator/Promts%20october%202026/stock-topics-prompts.html`
