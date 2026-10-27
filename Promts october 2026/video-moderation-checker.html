@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adobe Stock Video Moderation Checker</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a25;--border:#2a2a3a;--text:#e8e8f0;--text2:#8888a0;--accent:#6c5ce7;--accent2:#a29bfe;--green:#00b894;--red:#e17055;--yellow:#fdcb6e;--radius:12px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text)}
+::selection{background:var(--accent);color:#fff}
+.app{max-width:980px;margin:0 auto;padding:20px}
+h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;padding:16px 0 2px}
+.sub{text-align:center;color:var(--text2);font-size:11px;margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:8px}
+label{display:block;font-size:11px;color:var(--text2);margin-bottom:3px;font-weight:500}
+input,select,textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+.hint{font-size:11px;color:var(--text2);margin-top:3px;opacity:.7}
+.badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:var(--accent);color:#fff;margin-left:4px}
+.badge.green{background:var(--green)}.badge.orange{background:#e17055}.badge.yellow{background:var(--yellow);color:#000}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.btn{padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:12px;font-family:inherit;transition:all .2s}
+.btn:hover{border-color:var(--accent);color:var(--accent2)}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.p:hover{background:var(--accent2)}
+.btn.g{border-color:var(--green);color:var(--green)}.btn.g:hover{background:var(--green);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.dzone{border:2px dashed var(--border);border-radius:var(--radius);padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s}
+.dzone:hover,.dzone.dragover{border-color:var(--accent);background:rgba(108,92,231,.04)}
+.dzone .icon{font-size:32px;opacity:.2;margin-bottom:6px}
+.dzone .t{color:var(--text2);font-size:12px}
+.dzone .t strong{color:var(--text)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:640px){.grid2{grid-template-columns:1fr}}
+.tabs{display:flex;gap:2px;margin-bottom:10px;background:var(--surface2);border-radius:8px;padding:3px;flex-wrap:wrap}
+.tab{padding:5px 14px;border-radius:6px;border:none;background:none;color:var(--text2);cursor:pointer;font-size:12px;transition:all .2s;font-family:inherit}
+.tab.active{background:var(--accent);color:#fff}
+.tab:hover:not(.active){color:var(--text)}
+.panel{display:none}.panel.active{display:block}
+.row{display:flex;gap:10px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;align-items:flex-start;cursor:pointer;transition:border .2s}
+.row:hover{border-color:var(--accent)}
+.row.selected{border-color:var(--accent);background:rgba(108,92,231,.08)}
+.row .thumb{width:56px;height:56px;border-radius:6px;object-fit:cover;background:var(--border);flex-shrink:0}
+.row .info{flex:1;font-size:11px;line-height:1.5;min-width:0}
+.row .info .nm{font-weight:600;font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .info .meta{color:var(--text2);display:block;margin-top:2px}
+.row .info .meta span{margin-right:8px}
+.row .verdict{flex-shrink:0;font-size:16px;align-self:center}
+.stat{font-size:11px;color:var(--text2);display:flex;gap:10px;flex-wrap:wrap}
+.stat span{display:flex;align-items:center;gap:3px}
+.stat .n{font-weight:600;color:var(--text)}
+.good{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--yellow)}
+.chk{display:flex;gap:6px;padding:4px 0;font-size:12px;align-items:flex-start;border-bottom:1px solid var(--border)}
+.chk:last-child{border-bottom:none}
+.chk .ic{flex-shrink:0;width:18px;text-align:center}
+.chk .tx{flex:1}
+.chk .tx b{display:block;font-size:12px}
+.chk .tx small{color:var(--text2);font-size:11px}
+.frames{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.frames img{width:80px;height:auto;border-radius:6px;border:1px solid var(--border);object-fit:cover}
+.progress{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:8px}
+.progress .bar{height:100%;background:var(--accent);transition:width .3s;width:0%}
+.checklist{list-style:none}
+.checklist li{padding:5px 0;font-size:12px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:flex-start}
+.checklist li:last-child{border-bottom:none}
+.checklist .req{color:var(--red);font-weight:700;flex-shrink:0}
+.checklist .opt{color:var(--yellow);font-weight:700;flex-shrink:0}
+.summary-table{overflow-x:auto;margin-top:8px}
+.summary-table table{width:100%;border-collapse:collapse;font-size:11px}
+.summary-table th{padding:6px 8px;background:var(--surface2);color:var(--text2);font-weight:500;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.summary-table td{padding:5px 8px;border-bottom:1px solid var(--border);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.summary-table tr:hover td{background:var(--surface2);cursor:pointer}
+.copy-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:280px;overflow:auto;line-height:1.6;margin-top:6px}
+.divider{border-top:1px solid var(--border);margin:10px 0}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.pill.ok{background:rgba(0,184,148,.15);color:var(--green)}
+.pill.review{background:rgba(253,203,110,.15);color:var(--yellow)}
+.pill.reject{background:rgba(225,112,85,.15);color:var(--red)}
+.pill.tech{background:rgba(136,136,160,.15);color:var(--text2)}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Adobe Stock Video Moderation Checker</h1>
+<p class="sub">Проверка AI-видео перед загрузкой: тех. требования + AI-анализ контента по правилам Adobe Stock</p>
+
+<div class="tabs">
+  <button class="tab active" data-tab="check">Проверка</button>
+  <button class="tab" data-tab="settings">Настройки AI</button>
+  <button class="tab" data-tab="rules">Правила Adobe</button>
+</div>
+
+<div class="panel active" id="tab-check">
+  <div class="card">
+    <div class="grid2" style="align-items:end">
+      <div>
+        <label>Глубина проверки</label>
+        <select id="mode">
+          <option value="full">Полная — 4 кадра + AI-анализ</option>
+          <option value="fast">Быстрая — 3 кадра, только техпроверки</option>
+        </select>
+      </div>
+      <div>
+        <label>Кадров для AI</label>
+        <select id="frame-count">
+          <option value="4">4 кадра (рекомендуется)</option>
+          <option value="3">3 кадра (экономия кредитов)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="dzone" id="dzone">
+    <div class="icon">&#127916;</div>
+    <div class="t" id="dz-text">Перетащите видеофайлы сюда<br>или нажмите для выбора (можно пачкой)</div>
+    <input type="file" id="files" multiple style="display:none" accept="video/mp4,video/quicktime,video/x-msvideo,video/webm,.mp4,.mov,.avi,.mpg,.mpeg">
+  </div>
+
+  <div id="batch-progress" style="display:none" class="card">
+    <div class="stat"><span>Обработано: <span class="n" id="bp-done">0</span>/<span id="bp-total">0</span></span><span id="bp-current"></span></div>
+    <div class="progress"><div class="bar" id="bp-bar"></div></div>
+  </div>
+
+  <div id="files-list"></div>
+  <div id="report"></div>
+
+  <div id="batch-summary" style="display:none" class="card">
+    <h2>Сводка по батчу</h2>
+    <div class="summary-table"><table id="sum-table">
+      <thead><tr><th>Файл</th><th>Вердикт</th><th>Тех</th><th>AI</th><th>Проблемы</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div class="stat" style="margin-top:8px" id="sum-stat"></div>
+  </div>
+</div>
+
+<div class="panel" id="tab-settings">
+  <div class="card">
+    <h2>AI-анализ (OpenRouter Vision)</h2>
+    <p class="hint" style="margin-bottom:10px">Без ключа работает только техпроверка. Ключ — на <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a><br>
+    Если ошибка «Failed to fetch»: файл открыт через file:// — браузер блокирует API. Запустите локальный сервер: в папке файла выполните <code style="background:var(--surface2);padding:1px 4px;border-radius:3px">python -m http.server 8000</code> и откройте http://localhost:8000/video-moderation-checker.html</p>
+    <div class="grid2">
+      <div>
+        <label>API-ключ OpenRouter</label>
+        <input type="password" id="or-key" placeholder="sk-or-..." autocomplete="off">
+      </div>
+      <div>
+        <label>Модель (vision)</label>
+        <input type="text" id="or-model" list="or-models" placeholder="openrouter/free">
+        <datalist id="or-models">
+          <option value="openrouter/free">Авто-выбор бесплатной vision-модели</option>
+          <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="qwen/qwen3-vl-30b-a3b-instruct">Qwen3 VL 30B</option>
+        </datalist>
+      </div>
+    </div>
+    <div class="btns">
+      <button class="btn" id="btn-test-ai">Тест соединения</button>
+      <button class="btn g" id="btn-save-cfg">Сохранить</button>
+    </div>
+    <div id="ai-status" class="hint" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h2>Что проверяет AI</h2>
+    <ul style="font-size:12px;color:var(--text2);padding-left:18px;line-height:1.8">
+      <li>Люди / model release / fictional people</li>
+      <li>Логотипы, товарные знаки, ватермарки, текст</li>
+      <li>Обнажёнка, насилие, чувствительный контент</li>
+      <li>Артефакты AI (анатомия, тени, рендер)</li>
+      <li>Качество и «stock-клише» (насыщенность темы)</li>
+      <li>Генерация title + keywords для загрузки</li>
+    </ul>
+  </div>
+</div>
+
+<div class="panel" id="tab-rules">
+  <div class="card">
+    <h2>Технические требования к видео (Adobe, июнь 2026)</h2>
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Формат</td><td>MP4, MOV, MPG</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Длительность</td><td>5–60 секунд</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Размер файла</td><td>≤ 3.9 ГБ</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">FPS</td><td>23.98 / 24 / 25 / 29.97 / 30 / 50 / 59.94 / 60</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Кодек</td><td>ProRes, H.264 (реком.), MPEG2/4, MJPEG, PNG</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Горизонталь</td><td>1920×1080, 2048×1080, 3840×2160, 4096×2160, 4096×2304</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Вертикаль (9:16)</td><td>1080×1920, 2160×3840, 2160×4096, 2304×4096</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Квадрат (1:1)</td><td>1080×1080, 2160×2160</td></tr>
+      <tr><td style="padding:4px 0;color:var(--text2)">Вертикали</td><td>рекомендуется 10–30 с; ключи «vertical»+«video»</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Правила Generative AI</h2>
+    <ul style="font-size:12px;color:var(--text2);padding-left:18px;line-height:1.8">
+      <li>Обязательный чекбокс «Created using generative AI tools»</li>
+      <li>«People and Property are fictional» — если вымышленные люди/свойство</li>
+      <li>Без текста, ватермарок, модельных несоответствий</li>
+      <li>Без имён художников, реальных людей, персонажей, IP в промптах/тайтлах/ключах</li>
+      <li>Артефакты AI (анатомия, тени, рендер) → отказ</li>
+      <li>Узнаваемый человек → model release обязателен</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Частые причины отказа видео</h2>
+    <ul style="font-size:12px;color:var(--text2);padding-left:18px;line-height:1.8">
+      <li>Нестабильное видео, дрожание камеры</li>
+      <li>Лог-грейд без Rec709 LUT</li>
+      <li>Апскейл HD→4K (отказ)</li>
+      <li>Видимые переходы, логотипы, текст</li>
+      <li>Похожесть на ранее загруженное (дубли)</li>
+      <li>Ватермарки, брендинг</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<script>
+"use strict";
+/* ================= CONFIG ================= */
+const LS_KEY = "vmc_cfg";
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const $ = id => document.getElementById(id);
+let store = { orKey: "", orModel: "openrouter/free" };
+try { const s = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); if (s.orKey) store.orKey = s.orKey; if (s.orModel) store.orModel = s.orModel; } catch (e) {}
+
+/* ================= TECH RULES ================= */
+const HORIZONTAL = [[1920,1080],[2048,1080],[3840,2160],[4096,2160],[4096,2304]];
+const VERTICAL = [[1080,1920],[2160,3840],[2160,4096],[2304,4096]];
+const SQUARE = [[1080,1080],[2160,2160]];
+const OK_EXT = [".mp4",".mov",".mpg",".mpeg"];
+const OK_DUR = [5,60];
+const MAX_MB = 3900;
+
+function aspectKind(w,h){
+  if(!w||!h) return "unknown";
+  const r=w/h;
+  if(Math.abs(r-1)<0.02) return "square";
+  if(r>1) return "horizontal";
+  return "vertical";
+}
+function matchList(w,h,list){
+  return list.some(([lw,lh])=>lw===w&&lh===h);
+}
+function extOf(name){
+  const i=name.lastIndexOf(".");
+  return i<0?"":name.slice(i).toLowerCase();
+}
+function fmtSize(b){
+  if(b>=1073741824) return (b/1073741824).toFixed(2)+" ГБ";
+  if(b>=1048576) return (b/1048576).toFixed(1)+" МБ";
+  return (b/1024).toFixed(0)+" КБ";
+}
+
+/* ================= TECH CHECKS ================= */
+async function readMeta(file){
+  return new Promise(resolve=>{
+    const url=URL.createObjectURL(file);
+    const v=document.createElement("video");
+    v.muted=true; v.playsInline=true; v.preload="metadata";
+    let done=false;
+    const finish=(val)=>{ if(done)return; done=true; clearTimeout(t); URL.revokeObjectURL(url); try{v.removeAttribute("src");v.load();}catch(e){} resolve(val); };
+    const t=setTimeout(()=>finish({duration:v.duration||0,width:v.videoWidth||0,height:v.videoHeight||0}),20000);
+    v.onloadedmetadata=()=>finish({duration:v.duration||0,width:v.videoWidth||0,height:v.videoHeight||0});
+    v.onerror=()=>finish({duration:0,width:0,height:0,error:true});
+    v.src=url;
+  });
+}
+
+function techChecks(file, meta){
+  const issues=[], warns=[], oks=[];
+  const ext=extOf(file.name);
+  if(OK_EXT.includes(ext)) oks.push({k:"Формат",v:ext.slice(1).toUpperCase()+" — допустимый контейнер"});
+  else issues.push({k:"Формат",v:"«"+(ext||"?")+"» — принимается только MP4, MOV, MPG"});
+  const dur=meta.duration||0;
+  if(dur>=OK_DUR[0]&&dur<=OK_DUR[1]) oks.push({k:"Длительность",v:dur.toFixed(2)+" с (5–60 с)"});
+  else if(dur>0&&dur<OK_DUR[0]) issues.push({k:"Длительность",v:dur.toFixed(2)+" с — короче минимума 5 с"});
+  else if(dur>OK_DUR[1]) issues.push({k:"Длительность",v:dur.toFixed(1)+" с — длиннее максимума 60 с"});
+  else issues.push({k:"Длительность",v:"не определена"});
+  const mb=file.size/1048576;
+  if(mb<=MAX_MB) oks.push({k:"Размер",v:fmtSize(file.size)+" (≤ 3.9 ГБ)"});
+  else issues.push({k:"Размер",v:fmtSize(file.size)+" — превышен лимит 3.9 ГБ"});
+  const w=meta.width|0, h=meta.height|0;
+  const kind=aspectKind(w,h);
+  let resOk=false, resNote="";
+  if(kind==="horizontal"){ resOk=matchList(w,h,HORIZONTAL); resNote=resOk?(w+"×"+h+" — стандартное горизонтальное"):w+"×"+h+" нет в списке горизонтальных (1920×1080…4096×2304)"; }
+  else if(kind==="vertical"){ resOk=matchList(w,h,VERTICAL); resNote=resOk?(w+"×"+h+" — вертикаль 9:16"):w+"×"+h+" нет в списке вертикальных (1080×1920…2304×4096)"; }
+  else if(kind==="square"){ resOk=matchList(w,h,SQUARE); resNote=resOk?(w+"×"+h+" — квадрат 1:1"):w+"×"+h+" нет в списке квадратных (1080/2160)"; }
+  else resNote="разрешение не определено";
+  if(w&&h){ if(resOk) oks.push({k:"Разрешение",v:resNote}); else issues.push({k:"Разрешение",v:resNote}); }
+  else issues.push({k:"Разрешение",v:"не определено"});
+  if(kind==="vertical"&&dur>0&&dur<10) warns.push({k:"Вертикаль",v:dur.toFixed(1)+" с — для вертикалей рекомендуется 10–30 с (минимум 5 с проходит)"});
+  if(kind==="vertical") warns.push({k:"Ключи",v:"для вертикали добавьте keywords «vertical» и «video»"});
+  return {issues,warns,oks,kind,w,h,dur,ext};
+}
+
+/* ================= FRAME EXTRACTION ================= */
+function getVideoFrames(file, n){
+  return new Promise(resolve=>{
+    if(!file.type.startsWith("video/")&&!OK_EXT.includes(extOf(file.name))) return resolve(null);
+    const url=URL.createObjectURL(file);
+    const v=document.createElement("video");
+    v.muted=true; v.playsInline=true; v.preload="auto";
+    const frames=[];
+    const want=Math.max(1,n||4);
+    let done=false;
+    const overall=setTimeout(()=>finish(frames.length?frames:null),60000);
+    function finish(val){ if(done)return; done=true; clearTimeout(overall); URL.revokeObjectURL(url); try{v.removeAttribute("src");v.load();}catch(e){} resolve(val); }
+    function draw(){
+      const sw=v.videoWidth||0,sh=v.videoHeight||0;
+      if(!sw||!sh) throw new Error("no dims");
+      const scale=Math.min(1,1024/Math.max(sw,sh));
+      const c=document.createElement("canvas");
+      c.width=Math.max(1,Math.round(sw*scale));
+      c.height=Math.max(1,Math.round(sh*scale));
+      c.getContext("2d").drawImage(v,0,0,c.width,c.height);
+      frames.push({url:c.toDataURL("image/jpeg",0.8),w:sw,h:sh});
+    }
+    function drawRetry(cb){
+      let tries=0;
+      const attempt=()=>{ tries++; try{draw();cb();return;}catch(e){ if(tries<30) setTimeout(attempt,200); else cb(); } };
+      requestAnimationFrame(()=>requestAnimationFrame(()=>requestAnimationFrame(attempt)));
+    }
+    function seekTo(t,ondone){
+      let fired=false;
+      const doneFn=()=>{ if(fired)return; fired=true; v.onseeked=null; v.onerror=null; ondone(); };
+      const to=setTimeout(doneFn,8000);
+      v.onseeked=()=>{ clearTimeout(to); doneFn(); };
+      v.onerror=()=>{ clearTimeout(to); doneFn(); };
+      v.currentTime=t;
+    }
+    v.onloadeddata=()=>{
+      drawRetry(()=>{
+        if(frames.length>=want) return finish(frames);
+        let dur=v.duration;
+        if(!isFinite(dur)||dur<=0) dur=10;
+        const fracs = want>=4 ? [0.1,0.35,0.65,0.9] : [0.15,0.5,0.85];
+        const times=fracs.slice(0,want-1).map(f=>dur*f);
+        let qi=0;
+        const step=()=>{
+          if(qi>=times.length) return finish(frames);
+          if(frames.length>=want) return finish(frames);
+          seekTo(times[qi],()=>{ drawRetry(()=>{ qi++; step(); }); });
+        };
+        step();
+      });
+    };
+    v.onerror=()=>finish(frames.length?frames:null);
+    v.src=url;
+  });
+}
+
+/* ================= MOTION / BLACK DETECT ================= */
+function analyzeFrames(frames){
+  if(!frames||frames.length<2) return {motion:"unknown",notes:[]};
+  const notes=[];
+  const samples=frames.slice(0,4).map(f=>{
+    const img=new Image();
+    return new Promise(res=>{
+      img.onload=()=>{
+        const c=document.createElement("canvas"); c.width=32;c.height=32;
+        const ctx=c.getContext("2d"); ctx.drawImage(img,0,0,32,32);
+        const d=ctx.getImageData(0,0,32,32).data;
+        const g=[]; let bright=0;
+        for(let i=0;i<d.length;i+=4){ const y=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114); g.push(y); bright+=y; }
+        res({g,bright:bright/1024});
+      };
+      img.onerror=()=>res(null);
+      img.src=f.url;
+    });
+  });
+  return Promise.all(samples).then(arr=>{
+    const clean=arr.filter(Boolean);
+    if(clean.length<2) return {motion:"unknown",notes};
+    let diffs=[];
+    for(let i=1;i<clean.length;i++){
+      let sum=0;
+      for(let p=0;p<1024;p++) sum+=Math.abs(clean[i].g[p]-clean[i-1].g[p]);
+      diffs.push(sum/1024);
+    }
+    const avgDiff=diffs.reduce((a,b)=>a+b,0)/diffs.length;
+    let motion="ok";
+    if(avgDiff<0.8){ motion="static"; notes.push("Почти статичное видео (движение между кадрами ~"+avgDiff.toFixed(2)+") — модерация может отклонить за недостаточное движение"); }
+    else if(avgDiff<2) motion="subtle";
+    else motion="ok";
+    const avgBright=clean.reduce((a,c)=>a+c.bright,0)/clean.length;
+    if(avgBright<12) notes.push("Очень тёмные кадры (яркость ~"+avgBright.toFixed(0)+") — проверьте экспозицию");
+    if(avgBright>243) notes.push("Пересвет / белые кадры (яркость ~"+avgBright.toFixed(0)+")");
+    return {motion,avgDiff,avgBright,notes};
+  });
+}
+
+/* ================= INTRA-BATCH DEDUP ================= */
+function frameHash(frame){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement("canvas");c.width=8;c.height=8;
+      const ctx=c.getContext("2d");ctx.drawImage(img,0,0,8,8);
+      const d=ctx.getImageData(0,0,8,8).data;
+      const a=[];for(let i=0;i<d.length;i+=4)a.push((d[i]+d[i+1]+d[i+2])/3);
+      res(a);
+    };
+    img.onerror=()=>res(null);
+    img.src=frame.url;
+  });
+}
+function hashDist(a,b){
+  if(!a||!b) return 999;
+  let s=0;for(let i=0;i<a.length;i++)s+=Math.abs(a[i]-b[i]);
+  return s/a.length;
+}
+async function dedupBatch(items){
+  const hashes=[];
+  for(const it of items){
+    if(!it.frames||!it.frames.length){ hashes.push(null); continue; }
+    hashes.push(await frameHash(it.frames[0]));
+  }
+  for(let i=0;i<items.length;i++){
+    if(!hashes[i]) continue;
+    for(let j=0;j<i;j++){
+      if(!hashes[j]) continue;
+      const d=hashDist(hashes[i],hashes[j]);
+      if(d<6){
+        items[i].issues.push({k:"Дубликат",v:"Очень похоже на «"+items[j].file.name+"» (расстояние "+d.toFixed(1)+") — Adobe отклоняет похожий контент"});
+      }
+    }
+  }
+}
+
+/* ================= AI ENGINE (OpenRouter) ================= */
+async function openrouterRequest(model, key, prompt, imgs){
+  const url="https://openrouter.ai/api/v1/chat/completions";
+  const isFile=location.protocol==="file:";
+  let attempt=0;
+  for(;;){
+    attempt++;
+    let res;
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),90000);
+    try{
+      res=await fetch(url,{
+        method:"POST",
+        headers:{
+          "Authorization":"Bearer "+key,
+          "Content-Type":"application/json",
+          "HTTP-Referer": isFile ? "https://localhost/" : location.href,
+          "X-Title": "Adobe Stock Video Moderation Checker"
+        },
+        signal:ctrl.signal,
+        body:JSON.stringify({
+          model, max_tokens:3000,
+          messages:[{role:"user",content:[{type:"text",text:prompt}].concat(imgs.map(f=>({type:"image_url",image_url:{url:f.url||f}})))}]
+        })
+      });
+    }catch(netErr){
+      clearTimeout(timer);
+      if(netErr&&netErr.name==="AbortError"){ if(attempt>=3) throw new Error("таймаут запроса к API (90 с) — попробуйте модель поменьше"); await sleep(5000*attempt); continue; }
+      if(attempt>=3){
+        let hint="";
+        if(isFile) hint=" Файл открыт через file:// — браузер может блокировать вызовы API. Запустите локальный сервер: в папке файла выполните `python -m http.server 8000` и откройте http://localhost:8000/video-moderation-checker.html";
+        else hint=" Проверьте сеть/VPN/блокировщик.";
+        throw new Error("сетевая ошибка: "+netErr.message+"."+hint);
+      }
+      await sleep(3000*attempt); continue;
+    }
+    clearTimeout(timer);
+    if(res.ok) return await res.json();
+    const err=await res.text();
+    if(res.status===401||res.status===403) throw new Error("OpenRouter: ключ отклонён (HTTP "+res.status+")");
+    if(res.status===429) throw new Error("HTTP 429: превышен лимит запросов — подождите");
+    if(res.status===402) throw new Error("HTTP 402: не хватает кредитов OpenRouter — пополните баланс или используйте :free модель");
+    if(res.status===404||(res.status===400&&/no endpoints found|model not found|does not exist|invalid model/i.test(err))) throw new Error("MODEL_UNAVAILABLE: модель "+model+" недоступна");
+    if((res.status===429||res.status>=500)&&attempt<3){ await sleep(10000*attempt); continue; }
+    throw new Error("HTTP "+res.status+": "+err.slice(0,200));
+  }
+}
+
+const AI_PROMPT = `You are an Adobe Stock content moderator and market analyst. Analyze these 3-4 frames from an AI-generated stock video.
+Respond ONLY with JSON (no markdown fence), exactly this schema:
+{
+  "content_type": "video",
+  "style": "photorealistic|illustration|animation|3d|other",
+  "subject": "short description of main subject",
+  "has_people": true/false,
+  "people_real": true/false,
+  "has_nudity": true/false,
+  "has_violence": true/false,
+  "has_text": true/false,
+  "has_watermark": true/false,
+  "has_trademarks": true/false,
+  "ai_artifacts": ["list any anatomical errors, bad hands, distorted objects, render glitches, weird shadows"],
+  "quality_issues": ["exposure, blur, compression, unstable-looking, log-looking"],
+  "stock_cliche": "low|medium|high — how saturated/generic this stock theme is on Adobe Stock",
+  "stock_saturation_estimate": "very_low|low|medium|high|very_high — estimated number of similar results already on stock (e.g. 'candle in forest' is very_high, 'goat wearing poster sign in alpine meadow' may be lower)",
+  "unique_angle": "what makes this unique vs the thousands of similar stock clips, or empty if fully generic",
+  "competitor_summary": "1-2 sentences: what similar content likely already exists and how to stand out",
+  "search_keywords": ["5-8 SHORT English keyword phrases (1-3 words each) most likely to find SIMILAR existing stock content — use these for reverse-search on Adobe Stock"],
+  "risks": ["moderation risks: missing release, sensitive topic, policy issues"],
+  "title_en": "SEO title for Adobe Stock (140-180 chars, 2 sentences, no artist names)",
+  "keywords_en": ["15-25 relevant English keywords, no artist names, no real brand names"],
+  "category_suggest": "Photos|Illustrations|Videos|Nature|Lifestyle|Business|Other"
+}
+Rules: be strict. If you see an identifiable real-looking person, flag people_real=true and note release needed. If purely fictional/AI person, people_real=false. Flag any text/watermark/logo visible. Judge AI artifacts carefully (hands, fingers, extra limbs, warped faces, impossible geometry). For stock_saturation_estimate and search_keywords: think like a buyer searching Adobe Stock — what exact queries would return clips very similar to this one?`;
+
+async function aiModerate(frames, filename, cfg){
+  const imgs=frames.slice(0,4);
+  const prompt=AI_PROMPT+"\n\nFilename hint (may not match content): "+filename;
+  let model=cfg.model||"openrouter/free";
+  let r;
+  try{
+    r=await openrouterRequest(model,cfg.key,prompt,imgs);
+  }catch(e){
+    if(/MODEL_UNAVAILABLE/.test(e.message)&&model!=="openrouter/free"){
+      model="openrouter/free";
+      r=await openrouterRequest(model,cfg.key,prompt,imgs);
+    } else throw e;
+  }
+  const content=r&&r.choices&&r.choices[0]&&r.choices[0].message&&r.choices[0].message.content;
+  if(!content) throw new Error("пустой ответ модели");
+  let json;
+  try{
+    const m=content.match(/\{[\s\S]*\}/);
+    json=JSON.parse(m?m[0]:content);
+  }catch(e){ throw new Error("не удалось разобрать JSON: "+content.slice(0,150)); }
+  json._model=model;
+  return json;
+}
+
+/* ================= VERDICT ENGINE ================= */
+function computeVerdict(tech, motion, ai){
+  const issues=[], warns=[], oks=[];
+  tech.issues.forEach(i=>issues.push({src:"Тех",...i}));
+  tech.warns.forEach(w=>warns.push({src:"Тех",...w}));
+  tech.oks.forEach(o=>oks.push({src:"Тех",...o}));
+  if(motion&&motion.notes) motion.notes.forEach(n=>warns.push({src:"Тех",v:n,k:"Движение"}));
+  if(motion&&motion.motion==="static") issues.push({src:"Тех",k:"Статичность",v:"Видео почти статично — вероятный отказ Adobe за отсутствие движения"});
+  if(ai){
+    if(ai.has_watermark) issues.push({src:"AI",k:"Ватермарка",v:"Обнаружен текст/ватермарка — прямой отказ"});
+    if(ai.has_text&&ai.style!=="illustration") warns.push({src:"AI",k:"Текст",v:"Виден текст на кадре — убедитесь, что это не артефакт/ватермарка"});
+    if(ai.has_trademarks) issues.push({src:"AI",k:"Товарные знаки",v:"Логотип/бренд — отказ без property release"});
+    if(ai.has_nudity) issues.push({src:"AI",k:"Обнажёнка",v:"Чувствительный контент — жёсткие ограничения Adobe"});
+    if(ai.has_violence) issues.push({src:"AI",k:"Насилие",v:"Насилие — вероятный отказ или Restricted"});
+    if(ai.has_people&&ai.people_real) warns.push({src:"AI",k:"Реальный человек",v:"Нужен model release (или Fictional people checkbox, если вымышлен)"});
+    if(ai.has_people&&!ai.people_real) warns.push({src:"AI",k:"Персонаж",v:"В кадре человек — поставьте «People and Property are fictional» + AI-тег"});
+    if(Array.isArray(ai.ai_artifacts)&&ai.ai_artifacts.length) issues.push({src:"AI",k:"Артефакты AI",v:ai.ai_artifacts.join("; ")});
+    if(Array.isArray(ai.quality_issues)&&ai.quality_issues.length) warns.push({src:"AI",k:"Качество",v:ai.quality_issues.join("; ")});
+    if(ai.stock_cliche==="high") warns.push({src:"AI",k:"Клише",v:"Высокая насыщенность темы на стоке — добавьте уникальный угол или ожидайте конкуренцию"});
+    if(ai.stock_saturation_estimate==="very_high"||ai.stock_saturation_estimate==="high") warns.push({src:"AI",k:"Насыщенность стока",v:"Тема очень распространена на Adobe Stock ("+ai.stock_saturation_estimate+") — "+(ai.competitor_summary||"рассмотрите более уникальный ракурс")});
+    else if(ai.stock_saturation_estimate==="medium") warns.push({src:"AI",k:"Насыщенность стока",v:"Средняя конкуренция на стоке — "+(ai.competitor_summary||"выделитесь уникальным углом")});
+    else if(ai.stock_saturation_estimate==="low"||ai.stock_saturation_estimate==="very_low") oks.push({src:"AI",k:"Насыщенность стока",v:"Низкая конкуренция ("+ai.stock_saturation_estimate+") — "+(ai.unique_angle||"хороший шанс")});
+    if(Array.isArray(ai.risks)&&ai.risks.length) ai.risks.forEach(rsk=>warns.push({src:"AI",k:"Риск",v:rsk}));
+  }
+  let verdict;
+  if(issues.some(i=>i.src==="Тех"&&/Формат|Длительность|Разрешение|Размер|Статичность|Дубликат/.test(i.k))) verdict="reject";
+  else if(issues.length>0) verdict="reject";
+  else if(warns.length>0) verdict="review";
+  else verdict="ok";
+  if(!ai&&verdict==="ok") verdict="tech";
+  if(!ai&&verdict==="review") verdict="tech";
+  return {verdict,issues,warns,oks};
+}
+
+/* ================= UI STATE ================= */
+let items=[];      // {file,meta,tech,motion,frames,ai,result,selected}
+let currentId=null;
+let idSeq=0;
+
+function verdictIcon(v){
+  return v==="ok"?"🟢":v==="review"?"🟡":v==="reject"?"🔴":"⚪";
+}
+function verdictLabel(v){
+  return v==="ok"?"Acceptable":v==="review"?"Needs review":v==="reject"?"Not acceptable":"Тех-only";
+}
+function verdictClass(v){
+  return v==="ok"?"ok":v==="review"?"review":v==="reject"?"reject":"tech";
+}
+
+function renderList(){
+  const el=$("files-list");
+  el.innerHTML="";
+  items.forEach(it=>{
+    const row=document.createElement("div");
+    row.className="row"+(it.id===currentId?" selected":"");
+    const thumb=it.frames&&it.frames[0]?it.frames[0].url:"";
+    const m=it.meta||{};
+    const v=it.result?verdictIcon(it.result.verdict):"⏳";
+    row.innerHTML=
+      (thumb?'<img class="thumb" src="'+thumb+'">':'<div class="thumb"></div>')+
+      '<div class="info"><span class="nm">'+esc(it.file.name)+'</span>'+
+      '<span class="meta">'+(m.width?m.width+"×"+m.height+" · ":"")+(m.duration?m.duration.toFixed(1)+"s · ":"")+fmtSize(it.file.size)+
+      (it.ai?' · AI ✓':' · AI —')+'</span></div>'+
+      '<div class="verdict">'+v+'</div>';
+    row.onclick=()=>{ currentId=it.id; renderList(); renderReport(); };
+    el.appendChild(row);
+  });
+  const hasBatch=items.length>1;
+  $("batch-summary").style.display=hasBatch?"block":"none";
+  if(hasBatch) renderSummary();
+}
+
+function renderSummary(){
+  const tb=$("sum-table").querySelector("tbody");
+  tb.innerHTML="";
+  let ok=0,rev=0,rej=0;
+  items.forEach(it=>{
+    const v=it.result?it.result.verdict:"tech";
+    if(v==="ok")ok++;else if(v==="review")rev++;else if(v==="reject")rej++;
+    const tr=document.createElement("tr");
+    const probs=it.result?(it.result.issues.length+it.result.warns.length):0;
+    tr.innerHTML="<td>"+esc(it.file.name)+"</td><td>"+verdictIcon(v)+" "+verdictLabel(v)+"</td><td>"+(it.tech?(it.tech.issues.length?"❌":"✅"):"—")+"</td><td>"+(it.ai?"✓":(store.orKey?"—":"н/д"))+"</td><td>"+probs+"</td>";
+    tr.onclick=()=>{ currentId=it.id; renderList(); renderReport(); };
+    tb.appendChild(tr);
+  });
+  $("sum-stat").innerHTML='<span>🟢 Acceptable: <span class="n">'+ok+'</span></span><span>🟡 Review: <span class="n">'+rev+'</span></span><span>🔴 Reject: <span class="n">'+rej+'</span></span><span>Всего: <span class="n">'+items.length+'</span></span>';
+}
+
+function renderReport(){
+  const el=$("report");
+  const it=items.find(x=>x.id===currentId);
+  if(!it){ el.innerHTML=""; return; }
+  const r=it.result;
+  if(!r){ el.innerHTML='<div class="card"><p class="hint">Обработка…</p></div>'; return; }
+  const m=it.meta||{};
+  const t=it.tech||{};
+  let h='<div class="card">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">';
+  h+='<div><b style="font-size:14px">'+esc(it.file.name)+'</b><div class="stat" style="margin-top:4px">';
+  if(m.width)h+='<span>'+m.width+"×"+m.height+'</span>';
+  if(m.duration)h+='<span>'+m.duration.toFixed(2)+' с</span>';
+  h+='<span>'+fmtSize(it.file.size)+'</span><span>'+(t.kind==="vertical"?"вертикаль":t.kind==="horizontal"?"горизонталь":t.kind==="square"?"квадрат":"?")+'</span>';
+  if(it.ai&&it.ai._model)h+='<span>модель: '+esc(it.ai._model)+'</span>';
+  h+='</div></div>';
+  h+='<span class="pill '+verdictClass(r.verdict)+'">'+verdictIcon(r.verdict)+" "+verdictLabel(r.verdict)+'</span>';
+  h+='</div>';
+  if(it.ai){
+    h+='<div class="stat" style="margin-top:8px">';
+    if(it.ai.style)h+='<span>стиль: '+esc(it.ai.style)+'</span>';
+    if(it.ai.subject)h+='<span>тема: '+esc(it.ai.subject)+'</span>';
+    if(it.ai.stock_cliche)h+='<span>клише: '+esc(it.ai.stock_cliche)+'</span>';
+    if(it.ai.stock_saturation_estimate)h+='<span>насыщенность: '+esc(it.ai.stock_saturation_estimate)+'</span>';
+    h+='</div>';
+  }
+  h+='</div>';
+
+  // Tech section
+  h+='<div class="card"><h2>Технические проверки</h2>';
+  (t.oks||[]).forEach(o=>{ h+=chkHtml("ok",o.k,o.v); });
+  (t.issues||[]).forEach(o=>{ h+=chkHtml("bad",o.k,o.v); });
+  (t.warns||[]).forEach(o=>{ h+=chkHtml("warn",o.k,o.v); });
+  if(it.motion&&it.motion.notes) it.motion.notes.forEach(n=>{ h+=chkHtml("warn","Движение",n); });
+  h+='</div>';
+
+  // AI section
+  h+='<div class="card"><h2>AI-анализ '+(it.ai?'<span class="badge green">выполнено</span>':'<span class="badge">пропущено</span>')+'</h2>';
+  if(it.ai){
+    (r.issues||[]).filter(i=>i.src==="AI").forEach(o=>{ h+=chkHtml("bad",o.k,o.v); });
+    (r.warns||[]).filter(i=>i.src==="AI").forEach(o=>{ h+=chkHtml("warn",o.k,o.v); });
+    if(it.ai.competitor_summary) h+='<div style="margin-top:8px"><label>Конкуренция на стоке</label><div class="copy-box">'+esc(it.ai.competitor_summary)+'</div></div>';
+    if(it.ai.unique_angle) h+='<div style="margin-top:6px"><label>Уникальный угол</label><div class="copy-box">'+esc(it.ai.unique_angle)+'</div></div>';
+    if(it.ai.search_keywords&&it.ai.search_keywords.length){
+      const sq=it.ai.search_keywords.slice(0,5).join(" ");
+      h+='<div style="margin-top:8px"><label>Автопоиск похожего на Adobe Stock</label>';
+      h+='<div class="copy-box">'+esc(it.ai.search_keywords.join(" · "))+'</div>';
+      h+='<div class="btns"><a class="btn g" target="_blank" href="https://stock.adobe.com/search?k='+encodeURIComponent(sq)+'&media=video">Открыть поиск похожего ↗</a></div></div>';
+    }
+    if(it.ai.title_en) h+='<div style="margin-top:8px"><label>Title (EN)</label><div class="copy-box">'+esc(it.ai.title_en)+'</div></div>';
+    if(it.ai.keywords_en&&it.ai.keywords_en.length) h+='<div style="margin-top:8px"><label>Keywords ('+it.ai.keywords_en.length+')</label><div class="copy-box">'+esc(it.ai.keywords_en.join(", "))+'</div></div>';
+    if(it.ai.category_suggest) h+='<div class="stat" style="margin-top:6px"><span>Категория: '+esc(it.ai.category_suggest)+'</span></div>';
+  } else if(store.orKey){
+    h+='<p class="hint">AI не выполнен: '+(it.aiError?esc(it.aiError):"нет данных")+'</p>';
+  } else {
+    h+='<p class="hint">AI-анализ выключен — задайте ключ OpenRouter во вкладке «Настройки AI»</p>';
+    h+='<div style="margin-top:6px">';
+    h+=chkHtml("warn","Проверьте вручную","Люди/release, логотипы, текст, артефакты AI (руки, пальцы, тени)");
+    h+='</div>';
+  }
+  h+='</div>';
+
+  // Frames
+  if(it.frames&&it.frames.length){
+    h+='<div class="card"><h2>Кадры ('+it.frames.length+')</h2><div class="frames">';
+    it.frames.forEach((f,i)=>{ h+='<img src="'+f.url+'" alt="frame '+(i+1)+'">'; });
+    h+='</div></div>';
+  }
+
+  // Checklist
+  h+='<div class="card"><h2>Чек-лист перед загрузкой</h2><ul class="checklist">';
+  h+='<li><span class="req">☑</span><span><b>Generative AI тег</b><small>Обязательно: «Created using generative AI tools»</small></span></li>';
+  if(it.ai&&it.ai.has_people){
+    h+='<li><span class="req">☑</span><span><b>Fictional people</b><small>Если персонаж вымышлен: «People and Property are fictional». Если реальный человек — model release</small></span></li>';
+  }
+  if(t.kind==="vertical"){
+    h+='<li><span class="opt">☐</span><span><b>Ключи vertical + video</b><small>Обязательны для вертикальных видео</small></span></li>';
+  }
+  if(it.ai&&it.ai.category_suggest){
+    h+='<li><span class="opt">☐</span><span><b>Категория: '+esc(it.ai.category_suggest)+'</b><small>Выберите в Contributor Portal</small></span></li>';
+  }
+  h+='<li><span class="opt">☐</span><span><b>Без ватермарок/текста/логотипов</b><small>Проверьте все кадры</small></span></li>';
+  h+='<li><span class="opt">☐</span><span><b>Уникальность</b><small>Проверьте автопоиск похожего выше (откроется вкладка Adobe Stock)</small></span></li>';
+  h+='</ul></div>';
+
+  // Actions
+  h+='<div class="card"><h2>Действия</h2><div class="btns">';
+  const searchQ=(it.ai&&it.ai.search_keywords&&it.ai.search_keywords.length)?it.ai.search_keywords.slice(0,5).join(" "):(it.ai&&it.ai.keywords_en&&it.ai.keywords_en.length)?it.ai.keywords_en.slice(0,5).join(" "):(it.ai&&it.ai.subject?it.ai.subject:it.file.name.replace(/\.[^.]+$/,"").replace(/[_0-9]+/g," "));
+  h+='<a class="btn g" target="_blank" href="https://stock.adobe.com/search?k='+encodeURIComponent(searchQ)+'&media=video">Открыть поиск похожего на Adobe Stock ↗</a>';
+  h+='<button class="btn" onclick="copyReport('+it.id+')">Скопировать отчёт</button>';
+  h+='</div></div>';
+
+  el.innerHTML=h;
+}
+function chkHtml(kind,k,v){
+  const ic=kind==="ok"?"✅":kind==="bad"?"❌":"⚠️";
+  return '<div class="chk"><span class="ic">'+ic+'</span><span class="tx"><b>'+esc(k)+'</b><small>'+esc(v)+'</small></span></div>';
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function copyReport(id){
+  const it=items.find(x=>x.id===id);
+  if(!it||!it.result) return;
+  const r=it.result, t=it.tech||{};
+  let txt="=== Adobe Stock Video Moderation Report ===\n";
+  txt+="Файл: "+it.file.name+"\n";
+  if(it.meta) txt+=(it.meta.width||"?")+"×"+(it.meta.height||"?")+" · "+(it.meta.duration||"?").toFixed(2)+"s · "+fmtSize(it.file.size)+"\n";
+  txt+="Вердикт: "+verdictLabel(r.verdict)+"\n\n";
+  if(t.oks&&t.oks.length){ txt+="Тех ✅:\n"; t.oks.forEach(o=>txt+="  + "+o.k+": "+o.v+"\n"); }
+  if(r.issues&&r.issues.length){ txt+="Проблемы ❌:\n"; r.issues.forEach(o=>txt+="  - ["+o.src+"] "+(o.k||"")+": "+o.v+"\n"); }
+  if(r.warns&&r.warns.length){ txt+="Предупреждения ⚠️:\n"; r.warns.forEach(o=>txt+="  ~ ["+o.src+"] "+(o.k||"")+": "+o.v+"\n"); }
+  if(it.ai&&it.ai.competitor_summary){ txt+="\nКонкуренция: "+it.ai.competitor_summary+"\n"; }
+  if(it.ai&&it.ai.search_keywords){ txt+="Поиск похожего: "+it.ai.search_keywords.join(", ")+"\n"; }
+  if(it.ai&&it.ai.title_en){ txt+="\nTitle: "+it.ai.title_en+"\n"; }
+  if(it.ai&&it.ai.keywords_en){ txt+="Keywords: "+it.ai.keywords_en.join(", ")+"\n"; }
+  txt+="\nЧек-лист: AI-тег обязателен; Fictional people checkbox; без ватермарок; уникальность.\n";
+  copyText(txt);
+}
+function copyText(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>flash("Скопировано")).catch(()=>fallbackCopy(txt));
+  } else fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();
+  try{document.execCommand("copy");flash("Скопировано");}catch(e){flash("Не удалось скопировать");}
+  document.body.removeChild(ta);
+}
+function flash(msg){
+  const el=$("ai-status");
+  if(el){ el.textContent=msg; setTimeout(()=>{el.textContent="";},2000); }
+}
+
+/* ================= PIPELINE ================= */
+async function processItem(it, useAI){
+  const mode=$("mode").value;
+  const frameN=parseInt($("frame-count").value,10)||4;
+  const n = mode==="fast" ? 3 : frameN;
+
+  it.meta=await readMeta(it.file);
+  it.tech=techChecks(it.file,it.meta);
+  it.frames=await getVideoFrames(it.file,n);
+  it.motion=await analyzeFrames(it.frames);
+
+  if(useAI&&store.orKey&&it.frames&&it.frames.length){
+    try{
+      it.ai=await aiModerate(it.frames,it.file.name,{key:store.orKey,model:store.orModel});
+    }catch(e){
+      it.aiError=e.message;
+      if(!/openrouter\/free/.test(store.orModel)){
+        try{ it.ai=await aiModerate(it.frames,it.file.name,{key:store.orKey,model:"openrouter/free"}); it.aiError=null; }
+        catch(e2){ it.aiError=e2.message; }
+      }
+    }
+  }
+  it.result=computeVerdict(it.tech,it.motion,it.ai);
+  // автооткрытие поиска похожего на Adobe Stock (одна вкладка на батч)
+  if(it.ai&&it.ai.search_keywords&&it.ai.search_keywords.length&&!window._stockTabOpened){
+    window._stockTabOpened=true;
+    const q=it.ai.search_keywords.slice(0,5).join(" ");
+    window.open("https://stock.adobe.com/search?k="+encodeURIComponent(q)+"&media=video","_blank");
+  }
+}
+
+async function processQueue(queue, useAI){
+  const total=queue.length;
+  $("batch-progress").style.display="block";
+  $("bp-total").textContent=total;
+  let done=0;
+  for(const it of queue){
+    $("bp-current").textContent="Проверяем: "+it.file.name;
+    try{ await processItem(it,useAI); }
+    catch(e){
+      it.result={verdict:"tech",issues:[{k:"Ошибка",v:e.message}],warns:[],oks:[]};
+    }
+    done++;
+    $("bp-done").textContent=done;
+    $("bp-bar").style.width=Math.round(done/total*100)+"%";
+    renderList();
+    if(it.id===currentId) renderReport();
+    if(useAI) await sleep(600);
+  }
+  if(total>1) await dedupBatch(queue);
+  $("bp-current").textContent="Готово";
+  renderList();
+  if(currentId!=null) renderReport();
+  setTimeout(()=>{ $("batch-progress").style.display="none"; $("bp-bar").style.width="0%"; $("bp-done").textContent="0"; },1500);
+}
+
+function addFiles(fileList){
+  const vids=Array.from(fileList).filter(f=>f.type.startsWith("video/")||OK_EXT.includes(extOf(f.name)));
+  if(!vids.length){ flash("Нет видеофайлов"); return; }
+  const useAI=store.orKey&&$("mode").value==="full";
+  const queue=vids.map(f=>{
+    const it={id:++idSeq,file:f,selected:false};
+    items.push(it);
+    return it;
+  });
+  currentId=queue[0].id;
+  renderList();
+  processQueue(queue,useAI);
+}
+
+/* ================= EVENTS ================= */
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    $("tab-"+t.dataset.tab).classList.add("active");
+  });
+});
+const dz=$("dzone");
+dz.addEventListener("click",()=>$("files").click());
+dz.addEventListener("dragover",e=>{e.preventDefault();dz.classList.add("dragover");});
+dz.addEventListener("dragleave",()=>dz.classList.remove("dragover"));
+dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("dragover");if(e.dataTransfer.files.length)addFiles(e.dataTransfer.files);});
+$("files").addEventListener("change",e=>{ if(e.target.files.length)addFiles(e.target.files); e.target.value=""; });
+
+$("or-key").value=store.orKey;
+$("or-model").value=store.orModel;
+$("btn-save-cfg").addEventListener("click",()=>{
+  store.orKey=$("or-key").value.trim();
+  store.orModel=$("or-model").value.trim()||"openrouter/free";
+  try{ localStorage.setItem(LS_KEY,JSON.stringify(store)); }catch(e){}
+  flash("Сохранено");
+});
+$("btn-test-ai").addEventListener("click",async()=>{
+  const key=$("or-key").value.trim();
+  const model=$("or-model").value.trim()||"openrouter/free";
+  if(!key){ $("ai-status").textContent="Введите ключ OpenRouter"; return; }
+  $("ai-status").textContent="Тест…";
+  try{
+    const c=document.createElement("canvas");c.width=64;c.height=64;
+    const ctx=c.getContext("2d");ctx.fillStyle="#6c5ce7";ctx.fillRect(0,0,64,64);
+    ctx.fillStyle="#fff";ctx.font="12px sans-serif";ctx.fillText("TEST",10,35);
+    const img={url:c.toDataURL("image/jpeg",0.8)};
+    const r=await openrouterRequest(model,key,"Reply with JSON only: {\"ok\":true}",[img]);
+    const content=r&&r.choices&&r.choices[0]&&r.choices[0].message&&r.choices[0].message.content;
+    $("ai-status").innerHTML='<span class="good">✓ Соединение работает</span> · ответ: '+esc((content||"").slice(0,80));
+  }catch(e){
+    $("ai-status").innerHTML='<span class="bad">✗ '+esc(e.message)+'</span>';
+  }
+});
+
+/* ================= INIT ================= */
+$("mode").addEventListener("change",()=>{
+  const full=$("mode").value==="full";
+  $("frame-count").disabled=!full;
+});
+</script>
+</body>
+</html>
