@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Проверка изображений на модерацию Adobe Stock</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a25;--border:#2a2a3a;--text:#e8e8f0;--text2:#8888a0;--accent:#6c5ce7;--accent2:#a29bfe;--green:#00b894;--red:#e17055;--yellow:#fdcb6e;--radius:12px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text)}
+::selection{background:var(--accent);color:#fff}
+.app{max-width:980px;margin:0 auto;padding:20px}
+h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;padding:16px 0 2px}
+.sub{text-align:center;color:var(--text2);font-size:11px;margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:8px}
+label{display:block;font-size:11px;color:var(--text2);margin-bottom:3px;font-weight:500}
+input,select,textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+.hint{font-size:11px;color:var(--text2);margin-top:3px;opacity:.7}
+.badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:var(--accent);color:#fff;margin-left:4px}
+.badge.green{background:var(--green)}.badge.orange{background:#e17055}.badge.yellow{background:var(--yellow);color:#000}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.btn{padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:12px;font-family:inherit;transition:all .2s}
+.btn:hover{border-color:var(--accent);color:var(--accent2)}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.p:hover{background:var(--accent2)}
+.btn.g{border-color:var(--green);color:var(--green)}.btn.g:hover{background:var(--green);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.dzone{border:2px dashed var(--border);border-radius:var(--radius);padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s}
+.dzone:hover,.dzone.dragover{border-color:var(--accent);background:rgba(108,92,231,.04)}
+.dzone .icon{font-size:32px;opacity:.2;margin-bottom:6px}
+.dzone .t{color:var(--text2);font-size:12px}
+.dzone .t strong{color:var(--text)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:640px){.grid2{grid-template-columns:1fr}}
+.tabs{display:flex;gap:2px;margin-bottom:10px;background:var(--surface2);border-radius:8px;padding:3px;flex-wrap:wrap}
+.tab{padding:5px 14px;border-radius:6px;border:none;background:none;color:var(--text2);cursor:pointer;font-size:12px;transition:all .2s;font-family:inherit}
+.tab.active{background:var(--accent);color:#fff}
+.tab:hover:not(.active){color:var(--text)}
+.panel{display:none}.panel.active{display:block}
+.row{display:flex;gap:10px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;align-items:flex-start;cursor:pointer;transition:border .2s}
+.row:hover{border-color:var(--accent)}
+.row.selected{border-color:var(--accent);background:rgba(108,92,231,.08)}
+.row .thumb{width:56px;height:56px;border-radius:6px;object-fit:cover;background:var(--border);flex-shrink:0}
+.row .info{flex:1;font-size:11px;line-height:1.5;min-width:0}
+.row .info .nm{font-weight:600;font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .info .meta{color:var(--text2);display:block;margin-top:2px}
+.row .info .meta span{margin-right:8px}
+.row .verdict{flex-shrink:0;font-size:16px;align-self:center}
+.stat{font-size:11px;color:var(--text2);display:flex;gap:10px;flex-wrap:wrap}
+.stat span{display:flex;align-items:center;gap:3px}
+.stat .n{font-weight:600;color:var(--text)}
+.good{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--yellow)}
+.chk{display:flex;gap:6px;padding:4px 0;font-size:12px;align-items:flex-start;border-bottom:1px solid var(--border)}
+.chk:last-child{border-bottom:none}
+.chk .ic{flex-shrink:0;width:18px;text-align:center}
+.chk .tx{flex:1}
+.chk .tx b{display:block;font-size:12px}
+.chk .tx small{color:var(--text2);font-size:11px}
+.frames{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.frames img{max-width:180px;width:100%;height:auto;border-radius:6px;border:1px solid var(--border);object-fit:contain;background:var(--surface2)}
+.progress{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:8px}
+.progress .bar{height:100%;background:var(--accent);transition:width .3s;width:0%}
+.checklist{list-style:none}
+.checklist li{padding:5px 0;font-size:12px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:flex-start}
+.checklist li:last-child{border-bottom:none}
+.checklist .req{color:var(--red);font-weight:700;flex-shrink:0}
+.checklist .opt{color:var(--yellow);font-weight:700;flex-shrink:0}
+.summary-table{overflow-x:auto;margin-top:8px}
+.summary-table table{width:100%;border-collapse:collapse;font-size:11px}
+.summary-table th{padding:6px 8px;background:var(--surface2);color:var(--text2);font-weight:500;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.summary-table td{padding:5px 8px;border-bottom:1px solid var(--border);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.summary-table tr:hover td{background:var(--surface2);cursor:pointer}
+.copy-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:280px;overflow:auto;line-height:1.6;margin-top:6px}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.pill.ok{background:rgba(0,184,148,.15);color:var(--green)}
+.pill.review{background:rgba(253,203,110,.15);color:var(--yellow)}
+.pill.reject{background:rgba(225,112,85,.15);color:var(--red)}
+.pill.tech{background:rgba(136,136,160,.15);color:var(--text2)}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Проверка изображений на модерацию Adobe Stock</h1>
+<p class="sub">Проверка AI-фото/вектора/рисунка перед загрузкой: автоопределение типа + тех. требования + AI-анализ по правилам Adobe Stock</p>
+
+<div class="tabs">
+  <button class="tab active" data-tab="check">Проверка</button>
+  <button class="tab" data-tab="settings">Настройки AI</button>
+  <button class="tab" data-tab="rules">Правила Adobe</button>
+</div>
+
+<div class="panel active" id="tab-check">
+  <div class="card">
+    <div class="stat">
+      <span>Тип контента определяется <b style="color:var(--text)">автоматически</b>: фото / вектор / рисунок / 3D / графика</span>
+    </div>
+  </div>
+
+  <div class="dzone" id="dzone">
+    <div class="icon">&#128444;&#65039;</div>
+    <div class="t" id="dz-text">Перетащите изображения сюда<br>JPG · PNG · TIFF · EPS · AI · SVG · PSD (можно пачкой)</div>
+    <input type="file" id="files" multiple style="display:none" accept="image/jpeg,image/png,image/tiff,image/svg+xml,image/eps,application/postscript,application/illustrator,.jpg,.jpeg,.png,.tif,.tiff,.eps,.ai,.svg,.psd,.webp">
+  </div>
+
+  <div id="batch-progress" style="display:none" class="card">
+    <div class="stat"><span>Обработано: <span class="n" id="bp-done">0</span>/<span id="bp-total">0</span></span><span id="bp-current"></span></div>
+    <div class="progress"><div class="bar" id="bp-bar"></div></div>
+  </div>
+
+  <div id="files-list"></div>
+  <div id="report"></div>
+
+  <div id="batch-summary" style="display:none" class="card">
+    <h2>Сводка по батчу</h2>
+    <div class="stat" style="margin-bottom:6px" id="sum-stat"></div>
+    <div class="summary-table"><table id="sum-table">
+      <thead><tr><th>Файл</th><th>Тип</th><th>Вердикт</th><th>Тех</th><th>AI</th><th>Проблемы</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+</div>
+
+<div class="panel" id="tab-settings">
+  <div class="card">
+    <h2>AI-анализ (OpenRouter Vision)</h2>
+    <p class="hint" style="margin-bottom:10px">Без ключа работает только техпроверка. Ключ — на <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a>. Общий с видео-чекером.<br>
+    Если ошибка «Failed to fetch»: откройте приложение двойным кликом по <b>«Открыть модератор фото.bat»</b> (сервер в фоне + автозапуск).</p>
+    <div class="grid2">
+      <div>
+        <label>API-ключ OpenRouter</label>
+        <input type="password" id="or-key" placeholder="sk-or-..." autocomplete="off">
+      </div>
+      <div>
+        <label>Модель (vision)</label>
+        <input type="text" id="or-model" list="or-models" placeholder="google/gemini-2.5-flash">
+        <datalist id="or-models">
+          <option value="google/gemini-2.5-flash">Gemini 2.5 Flash (рекомендуется)</option>
+          <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+          <option value="qwen/qwen3-vl-30b-a3b-instruct">Qwen3 VL 30B</option>
+          <option value="openrouter/free">Авто-выбор бесплатной vision-модели</option>
+        </datalist>
+      </div>
+    </div>
+    <div class="btns">
+      <button class="btn" id="btn-test-ai">Тест соединения</button>
+      <button class="btn g" id="btn-save-cfg">Сохранить</button>
+    </div>
+    <div id="ai-status" class="hint" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h2>Что проверяет AI</h2>
+    <ul style="font-size:12px;color:var(--text2);padding-left:18px;line-height:1.8">
+      <li>Люди / model release / fictional people</li>
+      <li>Логотипы, бренды, ватермарки, текст</li>
+      <li>IP-персонажи, франшизы, знаменитости, чужой арт</li>
+      <li>Артефакты AI (анатомия, тени, рендер)</li>
+      <li>Тип контента: фото / иллюстрация / вектор / 3D / графика</li>
+      <li>Качество и «stock-клише» (насыщенность темы)</li>
+      <li>Генерация title + keywords + уникальные метаданные</li>
+    </ul>
+  </div>
+</div>
+
+<div class="panel" id="tab-rules">
+  <div class="card">
+    <h2>Технические требования к изображениям (Adobe, 2026)</h2>
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Растровые форматы</td><td>JPG, PNG, TIFF, PSD</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Векторные форматы</td><td>EPS (10+), AI, SVG</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Мин. разрешение</td><td>4 МП (например 2400×1600)</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Макс. размер файла</td><td>≤ 450 МБ (рек. JPG)</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Цветовой режим</td><td>RGB (JPG/PNG), CMYK допустим в TIFF</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">JPG</td><td>без прозрачного фона, качество ≥ 8-й</td></tr>
+      <tr style="border-bottom:1px solid var(--border)"><td style="padding:4px 0;color:var(--text2)">Вектор</td><td>текст в кривых, масштабируемость, Pantone</td></tr>
+      <tr><td style="padding:4px 0;color:var(--text2)">Нельзя</td><td>апскейл, растровая «подделка» EPS, водяные знаки</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Правила Generative AI</h2>
+    <ul style="font-size:12px;color:var(--text2);padding-left:18px;line-height:1.8">
+      <li>Обязательный чекбокс «Created using generative AI tools»</li>
+      <li>«People and Property are fictional» — если вымышленные люди/свойство</li>
+      <li>Без текста, ватермарок, модельных несоответствий</li>
+      <li>Без имён художников, реальных людей, персонажей, IP в промптах/тайтлах/ключах</li>
+      <li>Артефакты AI (анатомия, тени, рендер) → отказ</li>
+      <li>Узнаваемый человек → model release обязателен</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Частые причины отказа</h2>
+    <ul style="font-size:12px;color:var(--text2);padding-left:18px;line-height:1.8">
+      <li>Разрешение меньше 4 МП / апскейл</li>
+      <li>Растровое изображение, сохранённое как .eps/.ai</li>
+      <li>Текст не переведён в кривые (вектор)</li>
+      <li>Видимые логотипы, товарные знаки, IP-персонажи</li>
+      <li>Ватермарки, подписи, рамки</li>
+      <li>Похожесть на ранее загруженное (дубли)</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<script>
+"use strict";
+/* ================= CONFIG ================= */
+const LS_KEY = "vmc_cfg"; // общий с видео-чекером (тот же origin)
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const $ = id => document.getElementById(id);
+let store = { orKey: "", orModel: "google/gemini-2.5-flash" };
+try { const s = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); if (s.orKey) store.orKey = s.orKey; if (s.orModel) store.orModel = s.orModel; } catch (e) {}
+
+/* ================= TECH RULES ================= */
+const MAX_MP = 4;            // минимум 4 мегапикселя
+const MAX_MB = 450;
+const RASTER_EXT = [".jpg",".jpeg",".png",".tif",".tiff",".psd",".webp",".bmp"];
+const VECTOR_EXT = [".eps",".ai",".svg"];
+
+function extOf(name){ const i=name.lastIndexOf("."); return i<0?"":name.slice(i).toLowerCase(); }
+function fmtSize(b){
+  if(b>=1073741824) return (b/1073741824).toFixed(2)+" ГБ";
+  if(b>=1048576) return (b/1048576).toFixed(1)+" МБ";
+  return (b/1024).toFixed(0)+" КБ";
+}
+
+/* ================= AUTO-DETECT TYPE (3 уровня) ================= */
+// Уровень 1: расширение + байтовая сигнатура файла
+async function detectContainer(file){
+  const ext=extOf(file.name);
+  let head="";
+  try{
+    const buf=await file.slice(0,4096).arrayBuffer();
+    const bytes=new Uint8Array(buf);
+    // бинарные сигнатуры
+    if(bytes.length>=4){
+      if(bytes[0]===0xFF&&bytes[1]===0xD8&&bytes[2]===0xFF) return {fmt:"JPEG",kind:"raster",ext};
+      if(bytes[0]===0x89&&bytes[1]===0x50&&bytes[2]===0x4E&&bytes[3]===0x47) return {fmt:"PNG",kind:"raster",ext};
+      if((bytes[0]===0x49&&bytes[1]===0x49&&bytes[2]===0x2A&&bytes[3]===0x00)||(bytes[0]===0x4D&&bytes[1]===0x4D&&bytes[2]===0x00&&bytes[3]===0x2A)) return {fmt:"TIFF",kind:"raster",ext};
+      if(bytes[0]===0x52&&bytes[1]===0x49&&bytes[2]===0x46&&bytes[3]===0x46&&bytes[8]===0x57&&bytes[9]===0x45&&bytes[10]===0x42&&bytes[11]===0x50) return {fmt:"WEBP",kind:"raster",ext};
+      if(bytes[0]===0x38&&bytes[1]===0x42) return {fmt:"PSD",kind:"raster",ext};
+    }
+    head=new TextDecoder("latin1").decode(bytes);
+    if(head.indexOf("%!PS")===0) return {fmt:"EPS/PS",kind:"vector",ext};
+    if(head.indexOf("%PDF")===0) return {fmt:"PDF/AI",kind:"vector",ext};
+    if(/<svg[\s>]/i.test(head)) return {fmt:"SVG",kind:"vector",ext};
+    if(head.indexOf("<?xml")===0&&/svg/i.test(head)) return {fmt:"SVG",kind:"vector",ext};
+  }catch(e){}
+  // fallback по расширению
+  if(VECTOR_EXT.includes(ext)) return {fmt:ext.slice(1).toUpperCase(),kind:"vector",ext};
+  if(RASTER_EXT.includes(ext)) return {fmt:ext.slice(1).toUpperCase(),kind:"raster",ext};
+  return {fmt:ext.slice(1).toUpperCase()||"?",kind:"unknown",ext};
+}
+
+// Уровень 2: настоящий вектор или растровая подделка в EPS
+async function detectVectorReal(file, container){
+  if(container.kind!=="vector") return {isReal:true};
+  if(!/eps|ps|pdf|ai/i.test(container.fmt)) return {isReal:true}; // SVG всегда вектор
+  try{
+    const buf=await file.slice(0,200000).arrayBuffer();
+    const text=new TextDecoder("latin1").decode(buf);
+    const hasPath=/\b(C|c|L|l)\s+-?\d/.test(text)||text.indexOf(" m\n")>=0||/curveto|lineto|moveto|setbbox/i.test(text);
+    const hasRasterImage=/\/ImageType\s+[12]/.test(text)||/\/DCTDecode|\/FlateDecode\s*\/Width/.test(text);
+    const onlyRaster=hasRasterImage&&!hasPath;
+    return {isReal:!onlyRaster,hasRasterImage,hasPath};
+  }catch(e){ return {isReal:true}; }
+}
+
+// Уровень 3: размеры и мегапиксели (для растра/превью)
+function readImageMeta(file){
+  return new Promise(resolve=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    let done=false;
+    const finish=(v)=>{ if(done)return; done=true; clearTimeout(t); URL.revokeObjectURL(url); resolve(v); };
+    const t=setTimeout(()=>finish({w:0,h:0,error:true}),20000);
+    img.onload=()=>{ finish({w:img.naturalWidth,h:img.naturalHeight,src:url,img}); };
+    img.onerror=()=>finish({w:0,h:0,error:true});
+    img.src=url;
+  });
+}
+
+function techChecks(file, meta, container, vecReal){
+  const issues=[], warns=[], oks=[];
+  const ext=extOf(file.name);
+  // формат
+  if(container.kind==="raster"||container.kind==="vector") oks.push({k:"Формат",v:container.fmt+" — "+(container.kind==="vector"?"векторный":"растровый")+" контейнер"});
+  else issues.push({k:"Формат",v:"«"+(ext||"?")+"» — принимаются JPG, PNG, TIFF, PSD, EPS, AI, SVG"});
+  // размер файла
+  const mb=file.size/1048576;
+  if(mb<=MAX_MB) oks.push({k:"Размер файла",v:fmtSize(file.size)+" (≤ 450 МБ)"});
+  else issues.push({k:"Размер файла",v:fmtSize(file.size)+" — превышен лимит 450 МБ"});
+  const w=meta.w|0, h=meta.h|0, mp=(w*h)/1000000;
+  if(container.kind==="raster"){
+    if(w&&h){
+      if(mp>=MAX_MP) oks.push({k:"Разрешение",v:w+"×"+h+" ("+mp.toFixed(1)+" МП, минимум 4 МП)"});
+      else issues.push({k:"Разрешение",v:w+"×"+h+" ("+mp.toFixed(2)+" МП) — меньше минимума 4 МП. Возможен отказ за апскейл/низкое качество"});
+      if(mp>=12&&mp<24) warns.push({k:"Разрешение",v:"Рекомендуется больше: "+mp.toFixed(1)+" МП — для Getty/Adobe лучше 12+ МП"});
+    } else issues.push({k:"Разрешение",v:"не определено"});
+    if(/jpg|jpeg/i.test(container.fmt)&&meta.hasAlpha) issues.push({k:"JPG прозрачность",v:"JPG не поддерживает прозрачность — фон станет белым/чёрным. Сохраните в PNG"});
+  }
+  if(container.kind==="vector"){
+    if(vecReal&&!vecReal.isReal) issues.push({k:"Вектор",v:"Файл помечен как вектор (.eps/.ai), но внутри растр — Adobe отклоняет такие файлы. Нужен настоящий вектор"});
+    else if(vecReal&&vecReal.hasRasterImage&&!vecReal.hasPath) warns.push({k:"Вектор",v:"Обнаружено растровое ядро — убедитесь, что иллюстрация состоит из векторных путей"});
+    else oks.push({k:"Вектор",v:"Файл содержит векторные данные"});
+    warns.push({k:"Вектор-чек",v:"Проверьте вручную: текст переведён в кривые, пути замкнуты, цвета Pantone/CMYK, масштабируемость"});
+  }
+  return {issues,warns,oks,kind:container.kind,mp,w,h};
+}
+
+/* ================= IMAGE PREVIEW (для AI) ================= */
+function makePreview(file, meta){
+  return new Promise(resolve=>{
+    if(!meta||!meta.img){ 
+      // для EPS/SVG, что не декодируются как <img> — попытка через canvas объекта всё же
+      return resolve(null);
+    }
+    try{
+      const img=meta.img;
+      const scale=Math.min(1,1024/Math.max(img.naturalWidth,img.naturalHeight));
+      const c=document.createElement("canvas");
+      c.width=Math.max(1,Math.round(img.naturalWidth*scale));
+      c.height=Math.max(1,Math.round(img.naturalHeight*scale));
+      const ctx=c.getContext("2d");
+      // белый фон (чтобы прозрачность не ломала анализ)
+      ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,c.width,c.height);
+      ctx.drawImage(img,0,0,c.width,c.height);
+      resolve({url:c.toDataURL("image/jpeg",0.85),w:img.naturalWidth,h:img.naturalHeight});
+    }catch(e){ resolve(null); }
+  });
+}
+
+/* ================= AI ENGINE (OpenRouter) ================= */
+async function openrouterRequest(model, key, prompt, imgs){
+  const url="https://openrouter.ai/api/v1/chat/completions";
+  const isFile=location.protocol==="file:";
+  let attempt=0;
+  for(;;){
+    attempt++;
+    let res;
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),90000);
+    try{
+      res=await fetch(url,{
+        method:"POST",
+        headers:{
+          "Authorization":"Bearer "+key,
+          "Content-Type":"application/json",
+          "HTTP-Referer": isFile ? "https://localhost/" : location.href,
+          "X-Title": "Adobe Stock Image Moderation Checker"
+        },
+        signal:ctrl.signal,
+        body:JSON.stringify({
+          model, max_tokens:3000,
+          messages:[{role:"user",content:[{type:"text",text:prompt}].concat(imgs.map(f=>({type:"image_url",image_url:{url:f.url||f}})))}]
+        })
+      });
+    }catch(netErr){
+      clearTimeout(timer);
+      if(netErr&&netErr.name==="AbortError"){ if(attempt>=3) throw new Error("таймаут запроса к API (90 с)"); await sleep(5000*attempt); continue; }
+      if(attempt>=3){
+        let hint=isFile?" Файл открыт через file:// — запустите через «Открыть модератор фото.bat».":" Проверьте сеть/VPN.";
+        throw new Error("сетевая ошибка: "+netErr.message+"."+hint);
+      }
+      await sleep(3000*attempt); continue;
+    }
+    clearTimeout(timer);
+    if(res.ok) return await res.json();
+    const err=await res.text();
+    if(res.status===401||res.status===403) throw new Error("OpenRouter: ключ отклонён (HTTP "+res.status+")");
+    if(res.status===429) throw new Error("HTTP 429: превышен лимит запросов — подождите");
+    if(res.status===402) throw new Error("HTTP 402: не хватает кредитов OpenRouter");
+    if(res.status===404||(res.status===400&&/no endpoints found|model not found|does not exist|invalid model/i.test(err))) throw new Error("MODEL_UNAVAILABLE: модель "+model+" недоступна");
+    if((res.status===429||res.status>=500)&&attempt<3){ await sleep(10000*attempt); continue; }
+    throw new Error("HTTP "+res.status+": "+err.slice(0,200));
+  }
+}
+
+const AI_PROMPT = `You are an Adobe Stock image content moderator and market analyst. Analyze this uploaded image (photo, illustration, vector, 3D render or graphic design).
+Respond ONLY with JSON (no markdown fence), exactly this schema. LANGUAGE RULE: [RUS] fields in RUSSIAN (shown to contributor), [EN] fields in ENGLISH (Adobe Stock metadata).
+
+{
+  "content_type": "image",
+  "detected_style": "photorealistic|illustration|vector_art|3d|animation_frame|graphic_design|photo_manipulation|other",
+  "subject": "[RUS] короткое описание главного объекта/сцены",
+  "has_people": true/false,
+  "people_real": true/false,
+  "has_nudity": true/false,
+  "has_violence": true/false,
+  "has_text": true/false,
+  "text_quality": "[RUS] если есть текст: читаем ли он, нет ли опечаток/артефактов, иначе пусто",
+  "has_watermark": true/false,
+  "has_trademarks": true/false,
+  "brand_logos": ["[RUS] видимые реальные логотипы/бренды — перечисли, пусто если нет"],
+  "ip_characters": ["[RUS] узнаваемые персонажи/франшизы/маскоты (Disney, Marvel, аниме, игры) — пусто если нет"],
+  "celebrity_likeness": "none|possible|strong — похож ли кто-то на реального известного человека? опиши по-русски если possible/strong",
+  "artwork_visible": ["[RUS] видимые картины/скульптуры, похожие на работы известных авторов (риск IP) — пусто если нет"],
+  "ai_artifacts": ["[RUS] анатомические ошибки, плохие руки/пальцы, лишние конечности, искажённые лица, неправильная геометрия, странные тени, логотипы-кракозябры"],
+  "quality_issues": ["[RUS] проблемы качества: пересвет, размытие, шум, компрессия, апскейл-признаки, низкое разрешение на вид"],
+  "looks_upscaled": true/false,
+  "looks_vector": true/false — does it actually LOOK like a scalable vector illustration (clean edges, flat shapes) or is it raster-looking?
+  "stock_cliche": "low|medium|high — насколько эта тема распространена/шаблонна на Adobe Stock",
+  "stock_saturation_estimate": "very_low|low|medium|high|very_high — примерное число уже существующих похожих изображений на стоке",
+  "unique_angle": "[RUS] что делает эту работу уникальной на фоне тысяч похожих, либо пусто",
+  "competitor_summary": "[RUS] 1-2 предложения: какой похожий контент уже есть и как выделиться",
+  "search_keywords": ["5-8 SHORT English keyword phrases to reverse-search SIMILAR existing stock content on Adobe Stock"],
+  "risks": ["[RUS] риски модерации: нет release, чувствительная тема, нарушение политик"],
+  "title_en": "[EN] SEO title for Adobe Stock (140-180 chars, 2 sentences, no artist names)",
+  "keywords_en": ["[EN] 15-25 relevant keywords, no artist names, no real brand names"],
+  "title_unique_en": "[EN] IF saturation high/very_high: ALTERNATIVE differentiated SEO title promoting the unique_angle (specific mood/light/format terms like 'minimal', 'flat design', 'transparent background'). Empty if low/medium saturation.",
+  "keywords_unique_en": ["[EN] IF saturation high/very_high: more specific/niche keyword set for differentiated positioning. Empty if low/medium."],
+  "category_suggest": "Photos|Illustrations|Vectors|Nature|Lifestyle|Business|Other"
+}
+Rules: be strict. IMPORTANT — IP: flag real brand logos (brand_logos), trademarked characters (ip_characters), celebrity likeness (celebrity_likeness), known artworks (artwork_visible). Any real logo/character/celebrity is a moderation risk. Judge AI artifacts carefully. For looks_vector: real vector art has crisp edges, flat/gradient fills, scalable shapes; raster 'fake vector' looks pixelated or photographic. For search_keywords: think like a buyer searching Adobe Stock.`;
+
+async function aiModerate(preview, filename, cfg){
+  const imgs=[preview];
+  const prompt=AI_PROMPT+"\n\nFilename hint (may not match content): "+filename;
+  let model=cfg.model||"google/gemini-2.5-flash";
+  const fallbacks=["google/gemini-2.5-flash","google/gemini-2.0-flash-001","qwen/qwen3-vl-30b-a3b-instruct","openrouter/free"];
+  let r, lastErr=null;
+  for(const m of [model,...fallbacks]){
+    if(fallbacks.indexOf(m)!==fallbacks.indexOf(model) && m===model) continue;
+    try{ r=await openrouterRequest(m,cfg.key,prompt,imgs); model=m; break; }
+    catch(e){ if(/MODEL_UNAVAILABLE|HTTP 404|HTTP 400/.test(e.message)){ lastErr=e; continue; } throw e; }
+  }
+  if(!r) throw lastErr||new Error("ни одна vision-модель недоступна");
+  const content=r&&r.choices&&r.choices[0]&&r.choices[0].message&&r.choices[0].message.content;
+  if(!content) throw new Error("пустой ответ модели");
+  let json;
+  try{ const m=content.match(/\{[\s\S]*\}/); json=JSON.parse(m?m[0]:content); }
+  catch(e){ throw new Error("не удалось разобрать JSON: "+content.slice(0,150)); }
+  json._model=model;
+  return json;
+}
+
+/* ================= VERDICT ENGINE ================= */
+const EN_RU = {
+  "unstable-looking":"нестабильное изображение","blurry":"размытое","blur":"размытие",
+  "out of focus":"не в фокусе","overexposed":"пересвет","underexposed":"недосвет",
+  "compression":"артефакты компрессия","compression artifacts":"артефакты компрессии",
+  "noise":"шум","watermark":"ватермарка","text":"текст","logo":"логотип","low resolution":"низкое разрешение",
+  "upscaled":"апскейл","pixelated":"пикселизация"
+};
+function toRu(s){
+  if(typeof s!=="string") return s;
+  const low=s.toLowerCase().trim();
+  for(const k in EN_RU){ if(low===k||low.indexOf(k)===0) return EN_RU[k]+(s.length>k.length?" ("+s+")":""); }
+  return s;
+}
+function ruList(arr){ return Array.isArray(arr)?arr.map(toRu).join("; "):(arr||""); }
+
+function computeVerdict(tech, ai){
+  const issues=[], warns=[], oks=[];
+  tech.issues.forEach(i=>issues.push({src:"Тех",...i}));
+  tech.warns.forEach(w=>warns.push({src:"Тех",...w}));
+  tech.oks.forEach(o=>oks.push({src:"Тех",...o}));
+  if(ai){
+    if(ai.has_watermark) issues.push({src:"AI",k:"Ватермарка",v:"Обнаружен текст/ватермарка — прямой отказ"});
+    if(ai.has_text&&ai.detected_style!=="vector_art"&&ai.detected_style!=="graphic_design") warns.push({src:"AI",k:"Текст",v:"Виден текст — убедитесь, что это не артефакт/ватермарка и текст читаем без опечаток"});
+    if(ai.has_trademarks) issues.push({src:"AI",k:"Товарные знаки",v:"Логотип/бренд — отказ без property release"});
+    if(Array.isArray(ai.brand_logos)&&ai.brand_logos.length) issues.push({src:"AI",k:"Логотипы брендов",v:ruList(ai.brand_logos)+" — отказ без property release"});
+    if(Array.isArray(ai.ip_characters)&&ai.ip_characters.length) issues.push({src:"AI",k:"IP-персонажи",v:ruList(ai.ip_characters)+" — нарушение интеллектуальной собственности"});
+    if(ai.celebrity_likeness==="strong") issues.push({src:"AI",k:"Сходство со знаменитостью",v:"Сильное сходство с реальным известным человеком — нужен model release, вероятный отказ"});
+    else if(ai.celebrity_likeness==="possible") warns.push({src:"AI",k:"Сходство со знаменитостью",v:"Возможное сходство с реальным человеком — проверьте права"});
+    if(Array.isArray(ai.artwork_visible)&&ai.artwork_visible.length) warns.push({src:"AI",k:"Чужой арт",v:ruList(ai.artwork_visible)+" — риск IP"});
+    if(ai.has_nudity) issues.push({src:"AI",k:"Обнажёнка",v:"Чувствительный контент — жёсткие ограничения Adobe"});
+    if(ai.has_violence) issues.push({src:"AI",k:"Насилие",v:"Насилие — вероятный отказ или Restricted"});
+    if(ai.has_people&&ai.people_real) warns.push({src:"AI",k:"Реальный человек",v:"Нужен model release (или Fictional people checkbox, если вымышлен)"});
+    if(ai.has_people&&!ai.people_real) warns.push({src:"AI",k:"Персонаж",v:"В кадре человек — поставьте «People and Property are fictional» + AI-тег"});
+    if(Array.isArray(ai.ai_artifacts)&&ai.ai_artifacts.length) issues.push({src:"AI",k:"Артефакты AI",v:ruList(ai.ai_artifacts)+" — Adobe отказывает. Переделайте проблемные элементы."});
+    if(Array.isArray(ai.quality_issues)&&ai.quality_issues.length) warns.push({src:"AI",k:"Качество",v:ruList(ai.quality_issues)+". Проверьте изображение в просмотрщике — за низкое качество/апскейл Adobe отказывает."});
+    if(ai.looks_upscaled) issues.push({src:"AI",k:"Апскейл",v:"Есть признаки увеличения разрешения (апскейл) — Adobe отклоняет. Загрузите оригинал нужного размера"});
+    if(tech.kind==="vector"&&ai.looks_vector===false) warns.push({src:"AI",k:"Внешний вид",v:"Выглядит как растр, а не вектор — убедитесь, что файл действительно векторный и масштабируется без потерь"});
+    if(ai.stock_cliche==="high") warns.push({src:"AI",k:"Клише",v:"Шаблонная, распространённая тема — низкая уникальность/мало продаж. Используйте уникальные метаданные ниже."});
+    if(ai.stock_saturation_estimate==="very_high"||ai.stock_saturation_estimate==="high") warns.push({src:"AI",k:"Насыщенность стока",v:"Таких изображений очень много ("+ai.stock_saturation_estimate+"). "+(ai.competitor_summary||"")+" Рекомендую уникальный заголовок и ключи ниже."});
+    else if(ai.stock_saturation_estimate==="medium") warns.push({src:"AI",k:"Насыщенность стока",v:"Средняя конкуренция. "+(ai.competitor_summary||"Выделитесь уникальным углом.")});
+    else if(ai.stock_saturation_estimate==="low"||ai.stock_saturation_estimate==="very_low") oks.push({src:"AI",k:"Насыщенность стока",v:"Низкая конкуренция ("+ai.stock_saturation_estimate+") — хороший шанс. "+(ai.unique_angle||"")});
+    if(Array.isArray(ai.risks)&&ai.risks.length) ai.risks.forEach(rsk=>warns.push({src:"AI",k:"Риск",v:rsk}));
+  }
+  let verdict;
+  if(issues.some(i=>i.src==="Тех"&&/Формат|Разрешение|Размер|Вектор|прозрачность/.test(i.k))) verdict="reject";
+  else if(issues.length>0) verdict="reject";
+  else if(warns.length>0) verdict="review";
+  else verdict="ok";
+  if(!ai&&verdict==="ok") verdict="tech";
+  if(!ai&&verdict==="review") verdict="tech";
+  return {verdict,issues,warns,oks};
+}
+
+/* ================= UI STATE ================= */
+let items=[];
+let currentId=null;
+let idSeq=0;
+const storeCopy=[];
+
+function verdictIcon(v){ return v==="ok"?"🟢":v==="review"?"🟡":v==="reject"?"🔴":"⚪"; }
+function verdictLabel(v){ return v==="ok"?"Приемлемо":v==="review"?"Требует проверку":v==="reject"?"Неприемлемо":"Только тех."; }
+function verdictClass(v){ return v==="ok"?"ok":v==="review"?"review":v==="reject"?"reject":"tech"; }
+
+const TYPE_LABEL={raster:"Растр (фото/растровая графика)",vector:"Вектор",unknown:"Неизвестно"};
+
+function renderList(){
+  const el=$("files-list");
+  el.innerHTML="";
+  items.forEach(it=>{
+    const row=document.createElement("div");
+    row.className="row"+(it.id===currentId?" selected":"");
+    const thumb=it.preview&&it.preview.url?it.preview.url:"";
+    const m=it.meta||{};
+    const v=it.result?verdictIcon(it.result.verdict):"⏳";
+    row.innerHTML=
+      (thumb?'<img class="thumb" src="'+thumb+'">':'<div class="thumb"></div>')+
+      '<div class="info"><span class="nm">'+esc(it.file.name)+'</span>'+
+      '<span class="meta">'+(it.tech&&it.tech.kind?TYPE_LABEL[it.tech.kind]+" · ":"")+(m.w?m.w+"×"+m.h+" · ":"")+(it.tech&&it.tech.mp?it.tech.mp.toFixed(1)+" МП · ":"")+fmtSize(it.file.size)+
+      (it.ai?' · AI ✓':' · AI —')+'</span></div>'+
+      '<div class="verdict">'+v+'</div>';
+    row.onclick=()=>{ currentId=it.id; renderList(); renderReport(); };
+    el.appendChild(row);
+  });
+  const hasBatch=items.length>1;
+  $("batch-summary").style.display=hasBatch?"block":"none";
+  if(hasBatch) renderSummary();
+}
+
+function renderSummary(){
+  const tb=$("sum-table").querySelector("tbody");
+  tb.innerHTML="";
+  let ok=0,rev=0,rej=0;
+  items.forEach(it=>{
+    const v=it.result?it.result.verdict:"tech";
+    if(v==="ok")ok++;else if(v==="review")rev++;else if(v==="reject")rej++;
+    const tr=document.createElement("tr");
+    const probs=it.result?(it.result.issues.length+it.result.warns.length):0;
+    tr.innerHTML="<td>"+esc(it.file.name)+"</td><td>"+(it.tech&&it.tech.kind?TYPE_LABEL[it.tech.kind].split(" ")[0]:"—")+"</td><td>"+verdictIcon(v)+" "+verdictLabel(v)+"</td><td>"+(it.tech?(it.tech.issues.length?"❌":"✅"):"—")+"</td><td>"+(it.ai?"✓":(store.orKey?"—":"н/д"))+"</td><td>"+probs+"</td>";
+    tr.onclick=()=>{ currentId=it.id; renderList(); renderReport(); };
+    tb.appendChild(tr);
+  });
+  $("sum-stat").innerHTML='<span>🟢 Приемлемо: <span class="n">'+ok+'</span></span><span>🟡 Проверка: <span class="n">'+rev+'</span></span><span>🔴 Отказ: <span class="n">'+rej+'</span></span><span>Всего: <span class="n">'+items.length+'</span></span>';
+}
+
+function renderReport(){
+  const el=$("report");
+  const it=items.find(x=>x.id===currentId);
+  if(!it){ el.innerHTML=""; return; }
+  const r=it.result;
+  if(!r){ el.innerHTML='<div class="card"><p class="hint">Обработка…</p></div>'; return; }
+  const m=it.meta||{};
+  const t=it.tech||{};
+  let h='<div class="card">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">';
+  h+='<div><b style="font-size:14px">'+esc(it.file.name)+'</b><div class="stat" style="margin-top:4px">';
+  h+='<span>тип: '+(t.kind?TYPE_LABEL[t.kind]:"?")+'</span>';
+  if(m.w)h+='<span>'+m.w+"×"+m.h+'</span>';
+  if(t.mp)h+='<span>'+t.mp.toFixed(1)+' МП</span>';
+  h+='<span>'+fmtSize(it.file.size)+'</span>';
+  if(it.ai&&it.ai.detected_style)h+='<span>стиль: '+esc(it.ai.detected_style)+'</span>';
+  if(it.ai&&it.ai._model)h+='<span>модель: '+esc(it.ai._model)+'</span>';
+  h+='</div></div>';
+  h+='<span class="pill '+verdictClass(r.verdict)+'">'+verdictIcon(r.verdict)+" "+verdictLabel(r.verdict)+'</span>';
+  h+='</div>';
+  if(it.ai){
+    h+='<div class="stat" style="margin-top:8px">';
+    if(it.ai.subject)h+='<span>тема: '+esc(it.ai.subject)+'</span>';
+    if(it.ai.stock_cliche)h+='<span>клише: '+esc(it.ai.stock_cliche)+'</span>';
+    if(it.ai.stock_saturation_estimate)h+='<span>насыщенность: '+esc(it.ai.stock_saturation_estimate)+'</span>';
+    h+='</div>';
+  }
+  h+='</div>';
+
+  // Легенда
+  h+='<div class="card" style="background:var(--surface2)"><h2>Как читать отчёт</h2>';
+  h+='<div style="font-size:12px;line-height:1.9;color:var(--text2)">';
+  h+='<div><span class="pill ok">🟢 Приемлемо</span> — можно загружать.</div>';
+  h+='<div><span class="pill review">🟡 Требует проверку</span> — есть нюансы, посмотрите вручную.</div>';
+  h+='<div><span class="pill reject">🔴 Неприемлемо</span> — критическая проблема, Adobe отклонит.</div>';
+  h+='<div style="margin-top:6px">Значки: <span class="good">✅</span> норма · <span style="color:var(--yellow)">⚠️</span> проверь (не отказ) · <span class="bad">❌</span> отказ Adobe.</div>';
+  h+='</div></div>';
+
+  // Тех
+  h+='<div class="card"><h2>Технические проверки</h2>';
+  (t.oks||[]).forEach(o=>{ h+=chkHtml("ok",o.k,o.v); });
+  (t.issues||[]).forEach(o=>{ h+=chkHtml("bad",o.k,o.v); });
+  (t.warns||[]).forEach(o=>{ h+=chkHtml("warn",o.k,o.v); });
+  h+='</div>';
+
+  // AI
+  h+='<div class="card"><h2>AI-анализ '+(it.ai?'<span class="badge green">выполнено</span>':'<span class="badge">пропущено</span>')+'</h2>';
+  if(it.ai){
+    (r.issues||[]).filter(i=>i.src==="AI").forEach(o=>{ h+=chkHtml("bad",o.k,o.v); });
+    (r.warns||[]).filter(i=>i.src==="AI").forEach(o=>{ h+=chkHtml("warn",o.k,o.v); });
+    if(it.ai.competitor_summary) h+='<div style="margin-top:8px"><label>Конкуренция на стоке</label><div class="copy-box">'+esc(it.ai.competitor_summary)+'</div></div>';
+    if(it.ai.unique_angle) h+='<div style="margin-top:6px"><label>Уникальный угол</label><div class="copy-box">'+esc(it.ai.unique_angle)+'</div></div>';
+    if(it.ai.search_keywords&&it.ai.search_keywords.length){
+      const sq=it.ai.search_keywords.slice(0,5).join(" ");
+      h+='<div style="margin-top:8px"><label>Автопоиск похожего на Adobe Stock</label>';
+      h+='<div class="copy-box">'+esc(it.ai.search_keywords.join(" · "))+'</div>';
+      h+='<div class="btns"><a class="btn g" target="_blank" href="https://stock.adobe.com/search?k='+encodeURIComponent(sq)+'&media=photo">Открыть поиск похожего ↗</a></div></div>';
+    }
+    if(it.ai.title_en) h+='<div style="margin-top:8px"><label>Название (EN)</label><div class="copy-box">'+esc(it.ai.title_en)+'</div></div>';
+    if(it.ai.keywords_en&&it.ai.keywords_en.length) h+='<div style="margin-top:8px"><label>Ключевые слова ('+it.ai.keywords_en.length+')</label><div class="copy-box">'+esc(it.ai.keywords_en.join(", "))+'</div></div>';
+    const hiSat=(it.ai.stock_saturation_estimate==="high"||it.ai.stock_saturation_estimate==="very_high"||it.ai.stock_cliche==="high");
+    if(hiSat&&(it.ai.title_unique_en||(it.ai.keywords_unique_en&&it.ai.keywords_unique_en.length))){
+      h+='<div style="margin-top:12px;padding:10px;border:1px solid var(--yellow);border-radius:8px;background:rgba(253,203,110,.05)">';
+      h+='<label style="color:var(--yellow)">⚠️ Тема занята на стоке — рекомендую уникальные метаданные</label>';
+      h+='<p class="hint" style="margin-top:0">Стандартные название/ключи тонут среди тысяч похожих. Ниже — вариант через ваш уникальный угол.</p>';
+      if(it.ai.title_unique_en){
+        const idx=storeCopy.push(it.ai.title_unique_en)-1;
+        h+='<div style="margin-top:6px"><label>Рекомендуемый уникальный заголовок</label><div class="copy-box">'+esc(it.ai.title_unique_en)+'</div><div class="btns"><button class="btn" data-copy="'+idx+'">Скопировать заголовок</button></div></div>';
+      }
+      if(it.ai.keywords_unique_en&&it.ai.keywords_unique_en.length){
+        const ku=it.ai.keywords_unique_en.join(", ");
+        const idx=storeCopy.push(ku)-1;
+        h+='<div style="margin-top:8px"><label>Рекомендуемые уникальные ключи ('+it.ai.keywords_unique_en.length+')</label><div class="copy-box">'+esc(ku)+'</div><div class="btns"><button class="btn" data-copy="'+idx+'">Скопировать ключи</button></div></div>';
+      }
+      h+='</div>';
+    }
+    if(it.ai.category_suggest) h+='<div class="stat" style="margin-top:6px"><span>Категория: '+esc(it.ai.category_suggest)+'</span></div>';
+  } else if(store.orKey){
+    h+='<p class="hint">AI не выполнен: '+(it.aiError?esc(it.aiError):"нет данных")+'</p>';
+  } else {
+    h+='<p class="hint">AI-анализ выключен — задайте ключ OpenRouter во вкладке «Настройки AI»</p>';
+    h+='<div style="margin-top:6px">'+chkHtml("warn","Проверьте вручную","Люди/release, логотипы, текст, артефакты AI, IP-персонажи")+'</div>';
+  }
+  h+='</div>';
+
+  // Превью
+  if(it.preview&&it.preview.url){
+    h+='<div class="card"><h2>Превью</h2><div class="frames"><img src="'+it.preview.url+'"></div></div>';
+  }
+
+  // Чек-лист
+  h+='<div class="card"><h2>Чек-лист перед загрузкой</h2><ul class="checklist">';
+  h+='<li><span class="req">☑</span><span><b>Generative AI тег</b><small>Обязательно: «Created using generative AI tools»</small></span></li>';
+  if(it.ai&&it.ai.has_people) h+='<li><span class="req">☑</span><span><b>Fictional people</b><small>Если вымышлен — «People and Property are fictional». Реальный человек — model release</small></span></li>';
+  if(t.kind==="vector") h+='<li><span class="opt">☐</span><span><b>Вектор: текст в кривых, пути, Pantone</b><small>Проверьте в редакторе перед загрузкой</small></span></li>';
+  if(t.kind==="raster"&&t.mp&&t.mp<12) h+='<li><span class="opt">☐</span><span><b>Разрешение '+t.mp.toFixed(1)+' МП</b><small>Желательно 12+ МП для лучших продаж</small></span></li>';
+  if(it.ai&&it.ai.category_suggest) h+='<li><span class="opt">☐</span><span><b>Категория: '+esc(it.ai.category_suggest)+'</b><small>Выберите в Contributor Portal</small></span></li>';
+  h+='<li><span class="opt">☐</span><span><b>Без ватермарок/текста/логотипов</b><small>Проверьте превью выше</small></span></li>';
+  h+='<li><span class="opt">☐</span><span><b>Уникальность</b><small>Откройте автопоиск похожего выше</small></span></li>';
+  h+='</ul></div>';
+
+  // Действия
+  h+='<div class="card"><h2>Действия</h2><div class="btns">';
+  const searchQ=(it.ai&&it.ai.search_keywords&&it.ai.search_keywords.length)?it.ai.search_keywords.slice(0,5).join(" "):(it.ai&&it.ai.keywords_en&&it.ai.keywords_en.length)?it.ai.keywords_en.slice(0,5).join(" "):(it.ai&&it.ai.subject?it.ai.subject:it.file.name.replace(/\.[^.]+$/,"").replace(/[_0-9]+/g," "));
+  h+='<a class="btn g" target="_blank" href="https://stock.adobe.com/search?k='+encodeURIComponent(searchQ)+'&media=photo">Открыть поиск похожего на Adobe Stock ↗</a>';
+  h+='<button class="btn" onclick="copyReport('+it.id+')">Скопировать отчёт</button>';
+  h+='</div></div>';
+
+  // Итоговый отчёт
+  const reportText=buildReportText(it.id);
+  if(reportText){
+    h+='<div class="card"><h2>Итоговый отчёт</h2>';
+    h+='<div class="copy-box">'+esc(reportText)+'</div>';
+    h+='<div class="btns"><button class="btn" onclick="copyReport('+it.id+')">Скопировать отчёт</button></div>';
+    h+='</div>';
+  }
+
+  if(!it.ai&&it.aiError&&/fetch|network|Failed to fetch|сетев/i.test(it.aiError||"")){
+    h+='<div class="card"><h2>AI не работает: Failed to fetch</h2>';
+    h+='<p class="hint" style="margin-top:0">Файл открыт через <code>file://</code> — браузер блокирует API. Запустите через <b>«Открыть модератор фото.bat»</b>.</p></div>';
+  }
+
+  el.innerHTML=h;
+}
+function chkHtml(kind,k,v){
+  const ic=kind==="ok"?"✅":kind==="bad"?"❌":"⚠️";
+  return '<div class="chk"><span class="ic">'+ic+'</span><span class="tx"><b>'+esc(k)+'</b><small>'+esc(v)+'</small></span></div>';
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function buildReportText(id){
+  const it=items.find(x=>x.id===id);
+  if(!it||!it.result) return "";
+  const r=it.result, t=it.tech||{};
+  let txt="=== Отчёт по модерации Adobe Stock (изображение) ===\n";
+  txt+="Файл: "+it.file.name+"\n";
+  txt+="Тип: "+(t.kind?TYPE_LABEL[t.kind]:"?")+(t.w?" · "+t.w+"×"+t.h+" ("+t.mp.toFixed(1)+" МП)":"")+" · "+fmtSize(it.file.size)+"\n";
+  txt+="Вердикт: "+verdictLabel(r.verdict)+"\n\n";
+  if(t.oks&&t.oks.length){ txt+="Тех ✅:\n"; t.oks.forEach(o=>txt+="  + "+o.k+": "+o.v+"\n"); }
+  if(r.issues&&r.issues.length){ txt+="Проблемы ❌:\n"; r.issues.forEach(o=>txt+="  - ["+o.src+"] "+(o.k||"")+": "+o.v+"\n"); }
+  if(r.warns&&r.warns.length){ txt+="Предупреждения ⚠️:\n"; r.warns.forEach(o=>txt+="  ~ ["+o.src+"] "+(o.k||"")+": "+o.v+"\n"); }
+  if(it.ai&&it.ai.competitor_summary){ txt+="\nКонкуренция: "+it.ai.competitor_summary+"\n"; }
+  if(it.ai&&it.ai.search_keywords){ txt+="Поиск похожего: "+it.ai.search_keywords.join(", ")+"\n"; }
+  if(it.ai&&it.ai.title_en){ txt+="\nНазвание (EN): "+it.ai.title_en+"\n"; }
+  if(it.ai&&it.ai.keywords_en){ txt+="Ключевые слова: "+it.ai.keywords_en.join(", ")+"\n"; }
+  const hi=it.ai&&(it.ai.stock_saturation_estimate==="high"||it.ai.stock_saturation_estimate==="very_high"||it.ai.stock_cliche==="high");
+  if(hi&&it.ai.title_unique_en){ txt+="\n⚠️ Тема занята. Рекомендуемый уникальный заголовок:\n"+it.ai.title_unique_en+"\n"; }
+  if(hi&&it.ai.keywords_unique_en&&it.ai.keywords_unique_en.length){ txt+="Рекомендуемые уникальные ключи:\n"+it.ai.keywords_unique_en.join(", ")+"\n"; }
+  txt+="\nЧек-лист: AI-тег обязателен; Fictional people; без ватермарок/логотипов; уникальность.\n";
+  return txt;
+}
+function copyReport(id){
+  const txt=buildReportText(id);
+  if(!txt) return;
+  copyText(txt);
+}
+function copyText(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>flash("Скопировано")).catch(()=>fallbackCopy(txt));
+  } else fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();
+  try{document.execCommand("copy");flash("Скопировано");}catch(e){flash("Не удалось скопировать");}
+  document.body.removeChild(ta);
+}
+function flash(msg){
+  const el=$("ai-status");
+  if(el){ el.textContent=msg; setTimeout(()=>{el.textContent="";},2000); }
+}
+
+/* ================= PIPELINE ================= */
+async function processItem(it, useAI){
+  it.container=await detectContainer(it.file);
+  it.vecReal=await detectVectorReal(it.file, it.container);
+  it.meta=await readImageMeta(it.file);
+  it.tech=techChecks(it.file, it.meta, it.container, it.vecReal);
+  it.preview=await makePreview(it.file, it.meta);
+
+  if(useAI&&store.orKey&&it.preview){
+    try{
+      it.ai=await aiModerate(it.preview, it.file.name,{key:store.orKey,model:store.orModel});
+    }catch(e){ it.aiError=e.message; }
+  }
+  it.result=computeVerdict(it.tech, it.ai);
+  if(it.ai&&it.ai.search_keywords&&it.ai.search_keywords.length&&!window._stockTabOpened){
+    window._stockTabOpened=true;
+    const q=it.ai.search_keywords.slice(0,5).join(" ");
+    window.open("https://stock.adobe.com/search?k="+encodeURIComponent(q)+"&media=photo","_blank");
+  }
+}
+
+async function processQueue(queue, useAI){
+  const total=queue.length;
+  $("batch-progress").style.display="block";
+  $("bp-total").textContent=total;
+  let done=0;
+  for(const it of queue){
+    $("bp-current").textContent="Проверяем: "+it.file.name;
+    try{ await processItem(it,useAI); }
+    catch(e){ it.result={verdict:"tech",issues:[{k:"Ошибка",v:e.message}],warns:[],oks:[]}; }
+    done++;
+    $("bp-done").textContent=done;
+    $("bp-bar").style.width=Math.round(done/total*100)+"%";
+    renderList();
+    if(it.id===currentId) renderReport();
+    if(useAI) await sleep(600);
+  }
+  if(total>1) await dedupBatch(queue);
+  $("bp-current").textContent="Готово";
+  renderList();
+  if(currentId!=null) renderReport();
+  setTimeout(()=>{ $("batch-progress").style.display="none"; $("bp-bar").style.width="0%"; $("bp-done").textContent="0"; },1500);
+}
+
+function addFiles(fileList){
+  const imgs=Array.from(fileList).filter(f=>f.type.startsWith("image/")||/\.(jpe?g|png|tiff?|eps|ai|svg|psd|webp|bmp)$/i.test(f.name));
+  if(!imgs.length){ flash("Нет файлов изображений"); return; }
+  const useAI=store.orKey;
+  const queue=imgs.map(f=>{ const it={id:++idSeq,file:f}; items.push(it); return it; });
+  currentId=queue[0].id;
+  renderList();
+  processQueue(queue,useAI);
+}
+
+/* ================= INTRA-BATCH DEDUP ================= */
+function frameHash(preview){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement("canvas");c.width=8;c.height=8;
+      const ctx=c.getContext("2d");ctx.drawImage(img,0,0,8,8);
+      const d=ctx.getImageData(0,0,8,8).data;
+      const a=[];for(let i=0;i<d.length;i+=4)a.push((d[i]+d[i+1]+d[i+2])/3);
+      res(a);
+    };
+    img.onerror=()=>res(null);
+    img.src=preview.url;
+  });
+}
+function hashDist(a,b){
+  if(!a||!b) return 999;
+  let s=0;for(let i=0;i<a.length;i++)s+=Math.abs(a[i]-b[i]);
+  return s/a.length;
+}
+async function dedupBatch(list){
+  const hashes=[];
+  for(const it of list){
+    if(!it.preview){ hashes.push(null); continue; }
+    hashes.push(await frameHash(it.preview));
+  }
+  for(let i=0;i<list.length;i++){
+    if(!hashes[i]) continue;
+    for(let j=0;j<i;j++){
+      if(!hashes[j]) continue;
+      const d=hashDist(hashes[i],hashes[j]);
+      if(d<6) list[i].result.issues.push({k:"Дубликат",v:"Очень похоже на «"+list[j].file.name+"» — Adobe отклоняет похожий контент"});
+    }
+  }
+}
+
+/* ================= EVENTS ================= */
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    $("tab-"+t.dataset.tab).classList.add("active");
+  });
+});
+const dz=$("dzone");
+dz.addEventListener("click",()=>$("files").click());
+dz.addEventListener("dragover",e=>{e.preventDefault();dz.classList.add("dragover");});
+dz.addEventListener("dragleave",()=>dz.classList.remove("dragover"));
+dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("dragover");if(e.dataTransfer.files.length)addFiles(e.dataTransfer.files);});
+$("files").addEventListener("change",e=>{ if(e.target.files.length)addFiles(e.target.files); e.target.value=""; });
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-copy]");
+  if(!b) return;
+  const txt=storeCopy[parseInt(b.getAttribute("data-copy"),10)];
+  if(txt==null) return;
+  copyText(txt);
+  const old=b.textContent; b.textContent="Скопировано ✓";
+  setTimeout(()=>{b.textContent=old;},1500);
+});
+
+$("or-key").value=store.orKey;
+$("or-model").value=store.orModel;
+$("btn-save-cfg").addEventListener("click",()=>{
+  store.orKey=$("or-key").value.trim();
+  store.orModel=$("or-model").value.trim()||"google/gemini-2.5-flash";
+  try{ localStorage.setItem(LS_KEY,JSON.stringify(store)); }catch(e){}
+  flash("Сохранено");
+});
+$("btn-test-ai").addEventListener("click",async()=>{
+  const key=$("or-key").value.trim();
+  const model=$("or-model").value.trim()||"google/gemini-2.5-flash";
+  if(!key){ $("ai-status").textContent="Введите ключ OpenRouter"; return; }
+  $("ai-status").textContent="Тест…";
+  try{
+    const c=document.createElement("canvas");c.width=64;c.height=64;
+    const ctx=c.getContext("2d");ctx.fillStyle="#6c5ce7";ctx.fillRect(0,0,64,64);
+    ctx.fillStyle="#fff";ctx.font="12px sans-serif";ctx.fillText("TEST",10,35);
+    const img={url:c.toDataURL("image/jpeg",0.8)};
+    const r=await openrouterRequest(model,key,"Reply with JSON only: {\"ok\":true}",[img]);
+    const content=r&&r.choices&&r.choices[0]&&r.choices[0].message&&r.choices[0].message.content;
+    $("ai-status").innerHTML='<span class="good">✓ Соединение работает</span> · ответ: '+esc((content||"").slice(0,80));
+  }catch(e){
+    $("ai-status").innerHTML='<span class="bad">✗ '+esc(e.message)+'</span>';
+  }
+});
+</script>
+</body>
+</html>
