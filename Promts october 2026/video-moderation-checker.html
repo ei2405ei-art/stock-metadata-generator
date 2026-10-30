@@ -478,11 +478,12 @@ async function openrouterRequest(model, key, prompt, imgs){
 }
 
 const AI_PROMPT = `You are an Adobe Stock content moderator and market analyst. Analyze these 3-4 frames from an AI-generated stock video.
-Respond ONLY with JSON (no markdown fence), exactly this schema:
+Respond ONLY with JSON (no markdown fence), exactly this schema. LANGUAGE RULE: fields marked [RUS] must be written in RUSSIAN (they are shown to the Russian-speaking contributor). Fields marked [EN] must stay in ENGLISH (they are metadata for Adobe Stock upload).
+
 {
   "content_type": "video",
   "style": "photorealistic|illustration|animation|3d|other",
-  "subject": "short description of main subject",
+  "subject": "[RUS] короткое описание главного объекта/сцены",
   "has_people": true/false,
   "people_real": true/false,
   "has_nudity": true/false,
@@ -490,23 +491,25 @@ Respond ONLY with JSON (no markdown fence), exactly this schema:
   "has_text": true/false,
   "has_watermark": true/false,
   "has_trademarks": true/false,
-  "brand_logos": ["any visible real brand logos, product branding, company names (e.g. Nike, Apple, Coca-Cola) — list what you see, empty if none"],
-  "ip_characters": ["any recognizable fictional characters, franchises, mascots, anime/game/movie IP (e.g. Disney, Marvel, Mario, Pikachu) — empty if none"],
-  "celebrity_likeness": "none|possible|strong — does any face resemble a real famous person (actor, singer, politician)? describe if possible/strong",
-  "artwork_visible": ["any visible paintings, sculptures, or artworks that look like known artists' works (IP risk) — empty if none"],
-  "ai_artifacts": ["list any anatomical errors, bad hands, distorted objects, render glitches, weird shadows"],
-  "quality_issues": ["exposure, blur, compression, unstable-looking, log-looking"],
-  "stock_cliche": "low|medium|high — how saturated/generic this stock theme is on Adobe Stock",
-  "stock_saturation_estimate": "very_low|low|medium|high|very_high — estimated number of similar results already on stock (e.g. 'candle in forest' is very_high, 'goat wearing poster sign in alpine meadow' may be lower)",
-  "unique_angle": "what makes this unique vs the thousands of similar stock clips, or empty if fully generic",
-  "competitor_summary": "1-2 sentences: what similar content likely already exists and how to stand out",
-  "search_keywords": ["5-8 SHORT English keyword phrases (1-3 words each) most likely to find SIMILAR existing stock content — use these for reverse-search on Adobe Stock"],
-  "risks": ["moderation risks: missing release, sensitive topic, policy issues"],
-  "title_en": "SEO title for Adobe Stock (140-180 chars, 2 sentences, no artist names)",
-  "keywords_en": ["15-25 relevant English keywords, no artist names, no real brand names"],
+  "brand_logos": ["[RUS] видимые реальные логотипы/бренды (Nike, Apple...) — перечисли, пусто если нет"],
+  "ip_characters": ["[RUS] узнаваемые персонажи/франшизы/маскоты (Disney, Marvel, аниме, игры) — пусто если нет"],
+  "celebrity_likeness": "none|possible|strong — похож ли кто-то на реального известного человека? опиши по-русски если possible/strong",
+  "artwork_visible": ["[RUS] видимые картины/скульптуры, похожие на работы известных авторов (риск IP) — пусто если нет"],
+  "ai_artifacts": ["[RUS] анатомические ошибки, плохие руки/пальцы, лишние конечности, искажённые лица, неправильная геометрия, странные тени"],
+  "quality_issues": ["[RUS] проблемы качества: пересвет, размытие, компрессия, нестабильное/дрожащее изображение, лог-грейд"],
+  "stock_cliche": "low|medium|high — насколько эта тема распространена/шаблонна на Adobe Stock",
+  "stock_saturation_estimate": "very_low|low|medium|high|very_high — примерное число уже существующих похожих роликов на стоке",
+  "unique_angle": "[RUS] что делает эту работу уникальной на фоне тысяч похожих, либо пусто если она полностью шаблонная",
+  "competitor_summary": "[RUS] 1-2 предложения: какой похожий контент уже есть на стоке и как выделиться",
+  "search_keywords": ["5-8 SHORT English keyword phrases (1-3 words each) to reverse-search SIMILAR existing stock content on Adobe Stock"],
+  "risks": ["[RUS] риски модерации: нет release, чувствительная тема, нарушение политик"],
+  "title_en": "[EN] SEO title for Adobe Stock (140-180 chars, 2 sentences, no artist names)",
+  "keywords_en": ["[EN] 15-25 relevant keywords, no artist names, no real brand names"],
+  "title_unique_en": "[EN] IF saturation is high/very_high: an ALTERNATIVE differentiated SEO title that promotes this clip via its unique_angle (specific mood, light, angle, format, 'vertical', 'drone', 'golden hour', 'minimal', 'abstract texture'). Generic terms drown among thousands of similar clips — use specific buyer-intent wording. If saturation is low/medium, return empty string.",
+  "keywords_unique_en": ["[EN] IF saturation is high/very_high: a more specific/niche/long-tail keyword set for the differentiated positioning above. If low/medium, return empty array."],
   "category_suggest": "Photos|Illustrations|Videos|Nature|Lifestyle|Business|Other"
 }
-Rules: be strict. If you see an identifiable real-looking person, flag people_real=true and note release needed. If purely fictional/AI person, people_real=false. Flag any text/watermark/logo visible. IMPORTANT — intellectual property: check carefully for real brand logos (brand_logos), recognizable characters/franchises (ip_characters), celebrity face likeness (celebrity_likeness), and known artworks (artwork_visible). Any real brand logo, trademarked character, or celebrity likeness is a moderation risk on Adobe Stock. Judge AI artifacts carefully (hands, fingers, extra limbs, warped faces, impossible geometry). For stock_saturation_estimate and search_keywords: think like a buyer searching Adobe Stock — what exact queries would return clips very similar to this one?`;
+Rules: be strict. If you see an identifiable real-looking person, flag people_real=true and note release needed. If purely fictional/AI person, people_real=false. Flag any text/watermark/logo visible. IMPORTANT — intellectual property: check carefully for real brand logos (brand_logos), recognizable characters/franchises (ip_characters), celebrity face likeness (celebrity_likeness), and known artworks (artwork_visible). Any real brand logo, trademarked character, or celebrity likeness is a moderation risk on Adobe Stock. Judge AI artifacts carefully (hands, fingers, extra limbs, warped faces, impossible geometry). For stock_saturation_estimate and search_keywords: think like a buyer searching Adobe Stock — what exact queries would return clips very similar to this one? For title_unique_en/keywords_unique_en: only fill them when saturation is high, otherwise they must be empty.`;
 
 async function aiModerate(frames, filename, cfg){
   const imgs=frames.slice(0,4);
@@ -538,6 +541,33 @@ async function aiModerate(frames, filename, cfg){
 }
 
 /* ================= VERDICT ENGINE ================= */
+// Страховка: перевод частых английских терминов, если модель вернула их на английском
+const EN_RU = {
+  "unstable-looking":"нестабильное/дрожащее изображение",
+  "unstable":"нестабильное изображение",
+  "blurry":"размытое",
+  "blur":"размытие",
+  "out of focus":"не в фокусе",
+  "overexposed":"пересвет",
+  "underexposed":"недосвет",
+  "log-looking":"лог-грейд (тусклый flat-цвет)",
+  "low contrast":"низкий контраст",
+  "compression":"артефакты компрессии",
+  "compression artifacts":"артефакты компрессии",
+  "noise":"шум",
+  "banding":"полосы (banding)",
+  "watermark":"ватермарка",
+  "text":"текст",
+  "logo":"логотип"
+};
+function toRu(s){
+  if(typeof s!=="string") return s;
+  const low=s.toLowerCase().trim();
+  for(const k in EN_RU){ if(low===k||low.indexOf(k)===0) return EN_RU[k]+(s.length>k.length?" ("+s+")":""); }
+  return s;
+}
+function ruList(arr){ return Array.isArray(arr)?arr.map(toRu).join("; "):(arr||""); }
+
 function computeVerdict(tech, motion, ai){
   const issues=[], warns=[], oks=[];
   tech.issues.forEach(i=>issues.push({src:"Тех",...i}));
@@ -558,12 +588,12 @@ function computeVerdict(tech, motion, ai){
     if(ai.has_violence) issues.push({src:"AI",k:"Насилие",v:"Насилие — вероятный отказ или Restricted"});
     if(ai.has_people&&ai.people_real) warns.push({src:"AI",k:"Реальный человек",v:"Нужен model release (или Fictional people checkbox, если вымышлен)"});
     if(ai.has_people&&!ai.people_real) warns.push({src:"AI",k:"Персонаж",v:"В кадре человек — поставьте «People and Property are fictional» + AI-тег"});
-    if(Array.isArray(ai.ai_artifacts)&&ai.ai_artifacts.length) issues.push({src:"AI",k:"Артефакты AI",v:ai.ai_artifacts.join("; ")});
-    if(Array.isArray(ai.quality_issues)&&ai.quality_issues.length) warns.push({src:"AI",k:"Качество",v:ai.quality_issues.join("; ")});
-    if(ai.stock_cliche==="high") warns.push({src:"AI",k:"Клише",v:"Высокая насыщенность темы на стоке — добавьте уникальный угол или ожидайте конкуренцию"});
-    if(ai.stock_saturation_estimate==="very_high"||ai.stock_saturation_estimate==="high") warns.push({src:"AI",k:"Насыщенность стока",v:"Тема очень распространена на Adobe Stock ("+ai.stock_saturation_estimate+") — "+(ai.competitor_summary||"рассмотрите более уникальный ракурс")});
-    else if(ai.stock_saturation_estimate==="medium") warns.push({src:"AI",k:"Насыщенность стока",v:"Средняя конкуренция на стоке — "+(ai.competitor_summary||"выделитесь уникальным углом")});
-    else if(ai.stock_saturation_estimate==="low"||ai.stock_saturation_estimate==="very_low") oks.push({src:"AI",k:"Насыщенность стока",v:"Низкая конкуренция ("+ai.stock_saturation_estimate+") — "+(ai.unique_angle||"хороший шанс")});
+    if(Array.isArray(ai.ai_artifacts)&&ai.ai_artifacts.length) issues.push({src:"AI",k:"Артефакты AI",v:ruList(ai.ai_artifacts)+" — Adobe отказывает за такие дефекты. Удалите/переделайте проблемные кадры."});
+    if(Array.isArray(ai.quality_issues)&&ai.quality_issues.length) warns.push({src:"AI",k:"Качество",v:ruList(ai.quality_issues)+". Откройте видео в плеере и убедитесь, что нет рывков/размытия/пересвета — за нестабильное или плохое качество Adobe отказывает."});
+    if(ai.stock_cliche==="high") warns.push({src:"AI",k:"Клише",v:"Это шаблонная, распространённая тема. Adobe может отклонить за низкую уникальность или вы получите мало продаж. Ниже — рекомендованный уникальный заголовок и ключи."});
+    if(ai.stock_saturation_estimate==="very_high"||ai.stock_saturation_estimate==="high") warns.push({src:"AI",k:"Насыщенность стока",v:"Таких роликов на Adobe Stock очень много ("+ai.stock_saturation_estimate+"). "+(ai.competitor_summary||"")+" Рекомендую использовать уникальный заголовок и ключи из блока ниже, чтобы выделиться."});
+    else if(ai.stock_saturation_estimate==="medium") warns.push({src:"AI",k:"Насыщенность стока",v:"Средняя конкуренция. "+(ai.competitor_summary||"Выделитесь уникальным углом.")});
+    else if(ai.stock_saturation_estimate==="low"||ai.stock_saturation_estimate==="very_low") oks.push({src:"AI",k:"Насыщенность стока",v:"Низкая конкуренция ("+ai.stock_saturation_estimate+") — хороший шанс. "+(ai.unique_angle||"")});
     if(Array.isArray(ai.risks)&&ai.risks.length) ai.risks.forEach(rsk=>warns.push({src:"AI",k:"Риск",v:rsk}));
   }
   let verdict;
@@ -580,6 +610,7 @@ function computeVerdict(tech, motion, ai){
 let items=[];      // {file,meta,tech,motion,frames,ai,result,selected}
 let currentId=null;
 let idSeq=0;
+const storeCopy=[]; // реестр текстов для кнопок «Скопировать» (data-copy → индекс)
 
 function verdictIcon(v){
   return v==="ok"?"🟢":v==="review"?"🟡":v==="reject"?"🔴":"⚪";
@@ -658,6 +689,16 @@ function renderReport(){
   }
   h+='</div>';
 
+  // Легенда «Как читать отчёт»
+  h+='<div class="card" style="background:var(--surface2)">';
+  h+='<h2>Как читать отчёт</h2>';
+  h+='<div style="font-size:12px;line-height:1.9;color:var(--text2)">';
+  h+='<div><span class="pill ok">🟢 Приемлемо</span> — можно загружать.</div>';
+  h+='<div><span class="pill review">🟡 Требует проверку</span> — есть нюансы, посмотрите вручную перед загрузкой.</div>';
+  h+='<div><span class="pill reject">🔴 Неприемлемо</span> — есть критическая проблема, Adobe отклонит.</div>';
+  h+='<div style="margin-top:6px">Значки у строк: <span class="good">✅</span> — норма · <span style="color:var(--yellow)">⚠️</span> — проверь вручную (не отказ) · <span class="bad">❌</span> — отказ Adobe.</div>';
+  h+='</div></div>';
+
   // Tech section
   h+='<div class="card"><h2>Технические проверки</h2>';
   (t.oks||[]).forEach(o=>{ h+=chkHtml("ok",o.k,o.v); });
@@ -681,6 +722,23 @@ function renderReport(){
     }
     if(it.ai.title_en) h+='<div style="margin-top:8px"><label>Название (EN)</label><div class="copy-box">'+esc(it.ai.title_en)+'</div></div>';
     if(it.ai.keywords_en&&it.ai.keywords_en.length) h+='<div style="margin-top:8px"><label>Ключевые слова ('+it.ai.keywords_en.length+')</label><div class="copy-box">'+esc(it.ai.keywords_en.join(", "))+'</div></div>';
+    // Уникальные метаданные при высокой конкуренции
+    const hiSat=(it.ai.stock_saturation_estimate==="high"||it.ai.stock_saturation_estimate==="very_high"||it.ai.stock_cliche==="high");
+    if(hiSat&&(it.ai.title_unique_en||(it.ai.keywords_unique_en&&it.ai.keywords_unique_en.length))){
+      h+='<div style="margin-top:12px;padding:10px;border:1px solid var(--yellow);border-radius:8px;background:rgba(253,203,110,.05)">';
+      h+='<label style="color:var(--yellow)">⚠️ Тема занята на стоке — рекомендую уникальные метаданные</label>';
+      h+='<p class="hint" style="margin-top:0">Стандартные название/ключи тонут среди тысяч похожих. Ниже — вариант, раскрывающий ваш уникальный угол. Скопируйте и используйте при загрузке.</p>';
+      if(it.ai.title_unique_en){
+        const idx=storeCopy.push(it.ai.title_unique_en)-1;
+        h+='<div style="margin-top:6px"><label>Рекомендуемый уникальный заголовок</label><div class="copy-box">'+esc(it.ai.title_unique_en)+'</div><div class="btns"><button class="btn" data-copy="'+idx+'">Скопировать заголовок</button></div></div>';
+      }
+      if(it.ai.keywords_unique_en&&it.ai.keywords_unique_en.length){
+        const ku=it.ai.keywords_unique_en.join(", ");
+        const idx=storeCopy.push(ku)-1;
+        h+='<div style="margin-top:8px"><label>Рекомендуемые уникальные ключи ('+it.ai.keywords_unique_en.length+')</label><div class="copy-box">'+esc(ku)+'</div><div class="btns"><button class="btn" data-copy="'+idx+'">Скопировать ключи</button></div></div>';
+      }
+      h+='</div>';
+    }
     if(it.ai.category_suggest) h+='<div class="stat" style="margin-top:6px"><span>Категория: '+esc(it.ai.category_suggest)+'</span></div>';
   } else if(store.orKey){
     h+='<p class="hint">AI не выполнен: '+(it.aiError?esc(it.aiError):"нет данных")+'</p>';
@@ -761,6 +819,9 @@ function buildReportText(id){
   if(it.ai&&it.ai.search_keywords){ txt+="Поиск похожего: "+it.ai.search_keywords.join(", ")+"\n"; }
   if(it.ai&&it.ai.title_en){ txt+="\nНазвание (EN): "+it.ai.title_en+"\n"; }
   if(it.ai&&it.ai.keywords_en){ txt+="Ключевые слова: "+it.ai.keywords_en.join(", ")+"\n"; }
+  const _hiSat=it.ai&&(it.ai.stock_saturation_estimate==="high"||it.ai.stock_saturation_estimate==="very_high"||it.ai.stock_cliche==="high");
+  if(_hiSat&&it.ai&&it.ai.title_unique_en){ txt+="\n⚠️ Тема занята на стоке. Рекомендуемый уникальный заголовок:\n"+it.ai.title_unique_en+"\n"; }
+  if(_hiSat&&it.ai&&it.ai.keywords_unique_en&&it.ai.keywords_unique_en.length){ txt+="Рекомендуемые уникальные ключи:\n"+it.ai.keywords_unique_en.join(", ")+"\n"; }
   txt+="\nЧек-лист: AI-тег обязателен; Fictional people checkbox; без ватермарок; уникальность.\n";
   return txt;
 }
@@ -862,6 +923,16 @@ document.querySelectorAll(".tab").forEach(t=>{
 const dz=$("dzone");
 dz.addEventListener("click",()=>$("files").click());
 dz.addEventListener("dragover",e=>{e.preventDefault();dz.classList.add("dragover");});
+// Делегирование: кнопки «Скопировать» с data-copy
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-copy]");
+  if(!b) return;
+  const txt=storeCopy[parseInt(b.getAttribute("data-copy"),10)];
+  if(txt==null) return;
+  copyText(txt);
+  const old=b.textContent; b.textContent="Скопировано ✓";
+  setTimeout(()=>{b.textContent=old;},1500);
+});
 dz.addEventListener("dragleave",()=>dz.classList.remove("dragover"));
 dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("dragover");if(e.dataTransfer.files.length)addFiles(e.dataTransfer.files);});
 $("files").addEventListener("change",e=>{ if(e.target.files.length)addFiles(e.target.files); e.target.value=""; });
