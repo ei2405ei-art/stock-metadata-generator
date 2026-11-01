@@ -83,7 +83,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 <body>
 <div class="app">
 <h1>Проверка изображений на модерацию Adobe Stock</h1>
-<p class="sub">Проверка AI-фото/вектора/рисунка перед загрузкой: автоопределение типа + тех. требования + AI-анализ по правилам Adobe Stock <span id="ver-badge" style="margin-left:8px;padding:2px 8px;border-radius:10px;font-size:12px;background:rgba(253,203,110,.15);color:var(--yellow)">версия 2.1 (ZIP)</span></p>
+<p class="sub">Проверка AI-фото/вектора/рисунка перед загрузкой: автоопределение типа + тех. требования + AI-анализ по правилам Adobe Stock <span id="ver-badge" style="margin-left:8px;padding:2px 8px;border-radius:10px;font-size:12px;background:rgba(253,203,110,.15);color:var(--yellow)">версия 2.2</span></p>
 <div id="stale-warn" style="display:none;margin-top:8px;padding:10px;border:1px solid var(--red);border-radius:8px;background:rgba(225,112,85,.08);color:var(--red);font-weight:600">⚠️ Открыта старая версия страницы. После скачивания готовых файлов нажмите Ctrl+F5, чтобы обновиться.</div>
 
 <div class="tabs">
@@ -652,43 +652,98 @@ function mp4ItemBox(tag, str){ // iTunes item: [hdr][data box: hdr+type1(UTF)+lo
 function embedMP4(buf, title, kws){
   const b=new Uint8Array(buf);
   const dv=new DataView(buf);
-  let p=0, moovStart=-1, moovEnd=-1;
+  const dec=new TextDecoder("latin1");
+  let p=0, moovStart=-1, moovEnd=-1, moovHdr=8;
   while(p+8<=b.length){
     let size=dv.getUint32(p);
-    const type=new TextDecoder("latin1").decode(b.subarray(p+4,p+8));
+    const type=dec.decode(b.subarray(p+4,p+8));
     let hdr=8;
     if(size===1){ size=Number(dv.getBigUint64(p+8)); hdr=16; }
     else if(size===0){ size=b.length-p; }
     if(size<8) break;
-    if(type==="moov"){ moovStart=p; moovEnd=p+size; break; }
+    if(type==="moov"){ moovStart=p; moovEnd=p+size; moovHdr=hdr; break; }
     p+=size;
   }
   if(moovStart<0){
     // резервный байтовый поиск moov (экзотические файлы)
-    const idx=new TextDecoder("latin1").decode(b).indexOf("moov");
-    if(idx>=4){ moovStart=idx-4; moovEnd=moovStart+dv.getUint32(moovStart); }
+    const idx=dec.decode(b).indexOf("moov");
+    if(idx>=4){ moovStart=idx-4; moovEnd=moovStart+dv.getUint32(moovStart); moovHdr=8; }
   }
   if(moovStart<0||moovEnd>b.length||moovEnd<=moovStart) throw new Error("MP4: бокс moov не найден");
+  // ищем существующий udta внутри moov — второй udta добавлять нельзя (плееры читают первый)
+  let udtaStart=-1,udtaEnd=-1,udtaHdr=8;
+  {
+    let q=moovStart+moovHdr;
+    while(q+8<=moovEnd){
+      let size=dv.getUint32(q);
+      const type=dec.decode(b.subarray(q+4,q+8));
+      let hdr=8;
+      if(size===1){ size=Number(dv.getBigUint64(q+8)); hdr=16; }
+      else if(size===0){ size=moovEnd-q; }
+      if(size<8) break;
+      if(type==="udta"){ udtaStart=q; udtaEnd=q+size; udtaHdr=hdr; break; }
+      q+=size;
+    }
+  }
   const kwStr=kws.join(", ");
   const ilst=mp4Box("ilst",concatBytes([
     mp4ItemBox("\xA9nam",title),
     mp4ItemBox("\xA9cmt",kwStr),
-    mp4ItemBox("\xA9keyw",kwStr)
+    mp4ItemBox("\xA9key",kwStr)
   ]));
-  const hdlrPl=new Uint8Array(4+4+4+12+5); // FullBox + pre_defined + 'mdir' + reserved + "appl\0"
+  const hdlrPl=new Uint8Array(29); // FullBox + pre_defined + 'mdir' + reserved + "appl\0"
   hdlrPl.set(strBytes("mdir"),8);
   hdlrPl.set(strBytes("appl\0"),24);
   const hdlr=mp4Box("hdlr",hdlrPl);
   const meta=mp4Box("meta",concatBytes([new Uint8Array(4),hdlr,ilst]));
-  const udta=mp4Box("udta",meta);
-  const newMoovSize=(moovEnd-moovStart)+udta.length;
-  const out=new Uint8Array(b.length+udta.length);
+  const xmp=mp4Box("XMP_",strBytes(buildXMP(title,kws))); // XMP Adobe — его читает Adobe Stock и Windows
+  const payload=concatBytes([meta,xmp]);
+  let out; const patch=[];
+  if(udtaStart>=0){
+    // вливаем в существующий udta (перед его концом), старый XMP_ заменяем
+    const kids=[];
+    let q=udtaStart+udtaHdr;
+    while(q+8<=udtaEnd){
+      let size=dv.getUint32(q);
+      const type=dec.decode(b.subarray(q+4,q+8));
+      let hdr=8;
+      if(size===1){ size=Number(dv.getBigUint64(q+8)); hdr=16; }
+      else if(size===0){ size=udtaEnd-q; }
+      if(size<8) break;
+      if(type==="XMP_"){ q+=size; continue; } // старый XMP убираем, будет новый
+      kids.push(b.subarray(q,q+size));
+      q+=size;
+    }
+    const parts=[meta,xmp].concat(kids); // новые теги впереди — парсеры читают первый ilst/XMP
+    let n=0; parts.forEach(a=>n+=a.length);
+    const copy1=udtaStart-(moovStart+moovHdr);
+    const uSize=udtaHdr+n;
+    out=new Uint8Array((moovStart+moovHdr)+copy1+udtaHdr+n+(b.length-udtaEnd));
+    out.set(b.subarray(0,moovStart+moovHdr),0);        // всё до содержимого moov
+    let o=moovStart+moovHdr;
+    out.set(b.subarray(moovStart+moovHdr,udtaStart),o); o+=copy1;
+    const uHdr=new Uint8Array(udtaHdr);
+    const uDv=new DataView(uHdr.buffer);
+    if(udtaHdr===16){ uDv.setUint32(0,1); uDv.setBigUint64(8,BigInt(uSize)); }
+    else uDv.setUint32(0,uSize);
+    uHdr.set(strBytes("udta"),4);
+    out.set(uHdr,o); o+=udtaHdr;
+    parts.forEach(a=>{ out.set(a,o); o+=a.length; });
+    out.set(b.subarray(udtaEnd),o);                    // хвост файла после udta
+    patch.push([moovStart,moovHdr,(moovEnd-moovStart)+(uSize-(udtaEnd-udtaStart))]);
+  }else{
+    const udta=mp4Box("udta",payload);
+    out=new Uint8Array(b.length+udta.length);
+    out.set(b.subarray(0,moovEnd),0);
+    out.set(udta,moovEnd);
+    out.set(b.subarray(moovEnd),moovEnd+udta.length);
+    patch.push([moovStart,moovHdr,(moovEnd-moovStart)+udta.length]);
+  }
   const odv=new DataView(out.buffer);
-  out.set(b.subarray(0,moovEnd),0);
-  out.set(udta,moovEnd);
-  out.set(b.subarray(moovEnd),moovEnd+udta.length);
-  if(dv.getUint32(moovStart)===1) odv.setBigUint64(moovStart+8,BigInt(newMoovSize));
-  else odv.setUint32(moovStart,newMoovSize);
+  for(const pt of patch){
+    if(pt[1]===16) odv.setBigUint64(pt[0]+8,BigInt(pt[2]));
+    else odv.setUint32(pt[0],pt[2]);
+  }
   return out.buffer;
 }
 // Автопроверка: читаем метаданные обратно из готового файла
@@ -747,8 +802,9 @@ function verifyEmbed(buf, kind){
         if(type==="udta"||type==="meta"||type==="ilst"||type==="moov"){
           walk(q+hdr+(type==="meta"?4:0),q+size,depth+1);
         }
+        else if(type==="XMP_"){ parseXMP(new TextDecoder("utf-8").decode(b.subarray(q+hdr,q+size))); }
         else if(type==="\xA9nam"&&!title){ title=dec.decode(b.subarray(q+24,q+size)).replace(/\0+$/,"").trim(); }
-        else if(type==="\xA9keyw"||type==="\xA9cmt"){ const t=dec.decode(b.subarray(q+24,q+size)).replace(/\0+$/,""); if(t) kwCount=Math.max(kwCount,t.split(",").length); }
+        else if(type==="\xA9key"||type==="\xA9cmt"){ const t=dec.decode(b.subarray(q+24,q+size)).replace(/\0+$/,""); if(t) kwCount=Math.max(kwCount,t.split(",").length); }
         q+=size;
       }
     };
@@ -1180,6 +1236,7 @@ function embedBlockHtml(it){
     h+='<label style="color:var(--green)">✅ Файл подготовлен: «'+esc(st.filename)+'»</label>';
     h+='<div class="stat" style="margin-top:2px"><span>вшиты: <span class="n">'+setLabel+'</span></span><span>заголовок: <span class="n">'+(st.verify.title?st.verify.title.length:0)+'</span> симв.</span><span>ключей: <span class="n">'+st.verify.kwCount+'</span></span>'+(okV?'<span class="good">проверено ✓</span>':'<span style="color:var(--yellow)">проверка спорная</span>')+'</div>';
     h+='<div class="btns"><button class="btn g" data-download="'+it.id+'">📥 Скачать файл для Adobe</button></div>';
+    h+='<div class="hint" style="margin-top:4px">Проверка после скачивания: ПКМ по файлу → <b>Сведения → Название и Ключевые слова</b>. У MP4 строка «Теги» в Windows всегда пустая (ограничение Windows, не файла) — Adobe читает вшитый XMP-пакет.</div>';
     h+='</div>'+idw;
     return h;
   }
@@ -1433,7 +1490,7 @@ $("btn-test-ai").addEventListener("click",async()=>{
 });
 
 /* ================= VERSION CHECK (автообновление страницы) ================= */
-const PAGE_VERSION="2.1";
+const PAGE_VERSION="2.2";
 setInterval(async()=>{
   try{
     const r=await fetch(location.pathname,{cache:"no-store"});
