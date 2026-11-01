@@ -83,7 +83,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 <body>
 <div class="app">
 <h1>Проверка изображений на модерацию Adobe Stock</h1>
-<p class="sub">Проверка AI-фото/вектора/рисунка перед загрузкой: автоопределение типа + тех. требования + AI-анализ по правилам Adobe Stock</p>
+<p class="sub">Проверка AI-фото/вектора/рисунка перед загрузкой: автоопределение типа + тех. требования + AI-анализ по правилам Adobe Stock <span id="ver-badge" style="margin-left:8px;padding:2px 8px;border-radius:10px;font-size:12px;background:rgba(253,203,110,.15);color:var(--yellow)">версия 2.1 (ZIP)</span></p>
+<div id="stale-warn" style="display:none;margin-top:8px;padding:10px;border:1px solid var(--red);border-radius:8px;background:rgba(225,112,85,.08);color:var(--red);font-weight:600">⚠️ Открыта старая версия страницы. После скачивания готовых файлов нажмите Ctrl+F5, чтобы обновиться.</div>
 
 <div class="tabs">
   <button class="tab active" data-tab="check">Проверка</button>
@@ -1152,6 +1153,7 @@ function downloadOne(id){
   downloadBlob(it.embedState.blob,it.embedState.filename);
 }
 async function downloadAllReady(){
+  if(typeof zipStore!=="function"){ flash("Обновите страницу (Ctrl+F5) — пакетное скачивание одним архивом требует новой версии"); return; }
   const ready=items.filter(it=>it.embedState&&it.embedState.status==="ready");
   if(!ready.length){ flash("Нет готовых файлов"); return; }
   if(ready.length===1){ downloadOne(ready[0].id); flash("Скачан файл: "+ready[0].embedState.filename); return; }
@@ -1429,6 +1431,23 @@ $("btn-test-ai").addEventListener("click",async()=>{
     $("ai-status").innerHTML='<span class="bad">✗ '+esc(e.message)+'</span>';
   }
 });
+
+/* ================= VERSION CHECK (автообновление страницы) ================= */
+const PAGE_VERSION="2.1";
+setInterval(async()=>{
+  try{
+    const r=await fetch(location.pathname,{cache:"no-store"});
+    const t=await r.text();
+    const m=t.match(/ver-badge[^>]*>версия ([0-9.]+)/);
+    if(m&&m[1]!==PAGE_VERSION){
+      if(!items.length){ // данных нет — обновляемся сами, ничего не теряем
+        location.replace(location.pathname+"?v="+Date.now());
+      }else{ // файлы уже обработаны — только предупреждаем, батч не теряем
+        const w=$("stale-warn"); if(w) w.style.display="block";
+      }
+    }
+  }catch(e){}
+},60000);
 </script>
 </body>
 </html>
