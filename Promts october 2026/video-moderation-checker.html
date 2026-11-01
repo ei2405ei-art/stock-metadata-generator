@@ -129,10 +129,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
   <div id="batch-summary" style="display:none" class="card">
     <h2>Сводка по батчу</h2>
     <div class="summary-table"><table id="sum-table">
-      <thead><tr><th>Файл</th><th>Вердикт</th><th>Тех</th><th>AI</th><th>Проблемы</th></tr></thead>
+      <thead><tr><th>Файл</th><th>Вердикт</th><th>Тех</th><th>AI</th><th>Проблемы</th><th>Готов</th></tr></thead>
       <tbody></tbody>
     </table></div>
     <div class="stat" style="margin-top:8px" id="sum-stat"></div>
+    <div class="btns" style="margin-top:8px;display:none" id="dl-all-wrap"><button class="btn g" id="btn-dl-all">📥 Скачать все готовые</button><span class="hint" id="dl-all-hint"></span></div>
   </div>
 </div>
 
@@ -983,17 +984,21 @@ function renderList(){
 function renderSummary(){
   const tb=$("sum-table").querySelector("tbody");
   tb.innerHTML="";
-  let ok=0,rev=0,rej=0;
+  let ok=0,rev=0,rej=0,ready=0;
   items.forEach(it=>{
     const v=it.result?it.result.verdict:"tech";
     if(v==="ok")ok++;else if(v==="review")rev++;else if(v==="reject")rej++;
+    const isReady=it.embedState&&it.embedState.status==="ready";
+    if(isReady)ready++;
     const tr=document.createElement("tr");
     const probs=it.result?(it.result.issues.length+it.result.warns.length):0;
-    tr.innerHTML="<td>"+esc(it.file.name)+"</td><td>"+verdictIcon(v)+" "+verdictLabel(v)+"</td><td>"+(it.tech?(it.tech.issues.length?"❌":"✅"):"—")+"</td><td>"+(it.ai?"✓":(store.orKey?"—":"н/д"))+"</td><td>"+probs+"</td>";
+    tr.innerHTML="<td>"+esc(it.file.name)+"</td><td>"+verdictIcon(v)+" "+verdictLabel(v)+"</td><td>"+(it.tech?(it.tech.issues.length?"❌":"✅"):"—")+"</td><td>"+(it.ai?"✓":(store.orKey?"—":"н/д"))+"</td><td>"+probs+"</td><td>"+(isReady?"✅ "+esc(it.embedState.filename):(it.embedState&&it.embedState.status==="unsupported"?"⚠️ Portal":"—"))+"</td>";
     tr.onclick=()=>{ currentId=it.id; renderList(); renderReport(); };
     tb.appendChild(tr);
   });
-  $("sum-stat").innerHTML='<span>🟢 Приемлемо: <span class="n">'+ok+'</span></span><span>🟡 Проверка: <span class="n">'+rev+'</span></span><span>🔴 Отказ: <span class="n">'+rej+'</span></span><span>Всего: <span class="n">'+items.length+'</span></span>';
+  $("sum-stat").innerHTML='<span>🟢 Приемлемо: <span class="n">'+ok+'</span></span><span>🟡 Проверка: <span class="n">'+rev+'</span></span><span>🔴 Отказ: <span class="n">'+rej+'</span></span><span>Всего: <span class="n">'+items.length+'</span></span><span>✅ Готово к Adobe: <span class="n">'+ready+'</span></span>';
+  $("dl-all-wrap").style.display=ready?"flex":"none";
+  $("dl-all-hint").textContent=ready?("подготовлено файлов: "+ready):"";
 }
 
 function renderReport(){
@@ -1085,7 +1090,7 @@ function renderReport(){
       h+='</div>';
     }
     // Статус вшивания/перегенерации
-    h+='<div id="embed-status-'+it.id+'" class="hint" style="margin-top:6px"></div>';
+    h+=embedBlockHtml(it);
     if(it.ai.category_suggest) h+='<div class="stat" style="margin-top:6px"><span>Категория: '+esc(it.ai.category_suggest)+'</span></div>';
   } else if(store.orKey){
     h+='<p class="hint">AI не выполнен: '+(it.aiError?esc(it.aiError):"нет данных")+'</p>';
@@ -1163,7 +1168,7 @@ function attrBlockHtml(it, attr, which){
     const i1=storeCopy.push(attr.title)-1;
     h+='<div style="margin-top:6px"><label>Заголовок для вшивания (EN)</label><div class="copy-box">'+esc(attr.title)+'</div><div class="btns"><button class="btn" data-copy="'+i1+'">Скопировать</button></div></div>';
     const i2=storeCopy.push(attr.keywords.join(", "))-1;
-    h+='<div style="margin-top:6px"><label>Ключи для вшивания ('+attr.keywords.length+')</label><div class="copy-box">'+esc(attr.keywords.join(", "))+'</div><div class="btns"><button class="btn" data-copy="'+i2+'">Скопировать</button><button class="btn g" data-embed="'+it.id+"|"+which+'">📥 Вшить в файл и скачать</button></div></div>';
+    h+='<div style="margin-top:6px"><label>Ключи для вшивания ('+attr.keywords.length+')</label><div class="copy-box">'+esc(attr.keywords.join(", "))+'</div><div class="btns"><button class="btn" data-copy="'+i2+'">Скопировать</button></div></div>';
     h+='</div>';
   } else {
     h+='<div style="margin-top:8px;padding:10px;border:1px solid var(--red);border-radius:8px;background:rgba(225,112,85,.05)">';
@@ -1183,50 +1188,117 @@ function embedKindOf(name){
   if(e==="mp4"||e==="m4v"||e==="mov") return "mp4";
   return null;
 }
-// Вшивание метаданных в файл + автопроверка + скачивание готового файла
-async function embedRun(id, which){
-  const it=items.find(x=>x.id===id);
-  if(!it) return;
-  const attr=which==="uniq"?it.attrUniq:it.attrStd;
-  const st=$("embed-status-"+id);
-  const set=msg=>{ if(st) st.innerHTML=msg; };
-  if(!attr||!attr.ok){ set('<span class="bad">✕ Атрибуция не прошла контроль — вшивание заблокировано</span>'); return; }
+// Автовыбор набора (уникальный при занятой теме, иначе стандарт) + вшивание + проверка
+function hiSatOf(ai){ return !!ai&&(ai.stock_saturation_estimate==="high"||ai.stock_saturation_estimate==="very_high"||ai.stock_cliche==="high"); }
+async function prepareEmbed(it){
   const kind=embedKindOf(it.file.name);
-  if(!kind){ set('<span class="bad">✕ Формат не поддерживается для вшивания (нужно JPG, PNG, SVG или MP4/MOV)</span>'); return; }
-  set("Читаю файл и вшиваю метаданные…");
+  if(!kind){ it.embedState={status:"unsupported",ext:(it.file.name.match(/\.([a-z0-9]+)$/i)||[])[1]||""}; return; }
+  const sel=(hiSatOf(it.ai)&&it.attrUniq&&it.attrUniq.ok)?it.attrUniq:(it.attrStd&&it.attrStd.ok)?it.attrStd:null;
+  if(!sel){ it.embedState={status:"failed"}; return; }
+  const which=(hiSatOf(it.ai)&&sel===it.attrUniq)?"uniq":"std";
   try{
     const buf=await it.file.arrayBuffer();
-    const out=embedMeta(buf,kind,attr.title,attr.keywords);
+    const out=embedMeta(buf,kind,sel.title,sel.keywords);
     const v=verifyEmbed(out,kind);
     const dot=it.file.name.lastIndexOf(".");
     const base=dot>0?it.file.name.slice(0,dot):it.file.name;
     const ext=dot>0?it.file.name.slice(dot):"";
-    const blob=new Blob([out],{type:it.file.type||"application/octet-stream"});
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download=base+"_meta"+ext;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(a.href),15000);
-    const okT=!!v.title&&v.kwCount>=40;
-    if(okT) set('<span class="good">✓ Готово: заголовок «'+esc(v.title.length>60?v.title.slice(0,60)+"…":v.title)+'» ('+v.title.length+' симв.) и '+v.kwCount+' ключей вшито и прочитано обратно. Файл «'+esc(a.download)+'» скачан — загружайте его.</span>');
-    else set('<span class="bad">⚠ Файл скачан, но проверка прочитала: заголовок '+(v.title?v.title.length+" симв.":"не найден")+', ключей '+v.kwCount+' (ожидалось ≥40). Сверьтесь вручную в свойствах файла.</span>');
-  }catch(e){
-    set('<span class="bad">✕ Ошибка вшивания: '+esc(e.message)+'</span>');
+    it.embedState={status:"ready",filename:base+"_meta"+ext,blob:new Blob([out],{type:it.file.type||"application/octet-stream"}),which,attr:sel,verify:v,kind};
+  }catch(e){ it.embedState={status:"error",message:e.message}; }
+}
+// Полный автоконвейер: контроль → автоперегенерация (1 раз) → вшивание → проверка
+async function autoEmbed(it){
+  const kind=embedKindOf(it.file.name);
+  if(!kind){ it.embedState={status:"unsupported",ext:(it.file.name.match(/\.([a-z0-9]+)$/i)||[])[1]||""}; return; }
+  await prepareEmbed(it);
+  if(it.embedState.status==="failed"&&!it.regenDone){
+    it.regenDone=true;
+    it.embedState={status:"regen"};
+    renderList(); if(it.id===currentId) renderReport();
+    try{
+      const kws=await regenKeywords(it.ai,it.frames,{key:store.orKey,model:store.orModel});
+      it.attrStd=buildAttribution({has_people:it.ai.has_people,keywords_en:kws,title_en:it.ai.title_en},false);
+      await prepareEmbed(it);
+    }catch(e){ it.embedState={status:"failed",regenError:e.message}; }
   }
 }
-// Автоперегенерация ключей, если после чистки осталось <40
+function downloadBlob(blob,name){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href),15000);
+}
+function downloadOne(id){
+  const it=items.find(x=>x.id===id);
+  if(!it||!it.embedState||it.embedState.status!=="ready") return;
+  downloadBlob(it.embedState.blob,it.embedState.filename);
+}
+async function downloadAllReady(){
+  const ready=items.filter(it=>it.embedState&&it.embedState.status==="ready");
+  if(!ready.length){ flash("Нет готовых файлов"); return; }
+  let n=0;
+  for(const it of ready){
+    downloadBlob(it.embedState.blob,it.embedState.filename);
+    n++;
+    flash("Скачиваю "+n+" из "+ready.length);
+    if(n<ready.length) await sleep(800);
+  }
+  setTimeout(()=>flash("Скачано файлов: "+ready.length),1000);
+}
+// Блок готового файла / статуса вшивания
+function embedBlockHtml(it){
+  const st=it.embedState;
+  const idw='<div id="embed-status-'+it.id+'" class="hint" style="margin-top:6px"></div>';
+  if(!st) return "";
+  if(st.status==="ready"){
+    const setLabel=st.which==="uniq"?"уникальные метаданные":"стандартные метаданные";
+    const okV=!!st.verify.title&&st.verify.kwCount>=40;
+    let h='<div style="margin-top:8px;padding:10px;border:1px solid var(--green);border-radius:8px;background:rgba(0,184,148,.05)">';
+    h+='<label style="color:var(--green)">✅ Файл подготовлен: «'+esc(st.filename)+'»</label>';
+    h+='<div class="stat" style="margin-top:2px"><span>вшиты: <span class="n">'+setLabel+'</span></span><span>заголовок: <span class="n">'+(st.verify.title?st.verify.title.length:0)+'</span> симв.</span><span>ключей: <span class="n">'+st.verify.kwCount+'</span></span>'+(okV?'<span class="good">проверено ✓</span>':'<span style="color:var(--yellow)">проверка спорная</span>')+'</div>';
+    h+='<div class="btns"><button class="btn g" data-download="'+it.id+'">📥 Скачать файл для Adobe</button></div>';
+    h+='</div>'+idw;
+    return h;
+  }
+  if(st.status==="regen") return '<div class="hint" style="margin-top:8px">⏳ Автоперегенерация ключей — контроль не пройден, запрашиваю новый набор у AI…</div>'+idw;
+  if(st.status==="unsupported"){
+    const e=(st.ext||"").toLowerCase();
+    const app=(e==="eps"||e==="ai")?"Illustrator":(e==="tif"||e==="tiff")?"Photoshop":"редактор";
+    let h='<div style="margin-top:8px;padding:10px;border:1px solid var(--yellow);border-radius:8px;background:rgba(253,203,110,.05)">';
+    h+='<label style="color:var(--yellow)">⚠️ Файл '+(st.ext?("." +esc(st.ext)):"")+' — вшить метаданные автоматически нельзя</label>';
+    h+='<div class="hint" style="margin-top:4px"><b>Путь 1 (надёжный):</b> скопируйте заголовок и ключи кнопками выше → откройте файл в '+app+' → <b>Файл → Сведения</b> → вставьте «Заголовок» и «Ключи» → сохраните.</div>';
+    h+='<div class="hint"><b>Путь 2:</b> загружайте как есть — Contributor Portal сам предложит поля для автозаполнения, вставьте наши значения вручную.</div>';
+    h+='</div>'+idw;
+    return h;
+  }
+  if(st.status==="failed"){
+    let h='<div style="margin-top:8px;padding:10px;border:1px solid var(--red);border-radius:8px;background:rgba(225,112,85,.05)">';
+    h+='<label style="color:var(--red)">✕ Метаданные не прошли контроль Adobe — файл не подготовлен</label>';
+    (it.attrStd?it.attrStd.problems:["нет данных от AI"]).forEach(p=>{ h+='<div class="hint" style="margin-top:2px">• '+esc(p)+'</div>'; });
+    if(st.regenError) h+='<div class="hint">• автоперегенерация не удалась: '+esc(st.regenError)+'</div>';
+    else h+='<div class="hint">• автоперегенерация уже была выполнена</div>';
+    h+='<div class="btns"><button class="btn" data-regen="'+it.id+'">🔁 Перегенерировать ещё раз</button></div>';
+    h+='</div>'+idw;
+    return h;
+  }
+  if(st.status==="error") return '<div style="margin-top:8px;padding:10px;border:1px solid var(--red);border-radius:8px"><label style="color:var(--red)">✕ Ошибка вшивания: '+esc(st.message)+'</label></div>'+idw;
+  return idw;
+}
+// Ручная перегенерация (кнопка-фолбэк)
 async function regenRun(id){
   const it=items.find(x=>x.id===id);
   if(!it||!it.ai||it.regenRunning) return;
   const st=$("embed-status-"+id);
   it.regenRunning=true;
-  if(st) st.innerHTML="Перегенерация ключей (второй запрос к AI)…";
+  if(st) st.innerHTML="Перегенерация ключей (запрос к AI)…";
   try{
     const kws=await regenKeywords(it.ai,it.frames,{key:store.orKey,model:store.orModel});
     it.attrStd=buildAttribution({has_people:it.ai.has_people,keywords_en:kws,title_en:it.ai.title_en},false);
+    await prepareEmbed(it);
     renderReport();
     const st2=$("embed-status-"+id);
-    if(st2) st2.innerHTML=it.attrStd.ok?'<span class="good">✓ Перегенерация прошла: ключей '+it.attrStd.keywords.length+'</span>':'<span class="bad">✕ Всего '+it.attrStd.keywords.length+' ключей — попробуйте ещё раз</span>';
+    if(st2&&it.embedState&&it.embedState.status==="ready") st2.innerHTML='<span class="good">✓ Контроль пройден, файл подготовлен</span>';
   }catch(e){
     if(st) st.innerHTML='<span class="bad">✕ Перегенерация не удалась: '+esc(e.message)+'</span>';
   }finally{ it.regenRunning=false; }
@@ -1252,6 +1324,8 @@ function buildReportText(id){
   if(_hiSat&&it.ai&&it.ai.keywords_unique_en&&it.ai.keywords_unique_en.length){ txt+="Рекомендуемые уникальные ключи:\n"+it.ai.keywords_unique_en.join(", ")+"\n"; }
   if(it.attrStd&&it.attrStd.ok){ txt+="\nАтрибуция EN (контроль Adobe пройден, вшивается в файл):\nЗаголовок ("+it.attrStd.title.length+" симв.): "+it.attrStd.title+"\nКлючи ("+it.attrStd.keywords.length+"): "+it.attrStd.keywords.join(", ")+"\n"; }
   else if(it.attrStd){ txt+="\n⚠️ Атрибуция не прошла контроль: "+it.attrStd.problems.join("; ")+"\n"; }
+  if(it.embedState&&it.embedState.status==="ready"){ txt+="\nГОТОВЫЙ ФАЙЛ ДЛЯ ADOBE: "+it.embedState.filename+" (вшиты "+(it.embedState.which==="uniq"?"уникальные":"стандартные")+" метаданные, проверено: заголовок "+it.embedState.verify.title.length+" симв., ключей "+it.embedState.verify.kwCount+") — скачайте кнопкой на экране.\n"; }
+  else if(it.embedState&&it.embedState.status==="unsupported"){ txt+="\n⚠️ Формат ."+(it.embedState.ext||"")+" — вшить метаданные автоматически нельзя: скопируйте заголовок и ключи выше и заполните их в Illustrator (Файл → Сведения) или в полях Contributor Portal при загрузке.\n"; }
   if(it.attrUniq&&it.attrUniq.ok){ txt+="\nУникальная атрибуция EN (при занятой теме):\n"+it.attrUniq.title+"\n"+it.attrUniq.keywords.join(", ")+"\n"; }
   if(it.ai&&it.ai.title_ru){ txt+="\nРусский перевод (для вас, в файл не вшивается):\n"+it.ai.title_ru+"\n"; }
   txt+="\nЧек-лист: AI-тег обязателен; Fictional people checkbox; без ватермарок; уникальность.\n";
@@ -1296,10 +1370,11 @@ async function processItem(it, useAI){
     }
   }
   if(it.ai){
-    // атрибуция по правилам Adobe (контроль атрибутора)
+    // атрибуция по правилам Adobe (контроль атрибутора) + автовшивание в файл
     it.attrStd=buildAttribution(it.ai,false);
     it.attrUniq=buildAttribution(it.ai,true);
-    it.attrRegen=null; it.regenRunning=false;
+    it.regenRunning=false;
+    await autoEmbed(it);
   }
   it.result=computeVerdict(it.tech,it.motion,it.ai);
   // автооткрытие поиска похожего на Adobe Stock (одна вкладка на батч)
@@ -1372,16 +1447,16 @@ document.addEventListener("click",e=>{
   setTimeout(()=>{b.textContent=old;},1500);
 });
 document.addEventListener("click",e=>{
-  const b=e.target.closest("[data-embed]");
+  const b=e.target.closest("[data-download]");
   if(!b) return;
-  const parts=b.getAttribute("data-embed").split("|");
-  embedRun(parseInt(parts[0],10),parts[1]);
+  downloadOne(parseInt(b.getAttribute("data-download"),10));
 });
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-regen]");
   if(!b) return;
   regenRun(parseInt(b.getAttribute("data-regen"),10));
 });
+$("btn-dl-all").addEventListener("click",downloadAllReady);
 dz.addEventListener("dragleave",()=>dz.classList.remove("dragover"));
 dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("dragover");if(e.dataTransfer.files.length)addFiles(e.dataTransfer.files);});
 $("files").addEventListener("change",e=>{ if(e.target.files.length)addFiles(e.target.files); e.target.value=""; });
