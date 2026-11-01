@@ -503,17 +503,17 @@ Respond ONLY with JSON (no markdown fence), exactly this schema. LANGUAGE RULE: 
   "competitor_summary": "[RUS] 1-2 предложения: какой похожий контент уже есть на стоке и как выделиться",
   "search_keywords": ["5-8 SHORT English keyword phrases (1-3 words each) to reverse-search SIMILAR existing stock content on Adobe Stock"],
   "risks": ["[RUS] риски модерации: нет release, чувствительная тема, нарушение политик"],
-  "title_en": "[EN] SEO title for Adobe Stock (140-180 chars, 2 sentences, no artist names)",
-  "keywords_en": ["[EN] 15-25 relevant keywords, no artist names, no real brand names"],
-  "title_unique_en": "[EN] IF saturation is high/very_high: an ALTERNATIVE differentiated SEO title that promotes this clip via its unique_angle (specific mood, light, angle, format, 'vertical', 'drone', 'golden hour', 'minimal', 'abstract texture'). Generic terms drown among thousands of similar clips — use specific buyer-intent wording. If saturation is low/medium, return empty string.",
-  "keywords_unique_en": ["[EN] IF saturation is high/very_high: a more specific/niche/long-tail keyword set for the differentiated positioning above. If low/medium, return empty array."],
+  "title_en": "[EN] Stock title: MAX 90 characters (COUNT THEM). 1-2 sentences. 1st sentence = scene + action + camera, starting from a real Adobe buyer search query (concrete noun + verb: 'A stressed businessman rubs his temples while the camera slowly zooms in'). 2nd sentence = concept + ONE concrete purchase use ('b-roll for corporate wellness videos') ONLY if it fits in 90 chars total. Add video markers when visible: slow motion, timelapse, drone aerial view, seamless loop, alpha channel, copy space. No water phrases (perfect for marketing, universal, ideal choice), no artist names, no brands.",
+  "keywords_en": ["[EN] EXACTLY 45-49 keywords (hard minimum 40). FIRST 5 are 2-word phrases: keys 1-3 = high-frequency queries that video editors/designers actually type, built from this scene's concrete details; keys 4-5 = long-tail phrases. Keys 6+ = mostly single words (established 2-word terms like artificial intelligence allowed). Cover: actions (walking, typing, falling), tech params (slowmotion, cinematic, drone, 4k, closeup), objects/people, environment/light, emotions/states, concepts/categories, plus 2-4 use-case keys (b-roll, background video, intro footage, social media content, presentation background). No repeats, no same roots (run/running/runner -> only running), no verbatim title words, no brands, no artist names, no words unrelated to the frame. Concept words (burnout, digital fatigue...) belong in the 2nd title sentence, not keywords, unless the scene directly shows them. Add 'no people' ONLY if there are truly no people, hands, silhouettes or reflections in the frames."],
+  "title_ru": "[RUS] тот же смысл по-русски, до 90 символов (для показа на экране, в файл не вшивается)",
+  "keywords_ru": ["[RUS] 40-49 русских ключей по тем же правилам (для показа на экране, в файл не вшиваются)"],
+  "title_unique_en": "[EN] IF saturation is high/very_high: ALTERNATIVE differentiated title (same MAX 90 chars and same rules) that promotes this clip via its unique_angle (specific mood, light, camera, format: vertical, drone, golden hour, minimal). Empty string if saturation is low/medium.",
+  "keywords_unique_en": ["[EN] IF saturation is high/very_high: a full alternative set of 40-49 keywords for the differentiated positioning (same rules: first 5 = 2-word phrases). Empty array if low/medium."],
   "category_suggest": "Photos|Illustrations|Videos|Nature|Lifestyle|Business|Other"
 }
 Rules: be strict. If you see an identifiable real-looking person, flag people_real=true and note release needed. If purely fictional/AI person, people_real=false. Flag any text/watermark/logo visible. IMPORTANT — intellectual property: check carefully for real brand logos (brand_logos), recognizable characters/franchises (ip_characters), celebrity face likeness (celebrity_likeness), and known artworks (artwork_visible). Any real brand logo, trademarked character, or celebrity likeness is a moderation risk on Adobe Stock. Judge AI artifacts carefully (hands, fingers, extra limbs, warped faces, impossible geometry). For stock_saturation_estimate and search_keywords: think like a buyer searching Adobe Stock — what exact queries would return clips very similar to this one? For title_unique_en/keywords_unique_en: only fill them when saturation is high, otherwise they must be empty.`;
 
-async function aiModerate(frames, filename, cfg){
-  const imgs=frames.slice(0,4);
-  const prompt=AI_PROMPT+"\n\nFilename hint (may not match content): "+filename;
+async function callAI(prompt, imgs, cfg){
   let model=cfg.model||"google/gemini-2.5-flash";
   const fallbacks=["google/gemini-2.5-flash","google/gemini-2.0-flash-001","qwen/qwen3-vl-30b-a3b-instruct","openrouter/free"];
   let r, lastErr=null;
@@ -538,6 +538,341 @@ async function aiModerate(frames, filename, cfg){
   }catch(e){ throw new Error("не удалось разобрать JSON: "+content.slice(0,150)); }
   json._model=model;
   return json;
+}
+async function aiModerate(frames, filename, cfg){
+  const imgs=frames.slice(0,4);
+  const prompt=AI_PROMPT+"\n\nFilename hint (may not match content): "+filename;
+  return callAI(prompt, imgs, cfg);
+}
+
+/* ================= ATTRIBUTION CONTROLLER (правила атрибутора) ================= */
+const STOP_KW = new Set(["stock","video","footage","photo","image","picture","file","download","royalty","free","commercial","background","wallpaper","template","design","element","icon","symbol","sign","button","banner","advertisement","marketing","social","media","graphic","illustration","vector","art","clip","hd","4k","resolution","quality","high","res","pixel","beautiful","nice","good","great","amazing","wonderful","fantastic","perfect","lovely","gorgeous","stunning","incredible","awesome","cool","pretty","cute","mental health","work stress","life crisis","digital fatigue","decision fatigue","cognitive overload","emotional suppression","stress relief","self care","well being","wellbeing","work life","work-life balance","burnout syndrome","existential crisis","productivity decline","survival mode","problem dead end","mental block","work pressure","фото","картинка","изображение","сток","видео","фон","шаблон","дизайн","элемент","иконка","символ","знак","кнопка","баннер","реклама","маркетинг","графика","иллюстрация","вектор","рисунок","красивый","хороший","отличный","прекрасный","замечательный","потрясающий","великолепный"]);
+const GENERIC_KW = new Set(["man","men","woman","women","person","people","hand","hands","finger","water","white","black","grey","gray","brown","blue","red","green","yellow","alone","life","time","work","one","two","three","view","use","make","show","day","night","thing","room","door","window","table","chair","face","hair","eye","eyes","body","home","office","city","street","house","tree","sky","sun","light","dark","big","small","new","old","feel","like","also","from","that","this","with","into","some","other","more","much","many","about","over","under","between","behind","before","after","during","without"]);
+function sameRoot(a,b){
+  if(a===b) return 1;
+  if(a.startsWith(b)||b.startsWith(a)) return 1;
+  if(a.length<4||b.length<4) return 0;
+  const stem=w=>{ const s=w.replace(/(ing|er|ed|es|s)$/,""); return s.length>=4?s:w; };
+  return stem(a)===stem(b)?1:0;
+}
+function fitTitle90(s){
+  s=(s||"").replace(/\s+/g," ").trim();
+  if(s.length<=90) return s;
+  let cut=s.slice(0,91).lastIndexOf(" ");
+  return (cut>=70?s.slice(0,cut):s.slice(0,90)).trim();
+}
+function cleanKeywords40(kws, addNoPeople){
+  const phrases=[], extraWords=[], singles=[];
+  for(const raw of kws||[]){
+    const w=String(raw).trim().toLowerCase();
+    if(!w||w.length<2) continue;
+    if(!/^[a-zа-яё][a-zа-яё\s-]*$/.test(w)) continue;
+    if(STOP_KW.has(w)) continue;
+    if(w.includes(" ")){ phrases.push(w); for(const ww of w.split(" ")){ if(ww.length>2&&!STOP_KW.has(ww)) extraWords.push(ww); } }
+    else singles.push(w);
+  }
+  const final=[], seen=new Set();
+  const add=w=>{ const k=w.toLowerCase(); if(seen.has(k)) return; if(final.some(r=>sameRoot(r,w))) return; seen.add(k); final.push(w); };
+  for(const p of phrases){ if(final.length>=5) break; add(p); }              // 5 фраз (3+2)
+  for(const s of singles){ if(final.length>=49) break; if(GENERIC_KW.has(s)) continue; add(s); }
+  for(const w of extraWords){ if(final.length>=49) break; add(w); }
+  if(final.length<40) for(const s of singles){ if(final.length>=40) break; add(s); }
+  if(final.length<40) for(const w of extraWords){ if(final.length>=40) break; add(w); }
+  if(addNoPeople&&!final.includes("no people")&&final.length<40) final.push("no people");
+  return final.slice(0,49);
+}
+// Сборка проверенной атрибуции из ответа AI. unique=true → уникальный набор (при занятой теме)
+function buildAttribution(ai, unique){
+  if(!ai) return null;
+  const rawTitle=unique?ai.title_unique_en:ai.title_en;
+  const rawKws=unique?ai.keywords_unique_en:ai.keywords_en;
+  if(unique&&(!rawTitle||!rawKws||!rawKws.length)) return null;
+  const problems=[];
+  const title=fitTitle90(rawTitle||"");
+  if(!title) problems.push("заголовок пуст");
+  const kws=cleanKeywords40(rawKws||[], ai.has_people!==true);
+  if(kws.length<40) problems.push("после чистки осталось "+kws.length+" ключей — минимум 40 по правилам Adobe");
+  const phrases5=kws.slice(0,5).filter(k=>k.includes(" ")).length;
+  if(phrases5<5) problems.push("фраз среди первых 5 ключей: "+phrases5+" — нужно 5 (схема 3+2)");
+  return {ok:problems.length===0, title, keywords:kws, problems, phrases5};
+}
+const REGEN_PROMPT="Your keyword list was filtered by strict stock rules and too few valid keywords remained. For the SAME video content produce a fresh complete set of 45-49 English keywords following ALL rules: FIRST 5 are 2-word phrases (keys 1-3 = high-frequency queries video editors type, keys 4-5 = long-tail), keys 6+ mostly single words (established 2-word terms allowed). Cover: actions, tech params (slowmotion, cinematic, drone, 4k, closeup), objects/people, environment/light, emotions/states, concepts/categories, 2-4 use-case keys (b-roll, background video, intro footage, social media content). No repeats, no same roots (run/running/runner -> only running), no generic giants (man, woman, hand, water, white, black, alone), no stop words (stock, video, footage, photo, image, beautiful, nice, good, background, design), no brands. Add 'no people' ONLY if there are truly no people. Return ONLY JSON: {\"keywords_en\":[...]}";
+async function regenKeywords(ai, frames, cfg){
+  const prompt=REGEN_PROMPT+"\n\nPreviously generated keywords ("+(ai.keywords_en||[]).length+" raw): "+(ai.keywords_en||[]).slice(0,50).join(", ");
+  const json=await callAI(prompt, frames.slice(0,4), cfg);
+  let merged=(ai.keywords_en||[]).concat(json.keywords_en||[]);
+  merged=cleanKeywords40(merged, ai.has_people!==true);
+  return merged;
+}
+
+/* ================= EMBED MODULE (вшивание метаданных в файл) ================= */
+function strBytes(s){ return new TextEncoder().encode(s); }
+function xmlEsc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function xmlUnesc(s){ return String(s==null?"":s).replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&amp;/g,"&"); }
+function concatBytes(arrs){ let n=0; arrs.forEach(a=>n+=a.length); const out=new Uint8Array(n); let o=0; arrs.forEach(a=>{ out.set(a,o); o+=a.length; }); return out; }
+function buildXMP(title, kws){
+  const bag=kws.map(k=>"<rdf:li>"+xmlEsc(k)+"</rdf:li>").join("");
+  return '<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>'+
+'<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe Stock Embedder">'+
+'<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'+
+'<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">'+
+'<dc:title><rdf:Alt><rdf:li xml:lang="x-default">'+xmlEsc(title)+'</rdf:li></rdf:Alt></dc:title>'+
+'<dc:description><rdf:Alt><rdf:li xml:lang="x-default">'+xmlEsc(title)+'</rdf:li></rdf:Alt></dc:description>'+
+'<dc:subject><rdf:Bag>'+bag+'</rdf:Bag></dc:subject>'+
+'</rdf:Description></rdf:RDF></x:xmpmeta>'+
+'<?xpacket end="w"?>';
+}
+function buildIPTC(title, kws){
+  const rec=(tag,data)=>{ const b=strBytes(data); const out=new Uint8Array(5+b.length); out[0]=0x1C; out[1]=0x02; out[2]=tag&0xFF; out[3]=(b.length>>8)&0xFF; out[4]=b.length&0xFF; out.set(b,5); return out; };
+  const parts=[rec(5,title), rec(120,title)];
+  for(const k of kws) parts.push(rec(25,k));
+  const data=concatBytes(parts);
+  const sig=strBytes("Photoshop 3.0\0");
+  const dataPad=(data.length%2)?data.length+1:data.length;
+  const irb=new Uint8Array(sig.length+12+dataPad);
+  let p=0;
+  irb.set(sig,p); p+=sig.length;
+  irb[p++]=0x38; irb[p++]=0x42; irb[p++]=0x49; irb[p++]=0x4D; // 8BIM
+  irb[p++]=0x04; irb[p++]=0x04;                               // IPTC-NAA
+  irb[p++]=0; irb[p++]=0;                                     // empty pascal name + pad
+  irb[p++]=(data.length>>>24)&0xFF; irb[p++]=(data.length>>>16)&0xFF; irb[p++]=(data.length>>>8)&0xFF; irb[p++]=data.length&0xFF;
+  irb.set(data,p);
+  return irb;
+}
+function jpegSegments(buf){
+  const b=new Uint8Array(buf); const segs=[]; let p=2;
+  while(p<b.length-1){
+    if(b[p]!==0xFF) break;
+    const marker=b[p+1];
+    if(marker===0xD8||marker===0x01||(marker>=0xD0&&marker<=0xD7)){ p+=2; continue; }
+    if(marker===0xDA||marker===0xD9) break;
+    const len=(b[p+2]<<8)|b[p+3];
+    segs.push({marker,start:p,end:p+2+len});
+    p=p+2+len;
+  }
+  segs.tail=p; // позиция SOS/EOI: отсюда до конца — скан-данные (их нельзя терять)
+  return segs;
+}
+function embedJPEG(buf, title, kws){
+  const b=new Uint8Array(buf);
+  const xmp=strBytes(buildXMP(title,kws));
+  if(xmp.length+2>65535) throw new Error("XMP слишком большой");
+  const app1=new Uint8Array(4+xmp.length);
+  app1[0]=0xFF; app1[1]=0xE1; app1[2]=((xmp.length+2)>>8)&0xFF; app1[3]=(xmp.length+2)&0xFF; app1.set(xmp,4);
+  const irb=buildIPTC(title,kws);
+  const app13=new Uint8Array(4+irb.length);
+  app13[0]=0xFF; app13[1]=0xED; app13[2]=((irb.length+2)>>8)&0xFF; app13[3]=(irb.length+2)&0xFF; app13.set(irb,4);
+  const dec=new TextDecoder("latin1");
+  const segs=jpegSegments(buf);
+  const keep=[];
+  for(const s of segs){
+    const pay=dec.decode(b.subarray(s.start+4,Math.min(s.start+40,s.end)));
+    const isXMP=s.marker===0xE1&&pay.indexOf("http://ns.adobe.com/xap/1.0/")===0;
+    const isIRB=s.marker===0xED&&pay.indexOf("Photoshop 3.0")===0;
+    if(isXMP||isIRB) continue;
+    keep.push(b.subarray(s.start,s.end));
+  }
+  keep.push(b.subarray(segs.tail!=null?segs.tail:b.length)); // скан-данные + EOI
+  let total=2+app1.length+app13.length;
+  keep.forEach(k=>total+=k.length);
+  const out=new Uint8Array(total);
+  let p=0;
+  out[p++]=0xFF; out[p++]=0xD8;
+  out.set(app1,p); p+=app1.length;
+  out.set(app13,p); p+=app13.length;
+  for(const k of keep){ out.set(k,p); p+=k.length; }
+  return out.buffer;
+}
+const CRC_TABLE=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
+function crc32(bytes){ let c=0xFFFFFFFF; for(let i=0;i<bytes.length;i++) c=CRC_TABLE[(c^bytes[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function pngChunk(type, data){
+  const out=new Uint8Array(12+data.length);
+  const dv=new DataView(out.buffer);
+  dv.setUint32(0,data.length);
+  out.set(strBytes(type),4);
+  out.set(data,8);
+  dv.setUint32(8+data.length, crc32(out.subarray(4,8+data.length)));
+  return out;
+}
+function embedPNG(buf, title, kws){
+  const b=new Uint8Array(buf);
+  const dv=new DataView(buf);
+  const out=[b.subarray(0,8)]; let p=8; // PNG-сигнатура
+  while(p<b.length){
+    const len=dv.getUint32(p);
+    const type=new TextDecoder("latin1").decode(b.subarray(p+4,p+8));
+    const chunkEnd=p+12+len;
+    if(type==="IDAT"||type==="IEND") break;
+    if(type==="iTXt"){
+      const kwEnd=b.indexOf(0,p+8);
+      const kw=new TextDecoder("latin1").decode(b.subarray(p+8,kwEnd));
+      if(kw==="XML:com.adobe.xmp"){ p=chunkEnd; continue; } // убрать старый XMP
+    }
+    out.push(b.subarray(p,chunkEnd));
+    p=chunkEnd;
+  }
+  if(p>=b.length) throw new Error("PNG: IDAT не найден");
+  // iTXt: keyword\0 + flag(0) + method(0) + lang\0 + translated\0 + text
+  const data=strBytes(buildXMP(title,kws));
+  const head=concatBytes([strBytes("XML:com.adobe.xmp"),new Uint8Array([0,0,0,0,0])]);
+  out.push(pngChunk("iTXt",concatBytes([head,data])));
+  while(p<b.length){
+    const len=dv.getUint32(p);
+    const chunkEnd=p+12+len;
+    out.push(b.subarray(p,chunkEnd));
+    p=chunkEnd;
+  }
+  return concatBytes(out).buffer;
+}
+function embedSVGText(s, title, kws){
+  s=s.replace(/<metadata[\s\S]*?<\/metadata>/i,"");
+  const bag=kws.map(k=>"<rdf:li>"+xmlEsc(k)+"</rdf:li>").join("");
+  const meta='<metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description rdf:about=""><dc:title>'+xmlEsc(title)+'</dc:title><dc:subject><rdf:Bag>'+bag+'</rdf:Bag></dc:subject></rdf:Description></rdf:RDF></metadata>';
+  const i=s.search(/<svg[^>]*>/i);
+  if(i<0) throw new Error("SVG: тег <svg> не найден");
+  const end=s.indexOf(">",i)+1;
+  return s.slice(0,end)+meta+s.slice(end);
+}
+function mp4Box(type, payload){
+  const out=new Uint8Array(8+payload.length);
+  const dv=new DataView(out.buffer);
+  dv.setUint32(0,8+payload.length);
+  out.set(strBytes(type),4);
+  out.set(payload,8);
+  return out;
+}
+function mp4ItemBox(tag, str){ // iTunes item: [hdr][data box: hdr+type1(UTF)+locale+payload]
+  const d=strBytes(str);
+  const out=new Uint8Array(8+16+d.length);
+  const dv=new DataView(out.buffer);
+  dv.setUint32(0,8+16+d.length);
+  for(let i=0;i<4;i++) out[4+i]=tag.charCodeAt(i)&0xFF;
+  dv.setUint32(8,16+d.length);
+  out.set(strBytes("data"),12);
+  dv.setUint32(16,1);
+  dv.setUint32(20,0);
+  out.set(d,24);
+  return out;
+}
+function embedMP4(buf, title, kws){
+  const b=new Uint8Array(buf);
+  const dv=new DataView(buf);
+  let p=0, moovStart=-1, moovEnd=-1;
+  while(p+8<=b.length){
+    let size=dv.getUint32(p);
+    const type=new TextDecoder("latin1").decode(b.subarray(p+4,p+8));
+    let hdr=8;
+    if(size===1){ size=Number(dv.getBigUint64(p+8)); hdr=16; }
+    else if(size===0){ size=b.length-p; }
+    if(size<8) break;
+    if(type==="moov"){ moovStart=p; moovEnd=p+size; break; }
+    p+=size;
+  }
+  if(moovStart<0){
+    // резервный байтовый поиск moov (экзотические файлы)
+    const idx=new TextDecoder("latin1").decode(b).indexOf("moov");
+    if(idx>=4){ moovStart=idx-4; moovEnd=moovStart+dv.getUint32(moovStart); }
+  }
+  if(moovStart<0||moovEnd>b.length||moovEnd<=moovStart) throw new Error("MP4: бокс moov не найден");
+  const kwStr=kws.join(", ");
+  const ilst=mp4Box("ilst",concatBytes([
+    mp4ItemBox("\xA9nam",title),
+    mp4ItemBox("\xA9cmt",kwStr),
+    mp4ItemBox("\xA9keyw",kwStr)
+  ]));
+  const hdlrPl=new Uint8Array(4+4+4+12+5); // FullBox + pre_defined + 'mdir' + reserved + "appl\0"
+  hdlrPl.set(strBytes("mdir"),8);
+  hdlrPl.set(strBytes("appl\0"),24);
+  const hdlr=mp4Box("hdlr",hdlrPl);
+  const meta=mp4Box("meta",concatBytes([new Uint8Array(4),hdlr,ilst]));
+  const udta=mp4Box("udta",meta);
+  const newMoovSize=(moovEnd-moovStart)+udta.length;
+  const out=new Uint8Array(b.length+udta.length);
+  const odv=new DataView(out.buffer);
+  out.set(b.subarray(0,moovEnd),0);
+  out.set(udta,moovEnd);
+  out.set(b.subarray(moovEnd),moovEnd+udta.length);
+  if(dv.getUint32(moovStart)===1) odv.setBigUint64(moovStart+8,BigInt(newMoovSize));
+  else odv.setUint32(moovStart,newMoovSize);
+  return out.buffer;
+}
+// Автопроверка: читаем метаданные обратно из готового файла
+function verifyEmbed(buf, kind){
+  const b=new Uint8Array(buf);
+  let title="", kwCount=0;
+  const dec=new TextDecoder("latin1");
+  const parseXMP=t=>{
+    const m=t.match(/<dc:title>[\s\S]*?<rdf:li[^>]*>([\s\S]*?)<\/rdf:li>/);
+    if(m) title=xmlUnesc(m[1]).trim();
+    const c=(t.match(/<rdf:li>/g)||[]).length;
+    if(c>kwCount) kwCount=c;
+  };
+  if(kind==="jpg"){
+    for(const s of jpegSegments(buf)){
+      if(s.marker===0xE1){ const t=dec.decode(b.subarray(s.start+4,s.end)); if(t.indexOf("http://ns.adobe.com/xap/1.0/")===0) parseXMP(t); }
+      if(s.marker===0xED){
+        const pay=b.subarray(s.start+4,s.end);
+        if(dec.decode(pay.subarray(0,14))==="Photoshop 3.0\0"){
+          const dlen=((pay[22]<<24)|(pay[23]<<16)|(pay[24]<<8)|pay[25])>>>0;
+          let q=26; const end=Math.min(26+dlen,pay.length);
+          let cnt=0;
+          while(q+5<=end&&pay[q]===0x1C&&pay[q+1]===0x02){
+            const tag=pay[q+2], len=(pay[q+3]<<8)|pay[q+4];
+            if(tag===25) cnt++;
+            if(tag===5&&!title) title=dec.decode(pay.subarray(q+5,q+5+len)).trim();
+            q+=5+len;
+          }
+          if(cnt>kwCount) kwCount=cnt;
+        }
+      }
+    }
+  } else if(kind==="png"){
+    const dv=new DataView(buf); let p=8;
+    while(p<b.length){
+      const len=dv.getUint32(p);
+      const type=dec.decode(b.subarray(p+4,p+8));
+      if(type==="iTXt"){
+        const kwEnd=b.indexOf(0,p+8);
+        if(dec.decode(b.subarray(p+8,kwEnd))==="XML:com.adobe.xmp") parseXMP(dec.decode(b.subarray(kwEnd+5,p+8+len)));
+      }
+      p+=12+len;
+    }
+  } else if(kind==="mp4"){
+    const dv=new DataView(buf);
+    const walk=(start,end,depth)=>{
+      end=Math.min(end,b.length);
+      let q=start;
+      while(q+8<=end){
+        let size=dv.getUint32(q);
+        const type=dec.decode(b.subarray(q+4,q+8));
+        let hdr=8;
+        if(size===1){ size=Number(dv.getBigUint64(q+8)); hdr=16; }
+        else if(size===0) size=end-q;
+        if(size<8) break;
+        if(type==="udta"||type==="meta"||type==="ilst"||type==="moov"){
+          walk(q+hdr+(type==="meta"?4:0),q+size,depth+1);
+        }
+        else if(type==="\xA9nam"&&!title){ title=dec.decode(b.subarray(q+24,q+size)).replace(/\0+$/,"").trim(); }
+        else if(type==="\xA9keyw"||type==="\xA9cmt"){ const t=dec.decode(b.subarray(q+24,q+size)).replace(/\0+$/,""); if(t) kwCount=Math.max(kwCount,t.split(",").length); }
+        q+=size;
+      }
+    };
+    walk(0,b.length,0);
+  } else if(kind==="svg"){
+    const s=new TextDecoder("utf-8").decode(b);
+    const m=s.match(/<dc:title>([\s\S]*?)<\/dc:title>/);
+    if(m) title=xmlUnesc(m[1]).trim();
+    kwCount=(s.match(/<rdf:li>/g)||[]).length;
+  }
+  return {title, kwCount};
+}
+// Точка входа: буфер файла → буфер с метаданными
+function embedMeta(buf, kind, title, kws){
+  if(kind==="jpg") return embedJPEG(buf,title,kws);
+  if(kind==="png") return embedPNG(buf,title,kws);
+  if(kind==="svg") return new TextEncoder().encode(embedSVGText(new TextDecoder("utf-8").decode(buf),title,kws)).buffer;
+  if(kind==="mp4") return embedMP4(buf,title,kws);
+  throw new Error("формат "+kind+" не поддерживается для вшивания");
 }
 
 /* ================= VERDICT ENGINE ================= */
@@ -722,6 +1057,15 @@ function renderReport(){
     }
     if(it.ai.title_en) h+='<div style="margin-top:8px"><label>Название (EN)</label><div class="copy-box">'+esc(it.ai.title_en)+'</div></div>';
     if(it.ai.keywords_en&&it.ai.keywords_en.length) h+='<div style="margin-top:8px"><label>Ключевые слова ('+it.ai.keywords_en.length+')</label><div class="copy-box">'+esc(it.ai.keywords_en.join(", "))+'</div></div>';
+    // Русский перевод — только на экран, в файл не вшивается
+    if(it.ai.title_ru||(it.ai.keywords_ru&&it.ai.keywords_ru.length)){
+      h+='<div style="margin-top:10px"><label>🇷🇺 Русский перевод (только для вас, в файл не вшивается)</label>';
+      if(it.ai.title_ru) h+='<div class="copy-box">'+esc(it.ai.title_ru)+'</div>';
+      if(it.ai.keywords_ru&&it.ai.keywords_ru.length) h+='<div class="copy-box" style="margin-top:4px">'+esc(it.ai.keywords_ru.join(", "))+'</div>';
+      h+='</div>';
+    }
+    // Атрибуция по правилам Adobe (стандартный набор)
+    h+=attrBlockHtml(it,it.attrStd,"std");
     // Уникальные метаданные при высокой конкуренции
     const hiSat=(it.ai.stock_saturation_estimate==="high"||it.ai.stock_saturation_estimate==="very_high"||it.ai.stock_cliche==="high");
     if(hiSat&&(it.ai.title_unique_en||(it.ai.keywords_unique_en&&it.ai.keywords_unique_en.length))){
@@ -737,8 +1081,11 @@ function renderReport(){
         const idx=storeCopy.push(ku)-1;
         h+='<div style="margin-top:8px"><label>Рекомендуемые уникальные ключи ('+it.ai.keywords_unique_en.length+')</label><div class="copy-box">'+esc(ku)+'</div><div class="btns"><button class="btn" data-copy="'+idx+'">Скопировать ключи</button></div></div>';
       }
+      h+=attrBlockHtml(it,it.attrUniq,"uniq");
       h+='</div>';
     }
+    // Статус вшивания/перегенерации
+    h+='<div id="embed-status-'+it.id+'" class="hint" style="margin-top:6px"></div>';
     if(it.ai.category_suggest) h+='<div class="stat" style="margin-top:6px"><span>Категория: '+esc(it.ai.category_suggest)+'</span></div>';
   } else if(store.orKey){
     h+='<p class="hint">AI не выполнен: '+(it.aiError?esc(it.aiError):"нет данных")+'</p>';
@@ -804,6 +1151,87 @@ function chkHtml(kind,k,v){
 }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
+// Блок проверенной атрибуции с кнопкой вшивания (или блокировкой + перегенерацией)
+function attrBlockHtml(it, attr, which){
+  if(!attr) return "";
+  const label=which==="uniq"?"Уникальная атрибуция":"Атрибуция (стандарт)";
+  let h="";
+  if(attr.ok){
+    h+='<div style="margin-top:8px;padding:10px;border:1px solid var(--green);border-radius:8px;background:rgba(0,184,148,.04)">';
+    h+='<label style="color:var(--green)">✓ '+label+' — контроль Adobe пройден</label>';
+    h+='<div class="stat" style="margin-top:2px"><span>заголовок: <span class="n">'+attr.title.length+'</span> симв. (лимит 90)</span><span>ключей: <span class="n">'+attr.keywords.length+'</span> (40–49)</span><span>фраз среди первых 5: <span class="n">'+attr.phrases5+'</span></span></div>';
+    const i1=storeCopy.push(attr.title)-1;
+    h+='<div style="margin-top:6px"><label>Заголовок для вшивания (EN)</label><div class="copy-box">'+esc(attr.title)+'</div><div class="btns"><button class="btn" data-copy="'+i1+'">Скопировать</button></div></div>';
+    const i2=storeCopy.push(attr.keywords.join(", "))-1;
+    h+='<div style="margin-top:6px"><label>Ключи для вшивания ('+attr.keywords.length+')</label><div class="copy-box">'+esc(attr.keywords.join(", "))+'</div><div class="btns"><button class="btn" data-copy="'+i2+'">Скопировать</button><button class="btn g" data-embed="'+it.id+"|"+which+'">📥 Вшить в файл и скачать</button></div></div>';
+    h+='</div>';
+  } else {
+    h+='<div style="margin-top:8px;padding:10px;border:1px solid var(--red);border-radius:8px;background:rgba(225,112,85,.05)">';
+    h+='<label style="color:var(--red)">✕ '+label+' — контроль не пройден, вшивание заблокировано</label>';
+    attr.problems.forEach(p=>{ h+='<div class="hint" style="margin-top:2px">• '+esc(p)+'</div>'; });
+    h+='<div class="btns"><button class="btn" data-regen="'+it.id+'">🔁 Перегенерировать ключи</button></div>';
+    h+='</div>';
+  }
+  return h;
+}
+function embedKindOf(name){
+  const m=/\.([a-z0-9]+)$/i.exec(name||"");
+  const e=m?m[1].toLowerCase():"";
+  if(e==="jpg"||e==="jpeg") return "jpg";
+  if(e==="png") return "png";
+  if(e==="svg") return "svg";
+  if(e==="mp4"||e==="m4v"||e==="mov") return "mp4";
+  return null;
+}
+// Вшивание метаданных в файл + автопроверка + скачивание готового файла
+async function embedRun(id, which){
+  const it=items.find(x=>x.id===id);
+  if(!it) return;
+  const attr=which==="uniq"?it.attrUniq:it.attrStd;
+  const st=$("embed-status-"+id);
+  const set=msg=>{ if(st) st.innerHTML=msg; };
+  if(!attr||!attr.ok){ set('<span class="bad">✕ Атрибуция не прошла контроль — вшивание заблокировано</span>'); return; }
+  const kind=embedKindOf(it.file.name);
+  if(!kind){ set('<span class="bad">✕ Формат не поддерживается для вшивания (нужно JPG, PNG, SVG или MP4/MOV)</span>'); return; }
+  set("Читаю файл и вшиваю метаданные…");
+  try{
+    const buf=await it.file.arrayBuffer();
+    const out=embedMeta(buf,kind,attr.title,attr.keywords);
+    const v=verifyEmbed(out,kind);
+    const dot=it.file.name.lastIndexOf(".");
+    const base=dot>0?it.file.name.slice(0,dot):it.file.name;
+    const ext=dot>0?it.file.name.slice(dot):"";
+    const blob=new Blob([out],{type:it.file.type||"application/octet-stream"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=base+"_meta"+ext;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(a.href),15000);
+    const okT=!!v.title&&v.kwCount>=40;
+    if(okT) set('<span class="good">✓ Готово: заголовок «'+esc(v.title.length>60?v.title.slice(0,60)+"…":v.title)+'» ('+v.title.length+' симв.) и '+v.kwCount+' ключей вшито и прочитано обратно. Файл «'+esc(a.download)+'» скачан — загружайте его.</span>');
+    else set('<span class="bad">⚠ Файл скачан, но проверка прочитала: заголовок '+(v.title?v.title.length+" симв.":"не найден")+', ключей '+v.kwCount+' (ожидалось ≥40). Сверьтесь вручную в свойствах файла.</span>');
+  }catch(e){
+    set('<span class="bad">✕ Ошибка вшивания: '+esc(e.message)+'</span>');
+  }
+}
+// Автоперегенерация ключей, если после чистки осталось <40
+async function regenRun(id){
+  const it=items.find(x=>x.id===id);
+  if(!it||!it.ai||it.regenRunning) return;
+  const st=$("embed-status-"+id);
+  it.regenRunning=true;
+  if(st) st.innerHTML="Перегенерация ключей (второй запрос к AI)…";
+  try{
+    const kws=await regenKeywords(it.ai,it.frames,{key:store.orKey,model:store.orModel});
+    it.attrStd=buildAttribution({has_people:it.ai.has_people,keywords_en:kws,title_en:it.ai.title_en},false);
+    renderReport();
+    const st2=$("embed-status-"+id);
+    if(st2) st2.innerHTML=it.attrStd.ok?'<span class="good">✓ Перегенерация прошла: ключей '+it.attrStd.keywords.length+'</span>':'<span class="bad">✕ Всего '+it.attrStd.keywords.length+' ключей — попробуйте ещё раз</span>';
+  }catch(e){
+    if(st) st.innerHTML='<span class="bad">✕ Перегенерация не удалась: '+esc(e.message)+'</span>';
+  }finally{ it.regenRunning=false; }
+}
+
 function buildReportText(id){
   const it=items.find(x=>x.id===id);
   if(!it||!it.result) return "";
@@ -822,6 +1250,10 @@ function buildReportText(id){
   const _hiSat=it.ai&&(it.ai.stock_saturation_estimate==="high"||it.ai.stock_saturation_estimate==="very_high"||it.ai.stock_cliche==="high");
   if(_hiSat&&it.ai&&it.ai.title_unique_en){ txt+="\n⚠️ Тема занята на стоке. Рекомендуемый уникальный заголовок:\n"+it.ai.title_unique_en+"\n"; }
   if(_hiSat&&it.ai&&it.ai.keywords_unique_en&&it.ai.keywords_unique_en.length){ txt+="Рекомендуемые уникальные ключи:\n"+it.ai.keywords_unique_en.join(", ")+"\n"; }
+  if(it.attrStd&&it.attrStd.ok){ txt+="\nАтрибуция EN (контроль Adobe пройден, вшивается в файл):\nЗаголовок ("+it.attrStd.title.length+" симв.): "+it.attrStd.title+"\nКлючи ("+it.attrStd.keywords.length+"): "+it.attrStd.keywords.join(", ")+"\n"; }
+  else if(it.attrStd){ txt+="\n⚠️ Атрибуция не прошла контроль: "+it.attrStd.problems.join("; ")+"\n"; }
+  if(it.attrUniq&&it.attrUniq.ok){ txt+="\nУникальная атрибуция EN (при занятой теме):\n"+it.attrUniq.title+"\n"+it.attrUniq.keywords.join(", ")+"\n"; }
+  if(it.ai&&it.ai.title_ru){ txt+="\nРусский перевод (для вас, в файл не вшивается):\n"+it.ai.title_ru+"\n"; }
   txt+="\nЧек-лист: AI-тег обязателен; Fictional people checkbox; без ватермарок; уникальность.\n";
   return txt;
 }
@@ -862,6 +1294,12 @@ async function processItem(it, useAI){
     }catch(e){
       it.aiError=e.message;
     }
+  }
+  if(it.ai){
+    // атрибуция по правилам Adobe (контроль атрибутора)
+    it.attrStd=buildAttribution(it.ai,false);
+    it.attrUniq=buildAttribution(it.ai,true);
+    it.attrRegen=null; it.regenRunning=false;
   }
   it.result=computeVerdict(it.tech,it.motion,it.ai);
   // автооткрытие поиска похожего на Adobe Stock (одна вкладка на батч)
@@ -932,6 +1370,17 @@ document.addEventListener("click",e=>{
   copyText(txt);
   const old=b.textContent; b.textContent="Скопировано ✓";
   setTimeout(()=>{b.textContent=old;},1500);
+});
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-embed]");
+  if(!b) return;
+  const parts=b.getAttribute("data-embed").split("|");
+  embedRun(parseInt(parts[0],10),parts[1]);
+});
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-regen]");
+  if(!b) return;
+  regenRun(parseInt(b.getAttribute("data-regen"),10));
 });
 dz.addEventListener("dragleave",()=>dz.classList.remove("dragover"));
 dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("dragover");if(e.dataTransfer.files.length)addFiles(e.dataTransfer.files);});
