@@ -83,7 +83,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 <body>
 <div class="app">
 <h1>Проверка изображений на модерацию Adobe Stock</h1>
-<p class="sub">Проверка AI-фото/вектора/рисунка перед загрузкой: автоопределение типа + тех. требования + AI-анализ по правилам Adobe Stock <span id="ver-badge" style="margin-left:8px;padding:2px 8px;border-radius:10px;font-size:12px;background:rgba(253,203,110,.15);color:var(--yellow)">версия 2.2</span></p>
+<p class="sub">Проверка AI-фото/вектора/рисунка перед загрузкой: автоопределение типа + тех. требования + AI-анализ по правилам Adobe Stock <span id="ver-badge" style="margin-left:8px;padding:2px 8px;border-radius:10px;font-size:12px;background:rgba(253,203,110,.15);color:var(--yellow)">версия 2.3</span></p>
 <div id="stale-warn" style="display:none;margin-top:8px;padding:10px;border:1px solid var(--red);border-radius:8px;background:rgba(225,112,85,.08);color:var(--red);font-weight:600">⚠️ Открыта старая версия страницы. После скачивания готовых файлов нажмите Ctrl+F5, чтобы обновиться.</div>
 
 <div class="tabs">
@@ -408,8 +408,8 @@ Respond ONLY with JSON (no markdown fence), exactly this schema. LANGUAGE RULE: 
   "search_keywords": ["5-8 SHORT English keyword phrases to reverse-search SIMILAR existing stock content on Adobe Stock"],
   "risks": ["[RUS] риски модерации: нет release, чувствительная тема, нарушение политик"],
   "category_suggest": "Photos|Illustrations|Vectors|Nature|Lifestyle|Business|Other",
-  "title_en": "[EN] Stock title: MAX 90 characters (COUNT THEM). 1-2 sentences. 1st sentence = scene + main object, starting from a real Adobe buyer search query (concrete noun + verb: 'Golden autumn maple leaf on wet dark asphalt after rain'). 2nd sentence = concept + ONE concrete purchase use ('illustration for fall sale banners') ONLY if it fits in 90 chars total. Add format markers when visible: vector illustration, flat design, transparent background, isolated, 3d render, watercolor. No water phrases (perfect for marketing, universal, ideal choice), no artist names, no brands.",
-  "keywords_en": ["[EN] EXACTLY 45-49 keywords (hard minimum 40). FIRST 5 are 2-word phrases: keys 1-3 = high-frequency queries that buyers/designers actually type, built from this scene's concrete details; keys 4-5 = long-tail phrases. Keys 6+ = mostly single words (established 2-word terms like artificial intelligence allowed). Cover: objects/people, actions, environment/light, emotions/states, concepts/categories, tech params (4k, high resolution, transparent background, isolated, closeup), plus 2-4 use-case keys (mockup, blog header, packaging design, poster, social media content, wallpaper, greeting card). No repeats, no same roots (run/running/runner -> only running), no verbatim title words, no brands, no artist names, no words unrelated to the image. Concept words (burnout, digital fatigue...) belong in the 2nd title sentence, not keywords, unless the image directly shows them. Add 'no people' ONLY if there are truly no people, hands, silhouettes or reflections in the image."],
+  "title_en": "[EN] Stock title: MAX 90 characters (COUNT THEM). Write 1-2 grammatically COMPLETE sentences — NEVER end mid-sentence. 1st sentence = scene + main object, starting from a real Adobe buyer search query (concrete noun + verb: 'Golden autumn maple leaf on wet dark asphalt after rain'). 2nd sentence ONLY if it fits fully in 90 chars: concept + ONE concrete purchase use in max 6-8 words ('illustration for fall sale banners') — if it does not fit, OMIT it entirely; never use open-ended filler openers. LOW-COMPETITION PRIORITY: build the title from specific long-tail details of THIS image (exact objects, colors, light, mood, setting, style) instead of generic high-traffic phrases that already flood the stock — a precise niche title is found by fewer but ready-to-buy buyers. Add format markers when visible: vector illustration, flat design, transparent background, isolated, 3d render, watercolor. No water phrases (perfect for marketing, universal, ideal choice), no artist names, no brands.",
+  "keywords_en": ["[EN] EXACTLY 45-49 keywords (hard minimum 40). FIRST 5 are 2-word phrases: keys 1-3 = LOW-COMPETITION queries built from this scene's most specific concrete details (exact objects, colors, light, setting) — prefer precise long-tail phrases over saturated generic ones; keys 4-5 = additional long-tail phrases. Keys 6+ = mostly single words, start with the most specific/least common (established 2-word terms like artificial intelligence allowed) before generic ones. Cover: objects/people, actions, environment/light, emotions/states, concepts/categories, tech params (4k, high resolution, transparent background, isolated, closeup), plus 2-4 use-case keys (mockup, blog header, packaging design, poster, social media content, wallpaper, greeting card). No repeats, no same roots (run/running/runner -> only running), no verbatim title words, no brands, no artist names, no words unrelated to the image. Concept words (burnout, digital fatigue...) belong in the 2nd title sentence, not keywords, unless the image directly shows them. Add 'no people' ONLY if there are truly no people, hands, silhouettes or reflections in the image."],
   "title_ru": "[RUS] тот же смысл по-русски, до 90 символов (для показа на экране, в файл не вшивается)",
   "keywords_ru": ["[RUS] 40-49 русских ключей по тем же правилам (для показа на экране, в файл не вшиваются)"],
   "title_unique_en": "[EN] IF saturation is high/very_high: ALTERNATIVE differentiated title (same MAX 90 chars and same rules) that promotes this image via its unique_angle (specific mood, light, format: transparent background, flat design, minimal). Empty string if saturation is low/medium.",
@@ -450,11 +450,21 @@ function sameRoot(a,b){
   const stem=w=>{ const s=w.replace(/(ing|er|ed|es|s)$/,""); return s.length>=4?s:w; };
   return stem(a)===stem(b)?1:0;
 }
+const TITLE_DANGLING=/\b(a|an|the|and|or|but|with|of|to|in|on|at|by|for|from|into|onto|over|under|this|that|these|those|is|are|was|were|be|being|been|it|its|as|while|when|who|which|what|how|video|footage|provides|provide|showing|shows|show|featuring|can|could|will|would|may|might|must|do|does|did|perfect|ideal|great|universal|marketing|choice)\.?$/i;
+function trimDangling(s){
+  let out=s;
+  while(out.length>30&&TITLE_DANGLING.test(out)) out=out.replace(/\s+\S+$/,"").trim();
+  return out.replace(/[,\-–—:;]+$/,"").trim();
+}
 function fitTitle90(s){
   s=(s||"").replace(/\s+/g," ").trim();
-  if(s.length<=90) return s;
-  let cut=s.slice(0,91).lastIndexOf(" ");
-  return (cut>=70?s.slice(0,cut):s.slice(0,90)).trim();
+  if(s.length<=90) return trimDangling(s);
+  const upto=s.slice(0,91);
+  const lastDot=upto.lastIndexOf(". ");
+  // сначала — граница полного предложения: не оставляем обрывок второй фразы
+  if(lastDot>=40) return trimDangling(upto.slice(0,lastDot+1).trim());
+  let cut=upto.lastIndexOf(" ");
+  return trimDangling((cut>=70?upto.slice(0,cut):s.slice(0,90)).trim());
 }
 function cleanKeywords40(kws, addNoPeople){
   const phrases=[], extraWords=[], singles=[];
@@ -491,7 +501,7 @@ function buildAttribution(ai, unique){
   if(phrases5<5) problems.push("фраз среди первых 5 ключей: "+phrases5+" — нужно 5 (схема 3+2)");
   return {ok:problems.length===0, title, keywords:kws, problems, phrases5};
 }
-const REGEN_PROMPT="Your keyword list was filtered by strict stock rules and too few valid keywords remained. For the SAME image produce a fresh complete set of 45-49 English keywords following ALL rules: FIRST 5 are 2-word phrases (keys 1-3 = high-frequency queries buyers type, keys 4-5 = long-tail), keys 6+ mostly single words (established 2-word terms allowed). Cover: objects/people, actions, environment/light, emotions/states, concepts/categories, tech params (4k, high resolution, transparent background, isolated), 2-4 use-case keys (mockup, blog header, packaging design, poster, social media content). No repeats, no same roots (run/running/runner -> only running), no generic giants (man, woman, hand, water, white, black, alone), no stop words (stock, video, footage, photo, image, beautiful, nice, good, background, design), no brands. Add 'no people' ONLY if there are truly no people. Return ONLY JSON: {\"keywords_en\":[...]}";
+const REGEN_PROMPT="Your keyword list was filtered by strict stock rules and too few valid keywords remained. For the SAME image produce a fresh complete set of 45-49 English keywords following ALL rules: FIRST 5 are 2-word phrases (keys 1-3 = LOW-COMPETITION specific queries built from this image's concrete details — precise long-tail beats saturated generic; keys 4-5 = long-tail), keys 6+ mostly single words starting with the most specific/least common (established 2-word terms allowed). Cover: objects/people, actions, environment/light, emotions/states, concepts/categories, tech params (4k, high resolution, transparent background, isolated), 2-4 use-case keys (mockup, blog header, packaging design, poster, social media content). No repeats, no same roots (run/running/runner -> only running), no generic giants (man, woman, hand, water, white, black, alone), no stop words (stock, video, footage, photo, image, beautiful, nice, good, background, design), no brands. Add 'no people' ONLY if there are truly no people. Return ONLY JSON: {\"keywords_en\":[...]}";
 async function regenKeywords(ai, preview, cfg){
   const prompt=REGEN_PROMPT+"\n\nPreviously generated keywords ("+(ai.keywords_en||[]).length+" raw): "+(ai.keywords_en||[]).slice(0,50).join(", ");
   const json=await callAI(prompt,[preview],cfg);
@@ -1490,7 +1500,7 @@ $("btn-test-ai").addEventListener("click",async()=>{
 });
 
 /* ================= VERSION CHECK (автообновление страницы) ================= */
-const PAGE_VERSION="2.2";
+const PAGE_VERSION="2.3";
 setInterval(async()=>{
   try{
     const r=await fetch(location.pathname,{cache:"no-store"});
