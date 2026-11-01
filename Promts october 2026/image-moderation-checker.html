@@ -119,7 +119,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
       <thead><tr><th>Файл</th><th>Тип</th><th>Вердикт</th><th>Тех</th><th>AI</th><th>Проблемы</th><th>Готов</th></tr></thead>
       <tbody></tbody>
     </table></div>
-    <div class="btns" style="margin-top:8px;display:none" id="dl-all-wrap"><button class="btn g" id="btn-dl-all">📥 Скачать все готовые</button><span class="hint" id="dl-all-hint"></span></div>
+    <div class="btns" style="margin-top:8px;display:none" id="dl-all-wrap"><button class="btn g" id="btn-dl-all">📥 Скачать все готовые (одним ZIP-архивом)</button><span class="hint" id="dl-all-hint"></span></div>
   </div>
 </div>
 
@@ -1091,7 +1091,60 @@ function downloadBlob(blob,name){
   a.href=URL.createObjectURL(blob);
   a.download=name;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(a.href),15000);
+  setTimeout(()=>URL.revokeObjectURL(a.href),30000);
+}
+// Сборка ZIP-архива (метод STORE, без сжатия — медиафайлы и так сжаты)
+function zipStore(entries){ // entries: [{name, data:Uint8Array}] -> Blob
+  const enc=new TextEncoder();
+  const local=[], central=[]; let offset=0;
+  const now=new Date();
+  const dosTime=((now.getHours()<<11)|(now.getMinutes()<<5)|(Math.floor(now.getSeconds()/2)))&0xFFFF;
+  const dosDate=(((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate())&0xFFFF;
+  for(const en of entries){
+    const nameB=enc.encode(en.name);
+    const crc=crc32(en.data);
+    const lh=new Uint8Array(30+nameB.length);
+    const dv=new DataView(lh.buffer);
+    dv.setUint32(0,0x04034b50,true);         // sig local file header
+    dv.setUint16(4,20,true);                  // version needed
+    dv.setUint16(6,0,true);                   // flags
+    dv.setUint16(8,0,true);                   // method: STORE
+    dv.setUint16(10,dosTime,true);
+    dv.setUint16(12,dosDate,true);
+    dv.setUint32(14,crc,true);
+    dv.setUint32(18,en.data.length,true);
+    dv.setUint32(22,en.data.length,true);
+    dv.setUint16(26,nameB.length,true);
+    dv.setUint16(28,0,true);                  // extra len
+    lh.set(nameB,30);
+    local.push(lh,en.data);
+    const ch=new Uint8Array(46+nameB.length);
+    const dv3=new DataView(ch.buffer);
+    dv3.setUint32(0,0x02014b50,true);        // sig central directory
+    dv3.setUint16(4,20,true);                 // version made by
+    dv3.setUint16(6,20,true);                 // version needed
+    dv3.setUint16(8,0,true);                  // flags
+    dv3.setUint16(10,0,true);                 // method: STORE
+    dv3.setUint16(12,dosTime,true);
+    dv3.setUint16(14,dosDate,true);
+    dv3.setUint32(16,crc,true);
+    dv3.setUint32(20,en.data.length,true);
+    dv3.setUint32(24,en.data.length,true);
+    dv3.setUint16(28,nameB.length,true);
+    dv3.setUint32(42,offset,true);            // local header offset
+    ch.set(nameB,46);
+    central.push(ch);
+    offset+=lh.length+en.data.length;
+  }
+  let cdSize=0; central.forEach(c=>cdSize+=c.length);
+  const eocd=new Uint8Array(22);
+  const dvE=new DataView(eocd.buffer);
+  dvE.setUint32(0,0x06054b50,true);          // EOCD
+  dvE.setUint16(8,entries.length,true);
+  dvE.setUint16(10,entries.length,true);
+  dvE.setUint32(12,cdSize,true);
+  dvE.setUint32(16,offset,true);              // cd offset
+  return new Blob(local.concat(central,[eocd]),{type:"application/zip"});
 }
 function downloadOne(id){
   const it=items.find(x=>x.id===id);
@@ -1101,14 +1154,17 @@ function downloadOne(id){
 async function downloadAllReady(){
   const ready=items.filter(it=>it.embedState&&it.embedState.status==="ready");
   if(!ready.length){ flash("Нет готовых файлов"); return; }
-  let n=0;
-  for(const it of ready){
-    downloadBlob(it.embedState.blob,it.embedState.filename);
-    n++;
-    flash("Скачиваю "+n+" из "+ready.length);
-    if(n<ready.length) await sleep(800);
-  }
-  setTimeout(()=>flash("Скачано файлов: "+ready.length),1000);
+  if(ready.length===1){ downloadOne(ready[0].id); flash("Скачан файл: "+ready[0].embedState.filename); return; }
+  flash("Собираю архив из "+ready.length+" файлов…");
+  try{
+    const entries=[];
+    for(const it of ready){
+      entries.push({name:it.embedState.filename,data:new Uint8Array(await it.embedState.blob.arrayBuffer())});
+    }
+    const stamp=new Date().toISOString().slice(0,10);
+    downloadBlob(zipStore(entries),"Готовые_Adobe_"+stamp+".zip");
+    flash("✅ Архив скачан: "+ready.length+" файлов с метаданными внутри");
+  }catch(e){ flash("Ошибка сборки архива: "+e.message); }
 }
 // Блок готового файла / статуса вшивания
 function embedBlockHtml(it){
