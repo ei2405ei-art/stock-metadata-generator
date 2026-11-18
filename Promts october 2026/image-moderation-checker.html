@@ -1121,6 +1121,33 @@ function embedKindOf(name){
 }
 // Автовыбор набора (уникальный при занятой теме, иначе стандарт) + вшивание + проверка
 function hiSatOf(ai){ return !!ai&&(ai.stock_saturation_estimate==="high"||ai.stock_saturation_estimate==="very_high"||ai.stock_cliche==="high"); }
+/* ===== ИМЯ ФАЙЛА ДЛЯ ADOBE (стиль «б»: транслит + чистка, ≤50) ===== */
+const ADOBE_CYR = {"а":"a","б":"b","в":"v","г":"g","д":"d","е":"e","ё":"e","ж":"zh","з":"z","и":"i","й":"y","к":"k","л":"l","м":"m","н":"n","о":"o","п":"p","р":"r","с":"s","т":"t","у":"u","ф":"f","х":"h","ц":"ts","ч":"ch","ш":"sh","щ":"sch","ъ":"","ы":"y","ь":"","э":"e","ю":"yu","я":"ya"};
+function adobeName(s){
+  let t = String(s == null ? "" : s);
+  try{ t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }catch(e){} // Glädje -> Gladje, ё -> е
+  t = t.replace(/[\u0410-\u042F\u0430-\u044F\u0401\u0451]/g, ch => ADOBE_CYR[ch.toLowerCase()] || "");
+  t = t.toLowerCase()
+     .replace(/[^a-z0-9]+/g, "-")
+     .split("-").filter(p => p && p.length > 1).join("-") // мусор из одиночных символов — вон
+     .slice(0, 50).replace(/^-+|-+$/g, "");
+  return t || "stock";
+}
+const adobeUsedOut = new Set();
+// Выходное имя: <чистое>_meta<расширение>; уникальность -2, -3, ...
+function adobeOutName(it){
+  if(it._adobeOut) return it._adobeOut;
+  const n = it.file.name;
+  const dot = n.lastIndexOf(".");
+  const base = dot > 0 ? n.slice(0, dot) : n;
+  const ext = dot > 0 ? n.slice(dot) : "";
+  const slug = adobeName(base);
+  let name = slug, i = 2;
+  while(adobeUsedOut.has((name + ext).toLowerCase())){ name = slug + "-" + i; i++; }
+  adobeUsedOut.add((name + ext).toLowerCase());
+  it._adobeOut = name + "_meta" + ext;
+  return it._adobeOut;
+}
 async function prepareEmbed(it){
   const kind=embedKindOf(it.file.name);
   if(!kind){ it.embedState={status:"unsupported",ext:(it.file.name.match(/\.([a-z0-9]+)$/i)||[])[1]||""}; return; }
@@ -1131,10 +1158,7 @@ async function prepareEmbed(it){
     const buf=await it.file.arrayBuffer();
     const out=embedMeta(buf,kind,sel.title,sel.keywords);
     const v=verifyEmbed(out,kind);
-    const dot=it.file.name.lastIndexOf(".");
-    const base=dot>0?it.file.name.slice(0,dot):it.file.name;
-    const ext=dot>0?it.file.name.slice(dot):"";
-    it.embedState={status:"ready",filename:base+"_meta"+ext,blob:new Blob([out],{type:it.file.type||"application/octet-stream"}),which,attr:sel,verify:v,kind};
+    it.embedState={status:"ready",filename:adobeOutName(it),blob:new Blob([out],{type:it.file.type||"application/octet-stream"}),which,attr:sel,verify:v,kind};
   }catch(e){ it.embedState={status:"error",message:e.message}; }
 }
 // Полный автоконвейер: контроль → автоперегенерация (1 раз) → вшивание → проверка

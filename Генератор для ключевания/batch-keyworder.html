@@ -631,6 +631,20 @@ function debounce(fn, ms){
 
 function stem(name){ return String(name).replace(/\.[^.]+$/, ""); }
 
+/* ===== ИМЯ ФАЙЛА ДЛЯ ADOBE (стиль «б»: транслит + чистка, ≤50) ===== */
+const ADOBE_CYR = {"а":"a","б":"b","в":"v","г":"g","д":"d","е":"e","ё":"e","ж":"zh","з":"z","и":"i","й":"y","к":"k","л":"l","м":"m","н":"n","о":"o","п":"p","р":"r","с":"s","т":"t","у":"u","ф":"f","х":"h","ц":"ts","ч":"ch","ш":"sh","щ":"sch","ъ":"","ы":"y","ь":"","э":"e","ю":"yu","я":"ya"};
+function adobeName(s){
+  let t = String(s == null ? "" : s);
+  try{ t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }catch(e){} // Glädje -> Gladje, ё -> е
+  t = t.replace(/[\u0410-\u042F\u0430-\u044F\u0401\u0451]/g, ch => ADOBE_CYR[ch.toLowerCase()] || "");
+  t = t.toLowerCase()
+     .replace(/[^a-z0-9]+/g, "-")
+     .split("-").filter(p => p && p.length > 1).join("-") // мусор из одиночных символов — вон
+     .slice(0, 50).replace(/^-+|-+$/g, "");
+  return t || "stock";
+}
+const adobeUsedOut = new Set();
+
 function downloadFile(name, content, type){
   const blob = content instanceof Blob ? content : new Blob([content], {type: type || "text/plain;charset=utf-8"});
   const url = URL.createObjectURL(blob);
@@ -2718,6 +2732,89 @@ function verifyJPEG(bytes, rec, expectedTail, expectedPsIds){
   return {xmp:saw.xmp, iptc:saw.iptc, exif:saw.exif, psIds, sosAt, tailLen:bytes.length - sosAt};
 }
 
+/* ===== PNG: вшивание XMP без потерь (iTXt перед IDAT) ===== */
+function strBytes(s){ return new TextEncoder().encode(s); }
+function pngChunk(type, data){
+  const out = new Uint8Array(12 + data.length);
+  const dv = new DataView(out.buffer);
+  dv.setUint32(0, data.length);
+  out.set(strBytes(type), 4);
+  out.set(data, 8);
+  let c = 0xFFFFFFFF;
+  for(let i = 4; i < 8 + data.length; i++) c = CRC_TABLE[(c ^ out[i]) & 0xFF] ^ (c >>> 8);
+  dv.setUint32(8 + data.length, (c ^ 0xFFFFFFFF) >>> 0);
+  return out;
+}
+// Возвращает новый PNG с вшитым XMP (iTXt XML:com.adobe.xmp).
+// Пиксели (IDAT) не пережимаются — файл байт-в-байт, кроме добавленного чанка.
+function embedPNG(bytes, rec, withRu){
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  const out = [b.subarray(0, 8)];
+  let p = 8;                                     // PNG-сигнатура
+  while(p < b.length){
+    const len = dv.getUint32(p);
+    const type = new TextDecoder("latin1").decode(b.subarray(p + 4, p + 8));
+    const chunkEnd = p + 12 + len;
+    if(type === "IDAT" || type === "IEND") break;
+    if(type === "iTXt"){
+      const kwEnd = b.indexOf(0, p + 8);
+      const kw = new TextDecoder("latin1").decode(b.subarray(p + 8, kwEnd));
+      if(kw === "XML:com.adobe.xmp"){ p = chunkEnd; continue; } // убрать старый XMP
+    }
+    out.push(b.subarray(p, chunkEnd));
+    p = chunkEnd;
+  }
+  if(p >= b.length) throw new Error("PNG: IDAT не найден");
+  // iTXt: keyword\0 + flag(0) + method(0) + lang\0 + translated\0 + text
+  const data = strBytes(buildXMP(rec, withRu));
+  const head = concatBytes([strBytes("XML:com.adobe.xmp"), new Uint8Array([0, 0, 0, 0, 0])]);
+  out.push(pngChunk("iTXt", concatBytes([head, data])));
+  while(p < b.length){
+    const len = dv.getUint32(p);
+    const chunkEnd = p + 12 + len;
+    out.push(b.subarray(p, chunkEnd));
+    p = chunkEnd;
+  }
+  return concatBytes(out);
+}
+// Самопроверка PNG: ровно один XMP-iTXt, заголовок и первый ключ читаются
+function verifyPNG(bytes, rec){
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  let p = 8, xmp = 0, sawIEND = false, txt = "";
+  while(p + 8 <= b.length){
+    const len = dv.getUint32(p);
+    const type = new TextDecoder("latin1").decode(b.subarray(p + 4, p + 8));
+    if(type === "iTXt"){
+      const kwEnd = b.indexOf(0, p + 8);
+      const kw = new TextDecoder("latin1").decode(b.subarray(p + 8, kwEnd));
+      if(kw === "XML:com.adobe.xmp"){
+        xmp++;
+        const compFlag = b[kwEnd + 1];
+        let s = kwEnd + 3;
+        while(s < b.length && b[s] !== 0) s++;    // lang
+        s++;
+        while(s < b.length && b[s] !== 0) s++;    // translated
+        s++;
+        let body = b.subarray(s, p + 8 + len);
+        if(compFlag === 1) throw new Error("PNG: XMP неожиданно сжат");
+        txt = new TextDecoder("utf-8").decode(body);
+      }
+    }
+    if(type === "IEND"){ sawIEND = true; break; }
+    p += 12 + len;
+  }
+  if(xmp !== 1) throw new Error("XMP-iTXt в результате: " + xmp + " (нужен ровно 1)");
+  if(!sawIEND) throw new Error("PNG: IEND не найден — файл повреждён");
+  if(rec.title && rec.title.length >= 8 && txt.indexOf(rec.title.slice(0, 24)) < 0)
+    throw new Error("заголовок не читается из XMP");
+  const first = (rec.keywords || [])[0];
+  if(first && first.length >= 4 && txt.indexOf(first) < 0)
+    throw new Error("первый ключ не читается из XMP");
+  return {xmp};
+}
+
 /* ============================================================
    18. ВШИВКА В MP4 / MOV — moov/udta/meta/ilst
    Видеоданные не перекодируются, размеры боксов пересчитываются.
@@ -3116,7 +3213,17 @@ function verifyMP4(moovNew, oldMoovSize, fileSize, rec){
    ============================================================ */
 
 function embedName(rec){
-  return stem(rec.filename) + "_meta" + (rec.filename.match(/\.[^.]+$/) || [""])[0].toLowerCase();
+  if(rec._adobeOut) return rec._adobeOut;
+  const fn = String(rec.filename || "");
+  const dot = fn.lastIndexOf(".");
+  const base = dot > 0 ? fn.slice(0, dot) : fn;
+  const ext = dot > 0 ? fn.slice(dot).toLowerCase() : "";
+  const slug = adobeName(base);
+  let name = slug, i = 2;
+  while(adobeUsedOut.has((name + ext).toLowerCase())){ name = slug + "-" + i; i++; }
+  adobeUsedOut.add((name + ext).toLowerCase());
+  rec._adobeOut = name + "_meta" + ext;
+  return rec._adobeOut;
 }
 
 // Видео вшиваем потоком на диск: память не тратится на файл целиком.
@@ -3194,9 +3301,18 @@ async function embedOne(entry, rec, withRu){
   const file = entry.file;
   if(entry.ctype === "video" || /\.(mp4|mov|m4v|mpeg|mpg)$/i.test(file.name)) return embedVideo(file, rec);
   if(/\.(jpe?g)$/i.test(file.name)) return embedPhoto(file, rec, withRu);
+  if(/\.png$/i.test(file.name)) return embedPNGFile(file, rec, withRu);
 
-  // HEIC/WebP/PNG не поддерживаем без потерь — отдаём как есть с предупреждением
-  return {data:null, warn:"Формат " + (file.name.split(".").pop()).toUpperCase() + " не поддерживается для вшивки без потери качества. Только JPEG, MP4, MOV."};
+  // HEIC/WebP не поддерживаем без потерь — отдаём как есть с предупреждением
+  return {data:null, warn:"Формат " + (file.name.split(".").pop()).toUpperCase() + " не поддерживается для вшивки без потери качества. Только JPEG, PNG, MP4, MOV."};
+}
+
+// PNG: XMP вшивается в iTXt-чанк перед IDAT — без пережатия пикселей
+async function embedPNGFile(file, rec, withRu){
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const out = embedPNG(bytes, rec, withRu);
+  verifyPNG(out, rec);
+  return {data:out, note:"XMP вшит в iTXt, пиксели не пережаты (байт-в-байт)"};
 }
 
 async function embedPhoto(file, rec, withRu){
@@ -3248,8 +3364,7 @@ async function writeMetaIndex(){
         content_type:r.content_type || "photo"
       };
       files[r.filename] = v;
-      const ext = (String(r.filename).match(/\.[^.]+$/) || [""])[0].toLowerCase();
-      files[stem(r.filename) + "_meta" + ext] = v;
+      files[embedName(r)] = v;
     }
     const json = JSON.stringify({updated:new Date().toISOString(), count:Object.keys(files).length, files}, null, 1);
     await writeToDir(sub, "metadata-index.json", json);
@@ -3782,6 +3897,7 @@ function initEvents(){
     usedKeywords = new Set();
     usedTitles = [];
     records = [];
+    adobeUsedOut.clear();
     fileEntries = [];
     renderFiles();
     clearEditor();
@@ -3793,6 +3909,7 @@ function initEvents(){
   $("clear-records").onclick = async () => {
     if(!confirm("Удалить все записи метаданных? История ключей останется.")) return;
     records = [];
+    adobeUsedOut.clear();
     clearEditor();
     fileEntries.forEach(e => { e.recordId = null; e.status = "wait"; });
     renderFiles();
