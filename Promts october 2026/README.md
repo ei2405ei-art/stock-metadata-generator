@@ -65,7 +65,7 @@ HTML-файл со всеми данными внутри.
 | Файл | Назначение |
 |---|---|
 | `stock-topics-prompts.html` | Всё приложение (HTML + CSS + JS, один файл) |
-| `SKILL.md` | Техническое ТЗ: data model, hard rules, verification |
+| `Moderator-2026-10-21.md` | Техническое ТЗ: data model, hard rules, verification |
 | `phone-server.js` + `запуск-для-телефона.bat` | Локальный сервер для телефона без интернета |
 | `icon-180.png`, `icon-512.png`, `manifest.webmanifest` | Иконка и манифест для ярлыка на телефоне |
 | `tools/make-screenshots.js` | Пересъёмка скриншотов: `node tools/make-screenshots.js` |
@@ -82,10 +82,10 @@ node tools/make-screenshots.js         # переснять скриншоты (
 
 JS в файле разделён маркером `/* ================= UI ================= */`:
 часть до маркера — данные и логика (тестируется в Node), часть после — DOM/UI.
-Подробности — в [SKILL.md](SKILL.md).
+Подробности — в [Moderator-2026-10-21.md](Moderator-2026-10-21.md).
 
 ## Ссылки
 
-- [ТЗ и архитектура (SKILL.md)](SKILL.md)
+- [ТЗ и архитектура (Moderator-2026-10-21.md)](Moderator-2026-10-21.md)
 - [Metadata Generator](../metadata-generator.html) — title/keywords для готовых работ
 - [Публичный сайт проекта](https://ei2405ei-art.github.io/stock-metadata-generator/)
