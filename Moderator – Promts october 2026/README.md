@@ -7,7 +7,7 @@
 HTML-файл со всеми данными внутри.
 
 **Открыть приложение:**
-[на телефоне и в браузере (публичная ссылка)](https://ei2405ei-art.github.io/stock-metadata-generator/Promts%20october%202026/stock-topics-prompts.html)
+[на телефоне и в браузере (публичная ссылка)](https://ei2405ei-art.github.io/stock-metadata-generator/Moderator%20%E2%80%93%20Promts%20october%202026/stock-topics-prompts.html)
 · или двойным кликом по `stock-topics-prompts.html` на компьютере
 
 ## Скриншоты
@@ -38,7 +38,7 @@ HTML-файл со всеми данными внутри.
 браузере. Ничего устанавливать не нужно.
 
 **Телефон (с интернетом):** откройте
-[публичную ссылку](https://ei2405ei-art.github.io/stock-metadata-generator/Promts%20october%202026/stock-topics-prompts.html)
+[публичную ссылку](https://ei2405ei-art.github.io/stock-metadata-generator/Moderator%20%E2%80%93%20Promts%20october%202026/stock-topics-prompts.html)
 и установите как приложение:
 
 - **Android (Chrome):** меню «⋮» → «Установить приложение»;

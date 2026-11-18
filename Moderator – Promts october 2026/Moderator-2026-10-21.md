@@ -24,11 +24,11 @@ vanilla HTML/CSS/JS, без бэкенда, как `metadata-generator.html`. П
 | `Год Козы 2027/goat2027_prompts.md` | Эталон структуры промптов и пост-инструкций |
 | `themes and promts/Adobe_Stock_чек-лист_перед_загрузкой.md` | Чек-лист, встраивать как финальный шаг |
 | `.opencode/skills/stock-topics-prompts/SKILL.md` | Этот скилл |
-| `Promts october 2026/stock-topics-prompts.html` | Готовое однофайловое приложение (темы, промпты, батч-план, чек-лист) |
-| `Promts october 2026/phone-server.js` + `запуск-для-телефона.bat` | Локальный сервер без зависимостей, чтобы открыть приложение на телефоне в той же Wi-Fi-сети |
-| `Promts october 2026/icon-180.png`, `icon-512.png`, `manifest.webmanifest` | Иконка и манифест для ярлыка на главном экране телефона (генератор — `%TEMP%\opencode\gen_icon.js`, чистый Node+zlib) |
-| `Promts october 2026/README.md` | Описание приложения для GitHub: скриншоты, быстрый старт, структура |
-| `Promts october 2026/tools/make-screenshots.js` | Пересъёмка 5 скриншотов (headless Edge, CDP, без зависимостей): `node tools/make-screenshots.js` → `../screenshots/` |
+| `Moderator – Promts october 2026/stock-topics-prompts.html` | Готовое однофайловое приложение (темы, промпты, батч-план, чек-лист) |
+| `Moderator – Promts october 2026/phone-server.js` + `запуск-для-телефона.bat` | Локальный сервер без зависимостей, чтобы открыть приложение на телефоне в той же Wi-Fi-сети |
+| `Moderator – Promts october 2026/icon-180.png`, `icon-512.png`, `manifest.webmanifest` | Иконка и манифест для ярлыка на главном экране телефона (генератор — `%TEMP%\opencode\gen_icon.js`, чистый Node+zlib) |
+| `Moderator – Promts october 2026/README.md` | Описание приложения для GitHub: скриншоты, быстрый старт, структура |
+| `Moderator – Promts october 2026/tools/make-screenshots.js` | Пересъёмка 5 скриншотов (headless Edge, CDP, без зависимостей): `node tools/make-screenshots.js` → `../screenshots/` |
 | `index.html` (корень) | Лендинг для GitHub Pages: две карточки — Metadata Generator и Topics & Prompts |
 | `metadata-generator.html` (корень) | Референс архитектуры однофайлового приложения, UI, localStorage |
 
@@ -149,5 +149,5 @@ fallback на prompt-окно. Названия и подписи — RU, про
 - Тесты: JS вырезается в `%TEMP%\stp_check.js` (маркер `/* ================= UI ================= */` делит data/UI), затем `stp_ui_stub`, `stp_ui_handlers` (18 сценариев), `stp_done_test` (4 сценария), смоук (buildGrid/urgency/календарь) из `%TEMP%\opencode\`
 - `phone-server.js`: `node --check` + живой запуск (HTTP 200 на `/`, 403 на path traversal)
 - Публикация: репозиторий публичный, GitHub Pages (ветка master, корень `/`),
-  адрес приложения: `https://ei2405ei-art.github.io/stock-metadata-generator/Promts%20october%202026/stock-topics-prompts.html`
+  адрес приложения: `https://ei2405ei-art.github.io/stock-metadata-generator/Moderator%20%E2%80%93%20Promts%20october%202026/stock-topics-prompts.html`
   (HTTPS = пункт «Установить приложение» в Chrome Android; iPhone — Safari → «На экран "Домой"»)

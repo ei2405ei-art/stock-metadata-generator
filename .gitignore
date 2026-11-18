@@ -19,7 +19,7 @@ OllamaSetup.exe
 *.exe
 
 # личная инструкция пользователя Stocks & Prompts — остаётся в папке, на GitHub не публикуется
-Promts october 2026/Инструкция*.md
+Moderator – Promts october 2026/Инструкция*.md
 
 # резервные копии восстановления (страховочные слепки файла приложения)
 *.broken-*.html
